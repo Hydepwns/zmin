@@ -10,11 +10,13 @@ This directory contains utility scripts and tools for the zmin project.
 ## Usage
 
 ### Performance Demo
+
 ```bash
 zig build perf
 ```
 
 ### Generate Large Fixture
+
 ```bash
 zig run tools/generate_large_fixture.zig
 ```
