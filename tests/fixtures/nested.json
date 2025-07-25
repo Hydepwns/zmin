@@ -1,0 +1,19 @@
+{
+  "user": {
+    "profile": {
+      "name": "Alice",
+      "preferences": {
+        "theme": "dark",
+        "notifications": true
+      }
+    },
+    "contacts": [
+      {"name": "Bob", "email": "bob@example.com"},
+      {"name": "Carol", "email": "carol@example.com"}
+    ]
+  },
+  "metadata": {
+    "created": "2023-01-01T00:00:00Z",
+    "version": 1
+  }
+}

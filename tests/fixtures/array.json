@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "data": "first item"
+  },
+  {
+    "id": 2,  
+    "data": "second item"
+  },
+  {
+    "id": 3,
+    "data": "third item"
+  }
+]
