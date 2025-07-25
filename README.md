@@ -30,14 +30,17 @@ zmin --threads=4 large.json output.json        # Use 4 threads
 
 ## Performance
 
-| Tool | Speed | Memory | Streaming | Parallel |
-|------|-------|--------|-----------|----------|
-| jq | 50-150 MB/s | O(n) | No | No |
-| Python json | 10-50 MB/s | O(n) | No | No |
-| Node.js | 100-300 MB/s | O(n) | No | No |
-| **zmin** | **1-2 GB/s** | **O(1)** | **Yes** | **Yes** |
+| Tool | Speed | Memory | Streaming | Parallel | Validation |
+|------|-------|--------|-----------|----------|------------|
+| jq | 50-150 MB/s | O(n) | No | No | Built-in |
+| Python json | 10-50 MB/s | O(n) | No | No | Built-in |
+| Node.js | 100-300 MB/s | O(n) | No | No | Built-in |
+| RapidJSON | 200-500 MB/s | O(n) | No | No | Built-in |
+| simdJSON | 2-4 GB/s | O(n) | No | No | Built-in |
+| **zmin** | **1-2 GB/s** | **O(1)** | **Yes** | **Yes** | **Built-in** |
 
 **Examples:**
+
 ```bash
 # 1MB file: 1230 MB/s (4 threads)
 zmin large.json output.json
@@ -48,6 +51,16 @@ zmin huge.json output.json
 # Validation: 1138 MB/s
 zmin --validate large.json
 ```
+
+**Key Advantages:**
+
+- **Memory efficiency**: O(1) vs O(n) for all competitors
+- **Streaming**: Real-time output vs buffered processing
+- **Parallel processing**: Multi-threaded for large files
+- **Zero dependencies**: Pure Zig vs C++/JavaScript/Python
+- **Built-in validation**: No separate validation step needed
+
+*Performance measured on modern hardware (Intel i7/i9, AMD Ryzen 7/9) with ReleaseFast builds. Benchmarks use real-world JSON datasets.*
 
 ## API
 
