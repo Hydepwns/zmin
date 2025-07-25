@@ -52,13 +52,13 @@ zmin huge.json output.json
 zmin --validate large.json
 ```
 
-**Key Advantages:**
-
-- **Memory efficiency**: O(1) vs O(n) for all competitors
-- **Streaming**: Real-time output vs buffered processing
-- **Parallel processing**: Multi-threaded for large files
-- **Zero dependencies**: Pure Zig vs C++/JavaScript/Python
-- **Built-in validation**: No separate validation step needed
+> **Advantages:**
+>
+> - **Memory efficiency**: O(1) vs O(n) for all competitors
+> - **Streaming**: Real-time output vs buffered processing
+> - **Parallel processing**: Multi-threaded for large files
+> - **Zero dependencies**: Pure Zig vs C++/JavaScript/Python
+> - **Built-in validation**: No separate validation step needed
 
 *Performance measured on modern hardware (Intel i7/i9, AMD Ryzen 7/9) with ReleaseFast builds. Benchmarks use real-world JSON datasets.*
 
