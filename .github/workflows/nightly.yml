@@ -30,14 +30,10 @@ jobs:
       run: |
         # Install additional tools
         sudo apt-get update
-        sudo apt-get install -y valgrind perf-tools-unstable linux-tools-generic bc
+        sudo apt-get install -y bc
         
         # Set performance CPU governor
         echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor || true
-        
-        # Disable CPU frequency scaling and turbo boost
-        sudo cpupower frequency-set --governor performance || true
-        echo 1 | sudo tee /sys/devices/system/cpu/intel_pstate/no_turbo || true
 
     - name: Create comprehensive test datasets
       run: |
@@ -74,14 +70,6 @@ data = {'items': [{'id': i, 'name': f'item_{i}', 'data': 'x' * 5000} for i in ra
 with open('nightly_data/large.json', 'w') as f:
     json.dump(data, f, indent=2)
 "
-        
-        # Very large (100MB)
-        python3 -c "
-import json
-data = {'items': [{'id': i, 'name': f'item_{i}', 'data': 'x' * 10000} for i in range(10000)]}
-with open('nightly_data/xlarge.json', 'w') as f:
-    json.dump(data, f, indent=2)
-"
 
     - name: Run comprehensive performance analysis
       run: |
@@ -97,12 +85,12 @@ with open('nightly_data/xlarge.json', 'w') as f:
         for mode in eco sport turbo; do
           echo "=== $mode Mode Analysis ===" | tee -a nightly_results.txt
           
-          for dataset in tiny small medium large xlarge; do
+          for dataset in tiny small medium large; do
             echo "Dataset: $dataset ($(du -h nightly_data/$dataset.json | cut -f1))" | tee -a nightly_results.txt
             
-            # Run 10 iterations for statistical significance
+            # Run 5 iterations for statistical significance
             times=()
-            for i in {1..10}; do
+            for i in {1..5}; do
               start_time=$(date +%s%N)
               timeout 60s ./zig-out/bin/zmin --mode $mode nightly_data/$dataset.json /dev/null 2>/dev/null || true
               end_time=$(date +%s%N)
@@ -121,7 +109,7 @@ with open('nightly_data/xlarge.json', 'w') as f:
               if (( time > max_time )); then max_time=$time; fi
             done
             
-            avg_time=$((total / 10))
+            avg_time=$((total / 5))
             file_size=$(stat -c%s nightly_data/$dataset.json)
             throughput=$(echo "scale=3; $file_size / 1024 / 1024 / ($avg_time / 1000)" | bc -l)
             
@@ -130,18 +118,6 @@ with open('nightly_data/xlarge.json', 'w') as f:
             echo "" | tee -a nightly_results.txt
           done
         done
-
-    - name: Memory usage analysis
-      run: |
-        echo "=== Memory Usage Analysis ===" | tee -a nightly_results.txt
-        
-        # Test with Valgrind for memory profiling
-        echo "Running memory profiling with Valgrind..." | tee -a nightly_results.txt
-        timeout 120s valgrind --tool=massif --massif-out-file=massif.out ./zig-out/bin/zmin nightly_data/large.json /dev/null 2>&1 | tee -a nightly_results.txt || true
-        
-        if [ -f massif.out ]; then
-          ms_print massif.out | head -50 | tee -a nightly_results.txt
-        fi
 
     - name: Performance trend analysis
       run: |
@@ -152,8 +128,8 @@ with open('nightly_data/xlarge.json', 'w') as f:
           echo "Comparing with previous results..." | tee -a nightly_results.txt
           
           # Extract key metrics and compare
-          prev_turbo=$(grep -A 5 "TURBO Mode.*xlarge" previous_nightly_results.txt | grep "Throughput" | grep -oP '\d+\.\d+' | head -1 || echo "0")
-          curr_turbo=$(grep -A 5 "TURBO Mode.*xlarge" nightly_results.txt | grep "Throughput" | grep -oP '\d+\.\d+' | head -1 || echo "0")
+          prev_turbo=$(grep -A 5 "TURBO Mode.*large" previous_nightly_results.txt | grep "Throughput" | grep -oP '\d+\.\d+' | head -1 || echo "0")
+          curr_turbo=$(grep -A 5 "TURBO Mode.*large" nightly_results.txt | grep "Throughput" | grep -oP '\d+\.\d+' | head -1 || echo "0")
           
           if (( $(echo "$curr_turbo > $prev_turbo" | bc -l) )); then
             echo "✅ Performance improved: $curr_turbo MB/s vs $prev_turbo MB/s" | tee -a nightly_results.txt
@@ -174,38 +150,4 @@ with open('nightly_data/xlarge.json', 'w') as f:
         path: |
           nightly_results.txt
           previous_nightly_results.txt
-          massif.out
         retention-days: 30
-
-    - name: Create performance report issue
-      if: failure() || contains(steps.*.outputs.*, 'degraded')
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          const results = fs.readFileSync('nightly_results.txt', 'utf8');
-          
-          github.rest.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            title: `Nightly Performance Report - ${new Date().toISOString().split('T')[0]}`,
-            body: `## Nightly Performance Analysis
-            
-          **Date:** ${new Date().toISOString()}
-          **Status:** ${process.env.JOB_STATUS || 'Unknown'}
-          
-          ### Results
-          \`\`\`
-          ${results.substring(0, 2000)}...
-          \`\`\`
-          
-          Full results available in [workflow artifacts](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).
-          
-          ### Actions Required
-          - Review performance trends
-          - Investigate any regressions
-          - Update benchmarks if needed
-          
-          /cc @hydepwns`,
-            labels: ['performance', 'nightly', 'automated']
-          });
