@@ -27,12 +27,15 @@ All performance targets achieved. Production deployment ready.
 
 ### Comparative Analysis
 
-| Tool | Throughput | Memory | Streaming |
-|------|------------|--------|-----------|
-| **zmin** | 91 MB/s | O(1) | ✅ |
-| jq -c | 150 MB/s | O(n) | ❌ |
-| node JSON.stringify | 200 MB/s | O(n) | ❌ |
-| RapidJSON | 400 MB/s | O(n) | ❌ |
+| Tool | Throughput | Memory | Streaming | Notes |
+|------|------------|--------|-----------|-------|
+| **zmin** | 91 MB/s | O(1) - 64KB | ✅ | Constant memory, true streaming |
+| jq -c | 150 MB/s | O(n) | ❌ | Loads entire JSON into memory |
+| node JSON.stringify | 200 MB/s | O(n) | ❌ | JavaScript overhead, full parse |
+| simdjson | 2-3 GB/s | O(n) | ✅* | SIMD-optimized, streaming API available |
+| RapidJSON | 400 MB/s | O(n) | ❌ | C++ template-based, DOM parsing |
+
+*simdjson offers both DOM and streaming (On-Demand) APIs. The streaming API still requires the entire document in memory but provides lazy evaluation.
 
 ## Implementation
 
@@ -45,19 +48,29 @@ All performance targets achieved. Production deployment ready.
 - ✅ Comprehensive error handling and recovery
 - ✅ 98.7% test coverage (76/77 tests passing)
 
-### Test Commands
+### Running Benchmarks
 
 ```bash
-zig build test              # Full test suite
-zig build test:performance  # Performance benchmarks
-zig build test:integration  # API consistency tests
+zig build benchmark         # Run performance benchmarks
 zig build tools:badges      # Generate performance badges
 ```
 
-## Technical Achievements
+For complete test commands, see [TESTING.md](tests/TESTING.md).
 
-1. **API Consistency**: All minifier variants produce identical output
-2. **Memory Efficiency**: O(1) usage with 64KB buffer for any input size  
-3. **Performance**: 91+ MB/s average throughput exceeds targets
-4. **Quality**: 98.7% test success rate with comprehensive coverage
-5. **Production Ready**: Green builds, complete CI/CD pipeline
+## Design Trade-offs
+
+### zmin vs simdjson
+
+While simdjson achieves 2-3 GB/s throughput using SIMD instructions, zmin prioritizes:
+
+1. **True O(1) memory**: 64KB constant vs simdjson's document-sized buffer
+2. **Zero dependencies**: Pure Zig vs C++ with platform-specific SIMD
+3. **Simplicity**: Single-pass state machine vs complex SIMD parsing
+4. **Portability**: Works on any platform vs requires specific CPU features
+
+### When to use each:
+
+- **zmin**: Memory-constrained environments, embedded systems, streaming large files
+- **simdjson**: Maximum throughput on modern CPUs, when memory isn't constrained
+- **jq**: Command-line JSON manipulation beyond minification
+- **RapidJSON**: C++ projects requiring full JSON DOM manipulation
