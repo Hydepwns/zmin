@@ -1,5 +1,4 @@
 const std = @import("std");
-const cpu_detection = @import("cpu_detection.zig");
 
 /// Memory bandwidth optimizer for high-performance JSON processing
 pub const MemoryOptimizer = struct {
@@ -20,12 +19,11 @@ pub const MemoryOptimizer = struct {
     allocator: std.mem.Allocator,
     
     pub fn init(allocator: std.mem.Allocator) !MemoryOptimizer {
-        const cpu_info = cpu_detection.CpuInfo.init();
         
         return MemoryOptimizer{
             .cache_line_size = 64, // Modern CPUs typically use 64-byte cache lines
             .page_size = 4096, // Standard 4KB pages
-            .prefetch_distance = cpu_info.cache_info.l1_data_size / 4, // Prefetch distance based on L1 cache
+            .prefetch_distance = 32 * 1024 / 4, // Assume 32KB L1 cache, prefetch 1/4
             .buffer_pool = try BufferPool.init(allocator, 32), // Pool of 32 buffers
             .cache_misses = std.atomic.Value(u64).init(0),
             .cache_hits = std.atomic.Value(u64).init(0),
@@ -88,55 +86,69 @@ pub const MemoryOptimizer = struct {
     }
     
     fn processChunkOptimized(self: *MemoryOptimizer, input: []const u8, output: []u8) !usize {
-        // Process data in cache-line aligned chunks
+        // Process data with proper JSON minification
         var output_pos: usize = 0;
         var pos: usize = 0;
+        var in_string = false;
+        var escaped = false;
         
-        // Align to cache line boundaries for optimal performance
-        const aligned_start = std.mem.alignForward(usize, @intFromPtr(input.ptr), self.cache_line_size);
-        const alignment_offset = aligned_start - @intFromPtr(input.ptr);
-        
-        // Process unaligned prefix
-        while (pos < @min(alignment_offset, input.len)) {
-            const byte = input[pos];
-            if (!isWhitespace(byte)) {
-                output[output_pos] = byte;
-                output_pos += 1;
-            }
-            pos += 1;
-        }
-        
-        // Process aligned chunks
-        while (pos + self.cache_line_size <= input.len) {
-            const chunk_start = pos;
-            const chunk_end = pos + self.cache_line_size;
-            
-            // Track cache performance
-            if (self.isCacheAligned(&input[pos])) {
-                _ = self.cache_hits.fetchAdd(1, .monotonic);
+        // JSON-aware minification with cache optimization
+        while (pos < input.len) {
+            if (in_string) {
+                // In string: copy everything including whitespace
+                const start_pos = pos;
+                var end_pos = pos;
+                
+                // Find end of string using bulk scanning
+                while (end_pos < input.len) {
+                    const c = input[end_pos];
+                    if (c == '"' and !escaped) {
+                        break;
+                    } else if (c == '\\' and !escaped) {
+                        escaped = true;
+                    } else {
+                        escaped = false;
+                    }
+                    end_pos += 1;
+                }
+                
+                // Bulk copy string content
+                const chunk_len = end_pos - start_pos;
+                if (chunk_len > 0) {
+                    @memcpy(output[output_pos..output_pos+chunk_len], input[start_pos..end_pos]);
+                    output_pos += chunk_len;
+                }
+                
+                // Handle closing quote
+                if (end_pos < input.len and input[end_pos] == '"') {
+                    output[output_pos] = '"';
+                    output_pos += 1;
+                    in_string = false;
+                    escaped = false;
+                    pos = end_pos + 1;
+                } else {
+                    pos = end_pos;
+                }
             } else {
-                _ = self.cache_misses.fetchAdd(1, .monotonic);
-            }
-            
-            // Process cache line efficiently
-            for (input[chunk_start..chunk_end]) |byte| {
-                if (!isWhitespace(byte)) {
-                    output[output_pos] = byte;
+                // Outside string: skip whitespace
+                const c = input[pos];
+                if (c == '"') {
+                    output[output_pos] = c;
+                    output_pos += 1;
+                    in_string = true;
+                } else if (!isWhitespace(c)) {
+                    output[output_pos] = c;
                     output_pos += 1;
                 }
+                pos += 1;
             }
-            
-            pos += self.cache_line_size;
         }
         
-        // Process remaining bytes
-        while (pos < input.len) {
-            const byte = input[pos];
-            if (!isWhitespace(byte)) {
-                output[output_pos] = byte;
-                output_pos += 1;
-            }
-            pos += 1;
+        // Track cache performance
+        if (self.isCacheAligned(&input[0])) {
+            _ = self.cache_hits.fetchAdd(1, .monotonic);
+        } else {
+            _ = self.cache_misses.fetchAdd(1, .monotonic);
         }
         
         return output_pos;

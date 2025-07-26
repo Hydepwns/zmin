@@ -129,10 +129,10 @@ fn detectCpuModel() []const u8 {
 }
 
 fn detectCpuFeatures() CpuFeatures {
-    // In a real implementation, this would use CPUID to check feature flags
-    // For now, we'll use a conservative approach based on architecture
-
-    if (@import("builtin").target.cpu.arch != .x86_64) {
+    const builtin = @import("builtin");
+    const cpu = builtin.cpu;
+    
+    if (cpu.arch != .x86_64) {
         return CpuFeatures{
             .sse = false,
             .sse2 = false,
@@ -152,23 +152,23 @@ fn detectCpuFeatures() CpuFeatures {
         };
     }
 
-    // Conservative defaults for x86_64
+    // Use Zig's built-in CPU feature detection
     return CpuFeatures{
-        .sse = true,
-        .sse2 = true, // Most x86_64 systems have SSE2
-        .sse3 = false,
-        .ssse3 = false,
-        .sse4_1 = false,
-        .sse4_2 = false,
-        .avx = false,
-        .avx2 = false,
-        .avx512f = false,
-        .avx512dq = false,
-        .avx512bw = false,
-        .avx512vl = false,
-        .popcnt = false,
-        .bmi1 = false,
-        .bmi2 = false,
+        .sse = std.Target.x86.featureSetHas(cpu.features, .sse),
+        .sse2 = std.Target.x86.featureSetHas(cpu.features, .sse2),
+        .sse3 = std.Target.x86.featureSetHas(cpu.features, .sse3),
+        .ssse3 = std.Target.x86.featureSetHas(cpu.features, .ssse3),
+        .sse4_1 = std.Target.x86.featureSetHas(cpu.features, .sse4_1),
+        .sse4_2 = std.Target.x86.featureSetHas(cpu.features, .sse4_2),
+        .avx = std.Target.x86.featureSetHas(cpu.features, .avx),
+        .avx2 = std.Target.x86.featureSetHas(cpu.features, .avx2),
+        .avx512f = std.Target.x86.featureSetHas(cpu.features, .avx512f),
+        .avx512dq = std.Target.x86.featureSetHas(cpu.features, .avx512dq),
+        .avx512bw = std.Target.x86.featureSetHas(cpu.features, .avx512bw),
+        .avx512vl = std.Target.x86.featureSetHas(cpu.features, .avx512vl),
+        .popcnt = std.Target.x86.featureSetHas(cpu.features, .popcnt),
+        .bmi1 = std.Target.x86.featureSetHas(cpu.features, .bmi),
+        .bmi2 = std.Target.x86.featureSetHas(cpu.features, .bmi2),
     };
 }
 
