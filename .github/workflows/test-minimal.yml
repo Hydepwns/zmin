@@ -1,0 +1,17 @@
+name: Test Minimal
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test-basic:
+    name: Basic Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Echo test
+      run: echo "Hello from minimal workflow"
