@@ -1,4 +1,4 @@
-# Zmin: Ultra-High-Performance JSON Minifier
+# Zmin: High-Performance JSON Minifier
 
 JSON minifier with **3.5+ GB/s** throughput. Zero dependencies, pure Zig.
 
