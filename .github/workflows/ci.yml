@@ -27,4 +27,4 @@ jobs:
       run: zig build
 
     - name: Run tests
-      run: zig build test
+      run: zig build test:fast
