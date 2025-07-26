@@ -1,40 +1,24 @@
-# Zmin Quick Reference
+# Quick Reference
 
-## Core Documentation
-
-- **[README.md](README.md)** - Overview, installation, basic usage
-- **[PERFORMANCE.md](PERFORMANCE.md)** - Benchmarks, comparative analysis, trade-offs
-- **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)** - Architecture, components, development roadmap
-- **[tests/TESTING.md](tests/TESTING.md)** - Test coverage, running tests
-- **[tests/CI_CD_GUIDE.md](tests/CI_CD_GUIDE.md)** - CI/CD pipeline, tools, automation
-
-## Common Commands
+## Commands
 
 ```bash
-# Build & Run
-zig build                    # Build zmin
-zmin input.json -o out.json  # Minify JSON
-
-# Testing
-zig build test               # Run all tests
-zig build benchmark          # Performance benchmarks
-
-# Development
-./scripts/test-ci.sh         # Test CI locally
-zig build tools:badges       # Generate badges
+zig build && zmin input.json -o output.json  # Build & minify
+zmin --mode turbo large.json -o out.json     # Max speed
+zmin --pretty input.json                     # Pretty print
+zig build test && zig build benchmark        # Test & benchmark
 ```
 
-## Key Features
+## Performance Modes
 
-- **91+ MB/s** throughput with **O(1) memory** (64KB)
-- True streaming - handles files of any size
-- Zero dependencies - pure Zig implementation
-- 98.7% test coverage
-
-## Performance Comparison
-
-| Tool | Speed | Memory | Use When |
+| Mode | Speed | Memory | Use Case |
 |------|-------|--------|----------|
-| zmin | 91 MB/s | 64KB | Memory constrained, streaming needed |
-| simdjson | 2-3 GB/s | O(n) | Maximum speed, memory available |
-| jq | 150 MB/s | O(n) | Command-line manipulation |
+| ECO | 580 MB/s | 64KB | Memory-constrained |
+| SPORT | 850 MB/s | O(√n) | Balanced |
+| TURBO | 3.5+ GB/s | O(n) | Maximum speed |
+
+## Documentation
+
+- [README.md](README.md) - Installation & usage
+- [PERFORMANCE.md](PERFORMANCE.md) - Benchmarks
+- [tests/TESTING.md](tests/TESTING.md) - Test coverage
