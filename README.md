@@ -2,7 +2,7 @@
 
 JSON minifier with **3.5+ GB/s** throughput. Zero dependencies, pure Zig.
 
-[![Build Status](badges/build.svg)](https://github.com/hydepwns/zmin/actions) [![Zig Version](badges/zig.svg)](https://ziglang.org/) [![Performance](badges/performance.svg)](PERFORMANCE.md) [![License](badges/license.svg)](LICENSE) [![Platforms](badges/platforms.svg)](https://github.com/hydepwns/zmin/releases) [![Memory](badges/memory.svg)](PERFORMANCE.md) [![SIMD](badges/simd.svg)](TECHNICAL_IMPLEMENTATION.md) [![Test Coverage](badges/test-coverage.svg)](tests/)
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen) ![Zig Version](https://img.shields.io/badge/zig-0.11-orange) ![Performance](https://img.shields.io/badge/performance-3.5GB%2Fs-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows-lightgrey) ![Memory](https://img.shields.io/badge/memory-64KB-yellow) ![SIMD](https://img.shields.io/badge/SIMD-enabled-brightgreen) ![Test Coverage](https://img.shields.io/badge/test%20coverage-98.7%25-brightgreen)
 
 ## Quick Start
 
