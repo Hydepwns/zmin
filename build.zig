@@ -23,17 +23,10 @@ const ModuleRegistry = struct {
     performance_mod: *std.Build.Module,
     minifier_interface_mod: *std.Build.Module,
 
-    // Turbo minifier variants
+    // Mode minifiers
     eco_minifier_mod: *std.Build.Module,
     sport_minifier_mod: *std.Build.Module,
-    turbo_minifier_mod: *std.Build.Module,
-    turbo_minifier_simd_mod: *std.Build.Module,
-    turbo_minifier_parallel_mod: *std.Build.Module,
-    turbo_minifier_scalar_mod: *std.Build.Module,
-    turbo_minifier_streaming_mod: *std.Build.Module,
-    turbo_minifier_simple_mod: *std.Build.Module,
-    turbo_minifier_optimized_v2_mod: *std.Build.Module,
-    turbo_minifier_mmap_mod: *std.Build.Module,
+    turbo_unified_mod: *std.Build.Module,
 
     // Performance and parallel modules
     optimized_work_stealing_mod: *std.Build.Module,
@@ -161,51 +154,8 @@ fn createModules(b: *std.Build, config: Config) ModuleRegistry {
         .optimize = config.optimize,
     });
 
-    const turbo_minifier_mod = b.createModule(.{
-        .root_source_file = b.path("src/modes/turbo_minifier.zig"),
-        .target = config.target,
-        .optimize = config.optimize,
-    });
-
-    // Turbo variants
-    const turbo_minifier_simd_mod = b.createModule(.{
-        .root_source_file = b.path("src/modes/turbo_minifier_simd_v2.zig"),
-        .target = config.target,
-        .optimize = config.optimize,
-    });
-
-    const turbo_minifier_parallel_mod = b.createModule(.{
-        .root_source_file = b.path("src/modes/turbo_minifier_parallel.zig"),
-        .target = config.target,
-        .optimize = config.optimize,
-    });
-
-    const turbo_minifier_scalar_mod = b.createModule(.{
-        .root_source_file = b.path("src/modes/turbo_minifier_scalar.zig"),
-        .target = config.target,
-        .optimize = config.optimize,
-    });
-
-    const turbo_minifier_streaming_mod = b.createModule(.{
-        .root_source_file = b.path("src/modes/turbo_minifier_streaming.zig"),
-        .target = config.target,
-        .optimize = config.optimize,
-    });
-
-    const turbo_minifier_simple_mod = b.createModule(.{
-        .root_source_file = b.path("src/modes/turbo_minifier_simple.zig"),
-        .target = config.target,
-        .optimize = config.optimize,
-    });
-
-    const turbo_minifier_optimized_v2_mod = b.createModule(.{
-        .root_source_file = b.path("src/modes/turbo_minifier_optimized_v2.zig"),
-        .target = config.target,
-        .optimize = config.optimize,
-    });
-
-    const turbo_minifier_mmap_mod = b.createModule(.{
-        .root_source_file = b.path("src/modes/turbo_minifier_mmap.zig"),
+    const turbo_unified_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo/mod.zig"),
         .target = config.target,
         .optimize = config.optimize,
     });
@@ -238,14 +188,7 @@ fn createModules(b: *std.Build, config: Config) ModuleRegistry {
         .minifier_interface_mod = minifier_interface_mod,
         .eco_minifier_mod = eco_minifier_mod,
         .sport_minifier_mod = sport_minifier_mod,
-        .turbo_minifier_mod = turbo_minifier_mod,
-        .turbo_minifier_simd_mod = turbo_minifier_simd_mod,
-        .turbo_minifier_parallel_mod = turbo_minifier_parallel_mod,
-        .turbo_minifier_scalar_mod = turbo_minifier_scalar_mod,
-        .turbo_minifier_streaming_mod = turbo_minifier_streaming_mod,
-        .turbo_minifier_simple_mod = turbo_minifier_simple_mod,
-        .turbo_minifier_optimized_v2_mod = turbo_minifier_optimized_v2_mod,
-        .turbo_minifier_mmap_mod = turbo_minifier_mmap_mod,
+        .turbo_unified_mod = turbo_unified_mod,
         .optimized_work_stealing_mod = optimized_work_stealing_mod,
         .memory_optimizer_mod = memory_optimizer_mod,
     };
@@ -267,20 +210,15 @@ fn setupModuleDependencies(modules: ModuleRegistry) void {
 
     // Setup mode dependencies
     modules.eco_minifier_mod.addImport("minifier", modules.minifier_mod);
-    modules.turbo_minifier_mod.addImport("cpu_detection", modules.cpu_detection_mod);
-    modules.turbo_minifier_simd_mod.addImport("minifier", modules.minifier_mod);
-    modules.turbo_minifier_scalar_mod.addImport("cpu_detection", modules.cpu_detection_mod);
-    modules.turbo_minifier_streaming_mod.addImport("cpu_detection", modules.cpu_detection_mod);
-    modules.turbo_minifier_optimized_v2_mod.addImport("cpu_detection", modules.cpu_detection_mod);
-    modules.turbo_minifier_mmap_mod.addImport("cpu_detection", modules.cpu_detection_mod);
-    modules.turbo_minifier_parallel_mod.addImport("cpu_detection", modules.cpu_detection_mod);
+    modules.sport_minifier_mod.addImport("minifier", modules.minifier_mod);
+    modules.turbo_unified_mod.addImport("cpu_detection", modules.cpu_detection_mod);
 
     // Setup minifier interface dependencies
     modules.minifier_interface_mod.addImport("mod", modules.modes_mod);
     modules.minifier_interface_mod.addImport("minifier", modules.minifier_mod);
     modules.minifier_interface_mod.addImport("eco_minifier", modules.eco_minifier_mod);
     modules.minifier_interface_mod.addImport("sport_minifier", modules.sport_minifier_mod);
-    modules.minifier_interface_mod.addImport("turbo_minifier", modules.turbo_minifier_mod);
+    modules.minifier_interface_mod.addImport("turbo_unified", modules.turbo_unified_mod);
 }
 
 fn createLibrary(b: *std.Build, modules: ModuleRegistry) *std.Build.Step.Compile {
@@ -458,8 +396,7 @@ fn createBenchmarks(b: *std.Build, config: Config, modules: ModuleRegistry) void
         .target = config.target,
         .optimize = .ReleaseFast,
     });
-    simd_benchmark.root_module.addImport("turbo_minifier_simd", modules.turbo_minifier_simd_mod);
-    simd_benchmark.root_module.addImport("turbo_minifier_simple", modules.turbo_minifier_simple_mod);
+    simd_benchmark.root_module.addImport("turbo_unified", modules.turbo_unified_mod);
 
     const run_simd_benchmark = b.addRunArtifact(simd_benchmark);
     const simd_benchmark_step = b.step("benchmark:simd", "Benchmark SIMD whitespace detection");
