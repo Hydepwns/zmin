@@ -20,5 +20,5 @@ test "simple_parallel_minifier - basic functionality" {
     try minifier.process(input);
     try minifier.flush();
 
-    try testing.expectEqualStrings(expected, minifier.getOutput());
+    try testing.expectEqualStrings(expected, output.items);
 }

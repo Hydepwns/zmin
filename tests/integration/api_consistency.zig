@@ -88,7 +88,7 @@ fn minifyWithSimpleParallel(allocator: std.mem.Allocator, input: []const u8) ![]
     try minifier.process(input);
     try minifier.flush();
     
-    return allocator.dupe(u8, minifier.getOutput());
+    return allocator.dupe(u8, dummy_output.items);
 }
 
 fn loadFixture(allocator: std.mem.Allocator, filename: []const u8) ![]u8 {

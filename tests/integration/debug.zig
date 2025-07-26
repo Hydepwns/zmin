@@ -20,8 +20,6 @@ test "debug - simple_parallel_minifier output" {
     try minifier.process(input);
     try minifier.flush();
 
-    // SimpleParallelMinifier stores output internally, not in the provided writer
-    // Use getOutput() to retrieve the processed result
-    const actual_output = minifier.getOutput();
-    try testing.expectEqualStrings(expected, actual_output);
+    // The minifier writes to the provided writer (output ArrayList)
+    try testing.expectEqualStrings(expected, output.items);
 }
