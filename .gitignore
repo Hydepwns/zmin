@@ -1,3 +1,30 @@
+# Zig build artifacts
 .zig-cache/
 zig-out/
 *.o
+
+# Temporary and output files
+*.tmp
+*.temp
+*.log
+*_out.json
+*_output.json
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Claude AI assistant files
+.claude/

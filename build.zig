@@ -91,13 +91,13 @@ pub fn build(b: *std.Build) void {
     lib_mod.addImport("performance", performance_mod);
     lib_mod.addImport("cpu_detection", cpu_detection_mod);
 
-    // We will also create a module for our other entry point, 'main.zig'.
+    // We will also create a module for our other entry point, 'main_simple.zig'.
     const exe_mod = b.createModule(.{
         // `root_source_file` is the Zig "entry point" of the module. If a module
         // only contains e.g. external object files, you can make this `null`.
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path("src/main_simple.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -133,12 +133,6 @@ pub fn build(b: *std.Build) void {
     // Create test modules for parallel components
     const parallel_config_test_mod = b.createModule(.{
         .root_source_file = b.path("tests/parallel/config.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const parallel_work_queue_test_mod = b.createModule(.{
-        .root_source_file = b.path("tests/parallel/work_queue.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -194,7 +188,7 @@ pub fn build(b: *std.Build) void {
     parallel_simple_test_mod.addImport("src", lib_mod);
     basic_test_mod.addImport("src", lib_mod);
     parallel_config_test_mod.addImport("src", lib_mod);
-    parallel_work_queue_test_mod.addImport("src", lib_mod);
+
     parallel_chunk_processor_test_mod.addImport("src", lib_mod);
     minimal_test_mod.addImport("src", lib_mod);
     debug_test_mod.addImport("src", lib_mod);
@@ -313,66 +307,11 @@ pub fn build(b: *std.Build) void {
     });
     const run_performance_tests = b.addRunArtifact(performance_tests);
 
-    // Optimization test executable
-    const opt_test_exe = b.addExecutable(.{
-        .name = "test_optimizations",
-        .root_source_file = b.path("src/test_optimizations.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    opt_test_exe.root_module.addImport("minifier", minifier_mod);
-    b.installArtifact(opt_test_exe);
-
-    const opt_test_run_cmd = b.addRunArtifact(opt_test_exe);
-    opt_test_run_cmd.step.dependOn(b.getInstallStep());
-
-    const opt_test_step = b.step("test_optimizations", "Test the new optimizations");
-    opt_test_step.dependOn(&opt_test_run_cmd.step);
-
-    // Advanced SIMD test executable
-    const advanced_simd_exe = b.addExecutable(.{
-        .name = "test_advanced_simd",
-        .root_source_file = b.path("src/test_advanced_simd.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    advanced_simd_exe.root_module.addImport("performance", performance_mod);
-    advanced_simd_exe.root_module.addImport("cpu_detection", cpu_detection_mod);
-    b.installArtifact(advanced_simd_exe);
-
-    const advanced_simd_run_cmd = b.addRunArtifact(advanced_simd_exe);
-    advanced_simd_run_cmd.step.dependOn(b.getInstallStep());
-
-    const advanced_simd_step = b.step("test_advanced_simd", "Test advanced SIMD implementation");
-    advanced_simd_step.dependOn(&advanced_simd_run_cmd.step);
-
-    // Performance scaling test executable
-    const perf_scaling_exe = b.addExecutable(.{
-        .name = "test_performance_scaling",
-        .root_source_file = b.path("src/test_performance_scaling.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    perf_scaling_exe.root_module.addImport("performance", performance_mod);
-    perf_scaling_exe.root_module.addImport("cpu_detection", cpu_detection_mod);
-    b.installArtifact(perf_scaling_exe);
-
-    const perf_scaling_run_cmd = b.addRunArtifact(perf_scaling_exe);
-    perf_scaling_run_cmd.step.dependOn(b.getInstallStep());
-
-    const perf_scaling_step = b.step("test_performance_scaling", "Test performance scaling with large datasets");
-    perf_scaling_step.dependOn(&perf_scaling_run_cmd.step);
-
     // Re-enabled parallel tests after fixes
     const parallel_config_tests = b.addTest(.{
         .root_module = parallel_config_test_mod,
     });
     const run_parallel_config_tests = b.addRunArtifact(parallel_config_tests);
-
-    const parallel_work_queue_tests = b.addTest(.{
-        .root_module = parallel_work_queue_test_mod,
-    });
-    const run_parallel_work_queue_tests = b.addRunArtifact(parallel_work_queue_tests);
 
     const parallel_chunk_processor_tests = b.addTest(.{
         .root_module = parallel_chunk_processor_test_mod,
@@ -411,7 +350,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_basic_tests.step);
     test_step.dependOn(&run_performance_tests.step);
     test_step.dependOn(&run_parallel_config_tests.step);
-    test_step.dependOn(&run_parallel_work_queue_tests.step);
+
     test_step.dependOn(&run_parallel_chunk_processor_tests.step);
     test_step.dependOn(&run_minimal_tests.step);
     test_step.dependOn(&run_debug_tests.step);
@@ -426,7 +365,7 @@ pub fn build(b: *std.Build) void {
     test_parallel_step.dependOn(&run_parallel_tests.step);
     test_parallel_step.dependOn(&run_parallel_simple_tests.step);
     test_parallel_step.dependOn(&run_parallel_config_tests.step);
-    test_parallel_step.dependOn(&run_parallel_work_queue_tests.step);
+
     test_parallel_step.dependOn(&run_parallel_chunk_processor_tests.step);
 
     const test_performance_step = b.step("test:performance", "Run performance tests");
@@ -444,7 +383,7 @@ pub fn build(b: *std.Build) void {
     test_fast_step.dependOn(&run_basic_tests.step);
     test_fast_step.dependOn(&run_extended_tests.step);
     test_fast_step.dependOn(&run_parallel_config_tests.step);
-    test_fast_step.dependOn(&run_parallel_work_queue_tests.step);
+
     test_fast_step.dependOn(&run_minimal_tests.step);
     test_fast_step.dependOn(&run_debug_tests.step);
     test_fast_step.dependOn(&run_api_consistency_tests.step);
@@ -479,111 +418,6 @@ pub fn build(b: *std.Build) void {
     run_ci_tests.addArg("--summary-report");
     const ci_step = b.step("test:ci", "Run tests with CI-friendly output");
     ci_step.dependOn(&run_ci_tests.step);
-
-    // Add comprehensive benchmark executable
-    const benchmark_exe = b.addExecutable(.{
-        .name = "zmin-benchmark",
-        .root_source_file = .{ .cwd_relative = "src/benchmark_main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    benchmark_exe.root_module.addImport("zmin_lib", lib_mod);
-    b.installArtifact(benchmark_exe);
-
-    // Add benchmark step
-    const run_benchmark = b.addRunArtifact(benchmark_exe);
-    const benchmark_step = b.step("benchmark", "Run comprehensive benchmark suite");
-    benchmark_step.dependOn(&run_benchmark.step);
-
-    // Add Phase 2 test executable
-    const phase2_test_exe = b.addExecutable(.{
-        .name = "test-phase2",
-        .root_source_file = .{ .cwd_relative = "tools/test_phase2.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    phase2_test_exe.root_module.addImport("parallel", parallel_mod);
-    b.installArtifact(phase2_test_exe);
-
-    // Add Phase 2 test step
-    const run_phase2_test = b.addRunArtifact(phase2_test_exe);
-    const phase2_test_step = b.step("test:phase2", "Test Phase 2: Advanced Parallel Processing");
-    phase2_test_step.dependOn(&run_phase2_test.step);
-
-    // Add Next Phase test executable
-    const next_phase_test_exe = b.addExecutable(.{
-        .name = "test-next-phase",
-        .root_source_file = .{ .cwd_relative = "test_performance_improvements.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    next_phase_test_exe.root_module.addImport("high_performance_minifier", b.createModule(.{
-        .root_source_file = b.path("src/performance/high_performance_minifier.zig"),
-        .target = target,
-        .optimize = optimize,
-    }));
-    next_phase_test_exe.root_module.addImport("simple_multi_threaded_minifier", b.createModule(.{
-        .root_source_file = b.path("src/performance/simple_multi_threaded_minifier.zig"),
-        .target = target,
-        .optimize = optimize,
-    }));
-    b.installArtifact(next_phase_test_exe);
-
-    // Add Next Phase test step
-    const run_next_phase_test = b.addRunArtifact(next_phase_test_exe);
-    const next_phase_test_step = b.step("test:next-phase", "Test Next Phase: High Performance Optimizations");
-    next_phase_test_step.dependOn(&run_next_phase_test.step);
-
-    // Add Next Phase Integration test executable
-    const next_phase_integration_exe = b.addExecutable(.{
-        .name = "test-next-phase-integration",
-        .root_source_file = b.path("src/test_next_phase_integration.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    next_phase_integration_exe.root_module.addImport("zmin_lib", lib_mod);
-    next_phase_integration_exe.root_module.addImport("validation", validation_mod);
-    next_phase_integration_exe.root_module.addImport("schema", schema_mod);
-    next_phase_integration_exe.root_module.addImport("production", production_mod);
-    next_phase_integration_exe.root_module.addImport("logging", logging_mod);
-    next_phase_integration_exe.root_module.addImport("performance", performance_mod);
-    next_phase_integration_exe.root_module.addImport("cpu_detection", cpu_detection_mod);
-    b.installArtifact(next_phase_integration_exe);
-
-    // Add Next Phase Integration test step
-    const run_next_phase_integration = b.addRunArtifact(next_phase_integration_exe);
-    const next_phase_integration_step = b.step("test:integration-next", "Test Next Phase: Complete Integration Test");
-    next_phase_integration_step.dependOn(&run_next_phase_integration.step);
-
-    // Add Next Phase Simple test executable
-    const next_phase_simple_exe = b.addExecutable(.{
-        .name = "test-next-phase-simple",
-        .root_source_file = b.path("src/test_next_phase_simple.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    next_phase_simple_exe.root_module.addImport("zmin_lib", lib_mod);
-    b.installArtifact(next_phase_simple_exe);
-
-    // Add Next Phase Simple test step
-    const run_next_phase_simple = b.addRunArtifact(next_phase_simple_exe);
-    const next_phase_simple_step = b.step("test:simple-next", "Test Next Phase: Simple Integration Test");
-    next_phase_simple_step.dependOn(&run_next_phase_simple.step);
-
-    // Add Ultimate Performance test executable
-    const ultimate_perf_exe = b.addExecutable(.{
-        .name = "test-ultimate-performance",
-        .root_source_file = b.path("src/test_ultimate_performance.zig"),
-        .target = target,
-        .optimize = .ReleaseFast, // Maximum optimization for performance testing
-    });
-    ultimate_perf_exe.root_module.addImport("zmin_lib", lib_mod);
-    b.installArtifact(ultimate_perf_exe);
-
-    // Add Ultimate Performance test step
-    const run_ultimate_perf = b.addRunArtifact(ultimate_perf_exe);
-    const ultimate_perf_step = b.step("test:ultimate", "Test Ultimate Performance: 4 GB/s Target Benchmark");
-    ultimate_perf_step.dependOn(&run_ultimate_perf.step);
 
     // Add CI/CD Tools
     const performance_monitor_exe = b.addExecutable(.{
@@ -621,6 +455,6 @@ pub fn build(b: *std.Build) void {
     ci_pipeline_step.dependOn(&run_parallel_simple_tests.step);
     ci_pipeline_step.dependOn(&run_basic_tests.step);
     ci_pipeline_step.dependOn(&run_performance_tests.step);
-    ci_pipeline_step.dependOn(&run_ultimate_perf.step);
+
     ci_pipeline_step.dependOn(&run_badge_generator.step);
 }
