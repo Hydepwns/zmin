@@ -1,0 +1,124 @@
+name: Feature Request
+description: Suggest an idea for zmin
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+assignees: ["hydepwns"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature for zmin! 🚀
+
+  - type: dropdown
+    id: feature-type
+    attributes:
+      label: Feature Type
+      description: What type of feature are you requesting?
+      options:
+        - Performance optimization
+        - New processing mode
+        - CLI improvement
+        - Output format support
+        - Integration/API
+        - Documentation
+        - Build/packaging
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Description
+      description: What problem does this feature solve? Is your feature request related to a problem?
+      placeholder: I'm always frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see
+      placeholder: I would like zmin to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered
+      placeholder: Alternative approaches could be...
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Describe your specific use case and how this feature would benefit users
+      placeholder: |
+        I work with large JSON files (>1GB) and need...
+        This would help because...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Critical (blocking my work)
+        - High (would significantly improve my workflow)
+        - Medium (nice to have)
+        - Low (minor improvement)
+    validations:
+      required: true
+
+  - type: textarea
+    id: performance-impact
+    attributes:
+      label: Performance Considerations
+      description: How might this feature affect performance? Should it be optional?
+      placeholder: |
+        This feature might impact performance by...
+        It should be optional because...
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation Ideas (Optional)
+      description: If you have ideas about how this could be implemented, share them here
+      placeholder: |
+        This could be implemented by...
+        Similar to how other tools do...
+
+  - type: checkboxes
+    id: compatibility
+    attributes:
+      label: Compatibility
+      description: Which aspects should this feature consider?
+      options:
+        - label: Should maintain backward compatibility
+        - label: Should work across all platforms (Linux, macOS, Windows)
+        - label: Should integrate with existing performance modes
+        - label: Should not impact memory usage significantly
+        - label: Should maintain zero-dependency requirement
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you interested in contributing to this feature?
+      options:
+        - label: I would be willing to contribute to implementing this feature
+        - label: I can help with testing this feature
+        - label: I can help with documentation for this feature
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

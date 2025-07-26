@@ -1,0 +1,118 @@
+name: Bug Report
+description: File a bug report
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: ["hydepwns"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: input
+    id: version
+    attributes:
+      label: Zmin Version
+      description: What version of zmin are you running?
+      placeholder: e.g., v1.0.0 or git commit hash
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: What platform are you running on?
+      options:
+        - Linux x64
+        - Linux ARM64
+        - macOS x64 (Intel)
+        - macOS ARM64 (Apple Silicon)
+        - Windows x64
+        - Other (please specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Performance Mode
+      description: Which performance mode were you using?
+      options:
+        - ECO (default)
+        - SPORT
+        - TURBO
+        - Multiple modes
+        - Not specified
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Please provide detailed steps to reproduce the issue
+      placeholder: |
+        1. Run command: zmin --mode turbo input.json output.json
+        2. Input file contains...
+        3. Error occurs...
+    validations:
+      required: true
+
+  - type: textarea
+    id: input-file
+    attributes:
+      label: Sample Input (if applicable)
+      description: If the issue is with specific JSON input, please provide a minimal example
+      placeholder: |
+        {"example": "json", "that": "causes", "the": "issue"}
+      render: json
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: Error Output
+      description: Please copy and paste any relevant error output
+      render: shell
+
+  - type: textarea
+    id: system-info
+    attributes:
+      label: System Information
+      description: Please provide system details
+      placeholder: |
+        - OS: Ubuntu 22.04
+        - Zig version: 0.14.1
+        - CPU: Intel i7-12700K
+        - Memory: 32GB DDR4
+        - File size: 10MB JSON
+
+  - type: checkboxes
+    id: performance-impact
+    attributes:
+      label: Performance Impact
+      description: Does this bug affect performance?
+      options:
+        - label: This bug significantly impacts performance
+        - label: This is a correctness issue (wrong output)
+        - label: This is a crash/segfault
+        - label: This is a build/compilation issue
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

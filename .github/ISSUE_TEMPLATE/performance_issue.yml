@@ -1,0 +1,170 @@
+name: Performance Issue
+description: Report a performance regression or improvement opportunity
+title: "[Performance]: "
+labels: ["performance", "triage"]
+assignees: ["hydepwns"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us optimize zmin! Report performance issues or suggest improvements. 🚄
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What type of performance issue are you reporting?
+      options:
+        - Performance regression (slower than expected)
+        - Performance below documented specs
+        - Memory usage issue
+        - CPU utilization issue
+        - Scaling issue (doesn't utilize multiple cores)
+        - Comparison with other tools
+        - Optimization opportunity
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Zmin Version
+      description: What version are you testing?
+      placeholder: e.g., v1.0.0 or git commit hash
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Performance Mode
+      description: Which mode shows the performance issue?
+      options:
+        - ECO (580 MB/s target)
+        - SPORT (850 MB/s target)
+        - TURBO (3.5+ GB/s target)
+        - All modes
+        - Comparison between modes
+    validations:
+      required: true
+
+  - type: textarea
+    id: benchmark-results
+    attributes:
+      label: Benchmark Results
+      description: Please provide specific performance measurements
+      placeholder: |
+        Command: zmin --mode turbo large_file.json output.json
+        File size: 50MB
+        Expected: 3.5 GB/s
+        Actual: 1.2 GB/s
+        Time: 42 seconds
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: system-specs
+    attributes:
+      label: System Specifications
+      description: Detailed system information for performance analysis
+      placeholder: |
+        CPU: Intel i7-12700K (16 cores, 24 threads)
+        Memory: 32GB DDR4-3200
+        Storage: NVMe SSD
+        OS: Ubuntu 22.04
+        Zig version: 0.14.1
+        CPU features: AVX2, AVX512 (check with: cat /proc/cpuinfo | grep flags)
+    validations:
+      required: true
+
+  - type: textarea
+    id: input-characteristics
+    attributes:
+      label: Input File Characteristics
+      description: Describe the JSON file(s) that show performance issues
+      placeholder: |
+        File size: 100MB
+        Structure: Deep nesting (15 levels), many arrays
+        Content: Mostly strings vs numbers vs objects
+        Whitespace: Heavy indentation, many newlines
+
+  - type: textarea
+    id: comparison
+    attributes:
+      label: Performance Comparison (Optional)
+      description: How does zmin compare to other tools or previous versions?
+      placeholder: |
+        Tool comparison:
+        - jq -c: 150 MB/s
+        - other_minifier: 800 MB/s
+        - zmin v1.0: 3.2 GB/s
+        - zmin current: 1.8 GB/s
+
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: Reproducibility
+      description: How consistently can you reproduce this performance issue?
+      options:
+        - Always reproducible
+        - Usually reproducible (>80% of the time)
+        - Sometimes reproducible (20-80% of the time)
+        - Rarely reproducible (<20% of the time)
+        - One-time occurrence
+    validations:
+      required: true
+
+  - type: textarea
+    id: profiling-data
+    attributes:
+      label: Profiling Data (Optional)
+      description: If you have profiling data, please share it
+      placeholder: |
+        Perf output, Valgrind massif, or other profiling tool results
+
+  - type: checkboxes
+    id: testing-done
+    attributes:
+      label: Testing Done
+      description: What testing have you performed?
+      options:
+        - label: Tested with multiple file sizes
+        - label: Tested with different JSON structures
+        - label: Tested with different modes (ECO/SPORT/TURBO)
+        - label: Tested with different thread counts
+        - label: Compared with previous zmin versions
+        - label: Compared with other JSON tools
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Impact Level
+      description: How much does this performance issue impact your work?
+      options:
+        - Critical (blocks production use)
+        - High (significantly impacts workflow)
+        - Medium (noticeable but workable)
+        - Low (minor optimization opportunity)
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other context about the performance issue
+      placeholder: |
+        This started happening after...
+        The issue seems related to...
+        Workarounds I've found...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
