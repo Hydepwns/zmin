@@ -21,6 +21,29 @@ pub fn handleTopLevel(parser: *types.MinifyingParser, byte: u8) !void {
             try pretty.writeNewline(parser);
             parser.state = types.State.ArrayStart;
         },
+        '"' => {
+            try pretty.writeByte(parser, byte);
+            parser.state = types.State.String;
+        },
+        '0'...'9', '-' => {
+            try pretty.writeByte(parser, byte);
+            parser.state = types.State.Number;
+        },
+        't' => {
+            try pretty.writeByte(parser, byte);
+            parser.count = 0;
+            parser.state = types.State.True;
+        },
+        'f' => {
+            try pretty.writeByte(parser, byte);
+            parser.count = 0;
+            parser.state = types.State.False;
+        },
+        'n' => {
+            try pretty.writeByte(parser, byte);
+            parser.count = 0;
+            parser.state = types.State.Null;
+        },
         else => {
             parser.state = types.State.Error;
             return error.InvalidTopLevel;
@@ -450,12 +473,22 @@ pub fn handleTrue(parser: *types.MinifyingParser, byte: u8) !void {
         if (byte == expected[parser.count]) {
             try pretty.writeByte(parser, byte);
             parser.count += 1;
+            // Check if we've completed the literal
+            if (parser.count == expected.len) {
+                parser.count = 0;
+                const context = parser.getCurrentContext();
+                switch (context) {
+                    .Object => parser.state = types.State.ObjectComma,
+                    .Array => parser.state = types.State.ArrayComma,
+                    .TopLevel => parser.state = types.State.TopLevel,
+                }
+            }
         } else {
             parser.state = types.State.Error;
             return error.InvalidTrue;
         }
     } else {
-        parser.count = 0;
+        // We've completed the literal, handle the next character
         const context = parser.getCurrentContext();
         switch (context) {
             .Object => {
@@ -466,7 +499,10 @@ pub fn handleTrue(parser: *types.MinifyingParser, byte: u8) !void {
                 parser.state = types.State.ArrayComma;
                 try handleArrayComma(parser, byte);
             },
-            .TopLevel => parser.state = types.State.TopLevel,
+            .TopLevel => {
+                parser.state = types.State.TopLevel;
+                try handleTopLevel(parser, byte);
+            },
         }
     }
 }
@@ -477,12 +513,22 @@ pub fn handleFalse(parser: *types.MinifyingParser, byte: u8) !void {
         if (byte == expected[parser.count]) {
             try pretty.writeByte(parser, byte);
             parser.count += 1;
+            // Check if we've completed the literal
+            if (parser.count == expected.len) {
+                parser.count = 0;
+                const context = parser.getCurrentContext();
+                switch (context) {
+                    .Object => parser.state = types.State.ObjectComma,
+                    .Array => parser.state = types.State.ArrayComma,
+                    .TopLevel => parser.state = types.State.TopLevel,
+                }
+            }
         } else {
             parser.state = types.State.Error;
             return error.InvalidFalse;
         }
     } else {
-        parser.count = 0;
+        // We've completed the literal, handle the next character
         const context = parser.getCurrentContext();
         switch (context) {
             .Object => {
@@ -493,7 +539,10 @@ pub fn handleFalse(parser: *types.MinifyingParser, byte: u8) !void {
                 parser.state = types.State.ArrayComma;
                 try handleArrayComma(parser, byte);
             },
-            .TopLevel => parser.state = types.State.TopLevel,
+            .TopLevel => {
+                parser.state = types.State.TopLevel;
+                try handleTopLevel(parser, byte);
+            },
         }
     }
 }
@@ -504,12 +553,22 @@ pub fn handleNull(parser: *types.MinifyingParser, byte: u8) !void {
         if (byte == expected[parser.count]) {
             try pretty.writeByte(parser, byte);
             parser.count += 1;
+            // Check if we've completed the literal
+            if (parser.count == expected.len) {
+                parser.count = 0;
+                const context = parser.getCurrentContext();
+                switch (context) {
+                    .Object => parser.state = types.State.ObjectComma,
+                    .Array => parser.state = types.State.ArrayComma,
+                    .TopLevel => parser.state = types.State.TopLevel,
+                }
+            }
         } else {
             parser.state = types.State.Error;
             return error.InvalidNull;
         }
     } else {
-        parser.count = 0;
+        // We've completed the literal, handle the next character
         const context = parser.getCurrentContext();
         switch (context) {
             .Object => {
@@ -520,7 +579,10 @@ pub fn handleNull(parser: *types.MinifyingParser, byte: u8) !void {
                 parser.state = types.State.ArrayComma;
                 try handleArrayComma(parser, byte);
             },
-            .TopLevel => parser.state = types.State.TopLevel,
+            .TopLevel => {
+                parser.state = types.State.TopLevel;
+                try handleTopLevel(parser, byte);
+            },
         }
     }
 }

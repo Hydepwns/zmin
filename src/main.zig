@@ -1,13 +1,14 @@
 const std = @import("std");
 const MinifyingParser = @import("minifier/mod.zig").MinifyingParser;
-const ParallelMinifier = @import("parallel/mod.zig").ParallelMinifier;
-const parallel_config = @import("parallel/config.zig");
+const parallel = @import("parallel/mod.zig");
+const ParallelMinifier = parallel.ParallelMinifier;
+const parallel_config = parallel.simple_parallel_minifier;
 
-// Phase 5: Advanced Features
+// Import Phase 5 components
+const Logger = @import("production/logging.zig").Logger;
+const ErrorHandler = @import("production/error_handling.zig").ErrorHandler;
 const StreamingValidator = @import("validation/streaming_validator.zig").StreamingValidator;
 const SchemaOptimizer = @import("schema/schema_optimizer.zig").SchemaOptimizer;
-const ErrorHandler = @import("production/error_handling.zig").ErrorHandler;
-const Logger = @import("production/logging.zig").Logger;
 
 const Options = struct {
     input_file: []const u8,
@@ -410,9 +411,14 @@ fn minifyFileSingleThreaded(allocator: std.mem.Allocator, options: Options, inpu
             try logger.info("Applying schema optimizations", .{});
         }
 
-        // TODO: Implement schema optimization
-        // For now, just use the original data
-        processed_data = input_data;
+        // Apply schema-based optimizations
+        const optimized_data = try schema_optimizer.optimizeForSchema(input_data);
+        defer allocator.free(optimized_data);
+        processed_data = optimized_data;
+        
+        if (options.enable_logging and options.verbose) {
+            try schema_optimizer.printOptimizations(logger.stdout_writer);
+        }
     }
 
     var parser = if (options.pretty)
@@ -473,7 +479,7 @@ fn minifyFileSingleThreaded(allocator: std.mem.Allocator, options: Options, inpu
 fn minifyFileParallel(allocator: std.mem.Allocator, options: Options, input_data: []const u8, writer: std.io.AnyWriter, timer: *std.time.Timer, logger: *Logger, error_handler: *ErrorHandler, validator: *StreamingValidator, schema_optimizer: *SchemaOptimizer) !void {
     const thread_count = getOptimalThreadCount(options.threads);
 
-    const config = parallel_config.Config{
+    const config = ParallelMinifier.Config{
         .thread_count = thread_count,
         .chunk_size = 64 * 1024, // 64KB chunks
     };
