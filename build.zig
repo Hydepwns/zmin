@@ -148,6 +148,19 @@ pub fn build(b: *std.Build) void {
     performance_test_mod.addImport("src", lib_mod);
     performance_test_mod.addImport("minifier", minifier_mod);
     performance_test_mod.addImport("parallel", parallel_mod);
+    
+    // Create modules for parallel v2 dependencies
+    const optimized_work_stealing_mod = b.createModule(.{
+        .root_source_file = b.path("src/parallel/optimized_work_stealing.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    const memory_optimizer_mod = b.createModule(.{
+        .root_source_file = b.path("src/performance/memory_optimizer.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
     const parallel_chunk_processor_test_mod = b.createModule(.{
         .root_source_file = b.path("tests/parallel/chunk_processor.zig"),
@@ -356,10 +369,490 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_debug_tests.step);
     test_step.dependOn(&run_api_consistency_tests.step);
 
+    // Mode tests
+    const mode_tests = b.addTest(.{
+        .root_source_file = b.path("tests/modes/all_mode_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    // Create modes module
+    const modes_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/mod.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    const minifier_interface_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/minifier_interface.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    // Create minifier modules
+    const eco_minifier_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/eco_minifier.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    eco_minifier_mod.addImport("minifier", minifier_mod);
+    
+    const sport_minifier_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/sport_minifier.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    const turbo_minifier_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    const turbo_minifier_v2_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_v2.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_v2_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    minifier_interface_mod.addImport("mod", modes_mod);
+    minifier_interface_mod.addImport("minifier", minifier_mod);
+    minifier_interface_mod.addImport("eco_minifier", eco_minifier_mod);
+    minifier_interface_mod.addImport("sport_minifier", sport_minifier_mod);
+    minifier_interface_mod.addImport("turbo_minifier", turbo_minifier_mod);
+    
+    // Add modules to mode tests
+    mode_tests.root_module.addImport("modes", modes_mod);
+    mode_tests.root_module.addImport("minifier_interface", minifier_interface_mod);
+    mode_tests.root_module.addImport("minifier", minifier_mod);
+    const run_mode_tests = b.addRunArtifact(mode_tests);
+    test_step.dependOn(&run_mode_tests.step);
+    
     // Granular test commands for specific test suites
     const test_minifier_step = b.step("test:minifier", "Run minifier tests");
     test_minifier_step.dependOn(&run_basic_tests.step);
     test_minifier_step.dependOn(&run_extended_tests.step);
+    
+    const test_modes_step = b.step("test:modes", "Run mode-specific tests");
+    test_modes_step.dependOn(&run_mode_tests.step);
+    
+    // SPORT mode benchmark
+    const sport_benchmark = b.addExecutable(.{
+        .name = "sport-benchmark",
+        .root_source_file = b.path("tests/modes/sport_benchmark.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    // Add modules to benchmark
+    sport_benchmark.root_module.addImport("modes", modes_mod);
+    sport_benchmark.root_module.addImport("minifier_interface", minifier_interface_mod);
+    sport_benchmark.root_module.addImport("sport_minifier", sport_minifier_mod);
+    
+    const run_sport_benchmark = b.addRunArtifact(sport_benchmark);
+    const sport_benchmark_step = b.step("benchmark:sport", "Run SPORT mode performance benchmark");
+    sport_benchmark_step.dependOn(&run_sport_benchmark.step);
+    
+    // TURBO mode benchmark
+    const turbo_benchmark = b.addExecutable(.{
+        .name = "turbo-benchmark",
+        .root_source_file = b.path("tests/modes/turbo_benchmark.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    
+    // Add modules to turbo benchmark
+    turbo_benchmark.root_module.addImport("modes", modes_mod);
+    turbo_benchmark.root_module.addImport("minifier_interface", minifier_interface_mod);
+    turbo_benchmark.root_module.addImport("cpu_detection", cpu_detection_mod);
+    
+    const run_turbo_benchmark = b.addRunArtifact(turbo_benchmark);
+    const turbo_benchmark_step = b.step("benchmark:turbo", "Run TURBO mode performance benchmark");
+    turbo_benchmark_step.dependOn(&run_turbo_benchmark.step);
+    
+    // TURBO optimization benchmark
+    const turbo_opt_benchmark = b.addExecutable(.{
+        .name = "turbo-opt-benchmark",
+        .root_source_file = b.path("tests/modes/turbo_optimization_benchmark.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    
+    // Add modules to turbo optimization benchmark
+    turbo_opt_benchmark.root_module.addImport("modes", modes_mod);
+    turbo_opt_benchmark.root_module.addImport("minifier_interface", minifier_interface_mod);
+    turbo_opt_benchmark.root_module.addImport("turbo_minifier", turbo_minifier_mod);
+    const turbo_minifier_optimized_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_optimized.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_optimized_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    const turbo_minifier_fast_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_fast.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_fast_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    const turbo_minifier_v3_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_v3.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_v3_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    const turbo_minifier_v4_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_v4.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_v4_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    const turbo_minifier_scalar_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_scalar.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_scalar_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    const turbo_minifier_streaming_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_streaming.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_streaming_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    const turbo_minifier_simple_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_simple.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    const turbo_minifier_simd_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_simd_v2.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_simd_mod.addImport("minifier", minifier_mod);
+    
+    const turbo_minifier_optimized_v2_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_optimized_v2.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_optimized_v2_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    const turbo_minifier_mmap_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_mmap.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_mmap_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    const turbo_minifier_parallel_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_parallel.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_parallel_mod.addImport("cpu_detection", cpu_detection_mod);
+    
+    const turbo_minifier_parallel_v2_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_parallel_v2_fixed.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_minifier_parallel_v2_mod.addImport("cpu_detection", cpu_detection_mod);
+    turbo_minifier_parallel_v2_mod.addImport("optimized_work_stealing", optimized_work_stealing_mod);
+    turbo_minifier_parallel_v2_mod.addImport("memory_optimizer", memory_optimizer_mod);
+    
+    const turbo_minifier_parallel_v3_mod = b.createModule(.{
+        .root_source_file = b.path("src/modes/turbo_minifier_parallel_v3.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    turbo_opt_benchmark.root_module.addImport("turbo_minifier_fast", turbo_minifier_fast_mod);
+    turbo_opt_benchmark.root_module.addImport("turbo_minifier_optimized", turbo_minifier_optimized_mod);
+    turbo_opt_benchmark.root_module.addImport("turbo_minifier_v3", turbo_minifier_v3_mod);
+    
+    // V3 scaling test
+    const v3_scaling_test = b.addExecutable(.{
+        .name = "v3-scaling",
+        .root_source_file = b.path("tests/modes/v3_scaling_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    v3_scaling_test.root_module.addImport("turbo_minifier_v3", turbo_minifier_v3_mod);
+    
+    const run_v3_scaling = b.addRunArtifact(v3_scaling_test);
+    const v3_scaling_step = b.step("profile:v3", "Profile TURBO V3 scaling");
+    v3_scaling_step.dependOn(&run_v3_scaling.step);
+    
+    // Debug benchmark data test
+    const debug_benchmark_data = b.addExecutable(.{
+        .name = "debug-benchmark-data",
+        .root_source_file = b.path("tests/modes/debug_benchmark_data.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    debug_benchmark_data.root_module.addImport("turbo_minifier_v3", turbo_minifier_v3_mod);
+    debug_benchmark_data.root_module.addImport("turbo_minifier_v4", turbo_minifier_v4_mod);
+    
+    const run_debug_benchmark = b.addRunArtifact(debug_benchmark_data);
+    const debug_benchmark_step = b.step("debug:benchmark", "Debug benchmark data patterns");
+    debug_benchmark_step.dependOn(&run_debug_benchmark.step);
+    
+    // V4 test
+    const v4_test = b.addExecutable(.{
+        .name = "v4-test",
+        .root_source_file = b.path("tests/modes/v4_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    v4_test.root_module.addImport("turbo_minifier_v4", turbo_minifier_v4_mod);
+    
+    const run_v4_test = b.addRunArtifact(v4_test);
+    const v4_test_step = b.step("test:v4", "Test TURBO V4 maximum bandwidth");
+    v4_test_step.dependOn(&run_v4_test.step);
+    
+    // Scalar test
+    const scalar_test = b.addExecutable(.{
+        .name = "scalar-test",
+        .root_source_file = b.path("tests/modes/scalar_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    scalar_test.root_module.addImport("turbo_minifier_scalar", turbo_minifier_scalar_mod);
+    scalar_test.root_module.addImport("turbo_minifier_v3", turbo_minifier_v3_mod);
+    
+    const run_scalar_test = b.addRunArtifact(scalar_test);
+    const scalar_test_step = b.step("test:scalar", "Test TURBO scalar vs SIMD approaches");
+    scalar_test_step.dependOn(&run_scalar_test.step);
+    
+    // Streaming test
+    const streaming_test = b.addExecutable(.{
+        .name = "streaming-test",
+        .root_source_file = b.path("tests/modes/streaming_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    streaming_test.root_module.addImport("turbo_minifier_streaming", turbo_minifier_streaming_mod);
+    streaming_test.root_module.addImport("turbo_minifier_scalar", turbo_minifier_scalar_mod);
+    
+    const run_streaming_test = b.addRunArtifact(streaming_test);
+    const streaming_test_step = b.step("test:streaming", "Test TURBO streaming bulk operations");
+    streaming_test_step.dependOn(&run_streaming_test.step);
+    
+    // Phase 2 test
+    const phase2_test = b.addExecutable(.{
+        .name = "phase2-test",
+        .root_source_file = b.path("tests/modes/phase2_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    phase2_test.root_module.addImport("turbo_minifier_simple", turbo_minifier_simple_mod);
+    phase2_test.root_module.addImport("turbo_minifier_scalar", turbo_minifier_scalar_mod);
+    
+    const run_phase2_test = b.addRunArtifact(phase2_test);
+    const phase2_test_step = b.step("test:phase2", "Test TURBO Phase 2 optimizations");
+    phase2_test_step.dependOn(&run_phase2_test.step);
+    
+    // Optimization investigation test
+    const opt_test = b.addExecutable(.{
+        .name = "opt-test",
+        .root_source_file = b.path("tests/modes/optimization_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    opt_test.root_module.addImport("turbo_minifier_scalar", turbo_minifier_scalar_mod);
+    
+    const run_opt_test = b.addRunArtifact(opt_test);
+    const opt_test_step = b.step("test:opt", "Investigate optimization bottlenecks");
+    opt_test_step.dependOn(&run_opt_test.step);
+    
+    // V2 optimization test
+    const v2_opt_test = b.addExecutable(.{
+        .name = "v2-opt-test",
+        .root_source_file = b.path("tests/modes/v2_opt_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    v2_opt_test.root_module.addImport("turbo_minifier_optimized_v2", turbo_minifier_optimized_v2_mod);
+    v2_opt_test.root_module.addImport("turbo_minifier_scalar", turbo_minifier_scalar_mod);
+    
+    const run_v2_opt_test = b.addRunArtifact(v2_opt_test);
+    const v2_opt_test_step = b.step("test:v2opt", "Test V2 optimizations");
+    v2_opt_test_step.dependOn(&run_v2_opt_test.step);
+    
+    // Final comprehensive test
+    const final_test = b.addExecutable(.{
+        .name = "final-test",
+        .root_source_file = b.path("tests/modes/final_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    final_test.root_module.addImport("turbo_minifier_scalar", turbo_minifier_scalar_mod);
+    final_test.root_module.addImport("turbo_minifier_mmap", turbo_minifier_mmap_mod);
+    final_test.root_module.addImport("turbo_minifier_parallel", turbo_minifier_parallel_mod);
+    
+    const run_final_test = b.addRunArtifact(final_test);
+    const final_test_step = b.step("test:final", "Final comprehensive performance test");
+    final_test_step.dependOn(&run_final_test.step);
+    
+    const run_turbo_opt_benchmark = b.addRunArtifact(turbo_opt_benchmark);
+    const turbo_opt_benchmark_step = b.step("benchmark:turbo-opt", "Run TURBO mode optimization benchmark");
+    turbo_opt_benchmark_step.dependOn(&run_turbo_opt_benchmark.step);
+    
+    // TURBO Parallel V2 benchmark
+    const turbo_parallel_v2_benchmark = b.addExecutable(.{
+        .name = "turbo-parallel-v2-benchmark",
+        .root_source_file = b.path("tests/modes/turbo_parallel_v2_benchmark.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    turbo_parallel_v2_benchmark.root_module.addImport("turbo_minifier_parallel_v2", turbo_minifier_parallel_v2_mod);
+    turbo_parallel_v2_benchmark.root_module.addImport("turbo_minifier_simple", turbo_minifier_simple_mod);
+    
+    const run_turbo_parallel_v2_benchmark = b.addRunArtifact(turbo_parallel_v2_benchmark);
+    const turbo_parallel_v2_benchmark_step = b.step("benchmark:turbo-v2", "Run TURBO Parallel V2 performance benchmark");
+    turbo_parallel_v2_benchmark_step.dependOn(&run_turbo_parallel_v2_benchmark.step);
+    
+    // TURBO Parallel V2 quick validation
+    const turbo_v2_quick = b.addExecutable(.{
+        .name = "turbo-v2-quick",
+        .root_source_file = b.path("tests/modes/turbo_v2_quick_bench.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    turbo_v2_quick.root_module.addImport("turbo_minifier_parallel_v2", turbo_minifier_parallel_v2_mod);
+    turbo_v2_quick.root_module.addImport("turbo_minifier_simple", turbo_minifier_simple_mod);
+    
+    const run_turbo_v2_quick = b.addRunArtifact(turbo_v2_quick);
+    const turbo_v2_quick_step = b.step("benchmark:v2-quick", "Quick validation of TURBO V2 performance");
+    turbo_v2_quick_step.dependOn(&run_turbo_v2_quick.step);
+    
+    // TURBO V2 simple test
+    const turbo_v2_simple_test = b.addExecutable(.{
+        .name = "turbo-v2-simple-test",
+        .root_source_file = b.path("tests/modes/turbo_v2_simple_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_v2_simple_test.root_module.addImport("turbo_minifier_parallel_v2", turbo_minifier_parallel_v2_mod);
+    
+    const run_turbo_v2_simple_test = b.addRunArtifact(turbo_v2_simple_test);
+    const turbo_v2_simple_test_step = b.step("test:v2-simple", "Test basic TURBO V2 functionality");
+    turbo_v2_simple_test_step.dependOn(&run_turbo_v2_simple_test.step);
+    
+    // TURBO V2 performance test
+    const turbo_v2_perf_test = b.addExecutable(.{
+        .name = "turbo-v2-perf-test",
+        .root_source_file = b.path("tests/modes/turbo_v2_perf_test.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    turbo_v2_perf_test.root_module.addImport("turbo_minifier_parallel_v2", turbo_minifier_parallel_v2_mod);
+    
+    const run_turbo_v2_perf_test = b.addRunArtifact(turbo_v2_perf_test);
+    const turbo_v2_perf_test_step = b.step("test:v2-perf", "Test TURBO V2 performance");
+    turbo_v2_perf_test_step.dependOn(&run_turbo_v2_perf_test.step);
+    
+    // TURBO V2 debug test
+    const turbo_v2_debug = b.addExecutable(.{
+        .name = "turbo-v2-debug",
+        .root_source_file = b.path("tests/modes/turbo_v2_debug.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    turbo_v2_debug.root_module.addImport("turbo_minifier_parallel_v2", turbo_minifier_parallel_v2_mod);
+    
+    const run_turbo_v2_debug = b.addRunArtifact(turbo_v2_debug);
+    const turbo_v2_debug_step = b.step("test:v2-debug", "Debug TURBO V2 issues");
+    turbo_v2_debug_step.dependOn(&run_turbo_v2_debug.step);
+    
+    // TURBO V2 simple debug test
+    const turbo_v2_debug_simple = b.addExecutable(.{
+        .name = "turbo-v2-debug-simple",
+        .root_source_file = b.path("tests/modes/turbo_v2_debug_simple.zig"),
+        .target = target,
+        .optimize = .Debug,
+    });
+    turbo_v2_debug_simple.root_module.addImport("turbo_minifier_parallel_v2", turbo_minifier_parallel_v2_mod);
+    
+    const run_turbo_v2_debug_simple = b.addRunArtifact(turbo_v2_debug_simple);
+    const turbo_v2_debug_simple_step = b.step("test:v2-debug-simple", "Simple debug test for TURBO V2");
+    turbo_v2_debug_simple_step.dependOn(&run_turbo_v2_debug_simple.step);
+    
+    // TURBO V2 final benchmark
+    const turbo_v2_final = b.addExecutable(.{
+        .name = "turbo-v2-final",
+        .root_source_file = b.path("tests/modes/turbo_v2_final_bench.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    turbo_v2_final.root_module.addImport("turbo_minifier_parallel_v2", turbo_minifier_parallel_v2_mod);
+    turbo_v2_final.root_module.addImport("turbo_minifier_simple", turbo_minifier_simple_mod);
+    
+    const run_turbo_v2_final = b.addRunArtifact(turbo_v2_final);
+    const turbo_v2_final_step = b.step("benchmark:v2-final", "Final TURBO V2 performance validation");
+    turbo_v2_final_step.dependOn(&run_turbo_v2_final.step);
+    
+    // TURBO SIMD benchmark
+    const turbo_simd_benchmark = b.addExecutable(.{
+        .name = "turbo-simd-benchmark",
+        .root_source_file = b.path("tests/modes/turbo_simd_benchmark.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    turbo_simd_benchmark.root_module.addImport("turbo_minifier_simd", turbo_minifier_simd_mod);
+    turbo_simd_benchmark.root_module.addImport("turbo_minifier_simple", turbo_minifier_simple_mod);
+    
+    const run_turbo_simd_benchmark = b.addRunArtifact(turbo_simd_benchmark);
+    const turbo_simd_benchmark_step = b.step("benchmark:simd", "Benchmark SIMD whitespace detection");
+    turbo_simd_benchmark_step.dependOn(&run_turbo_simd_benchmark.step);
+    
+    // TURBO V3 test
+    const turbo_v3_test = b.addExecutable(.{
+        .name = "turbo-v3-test",
+        .root_source_file = b.path("tests/modes/turbo_v3_test.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    turbo_v3_test.root_module.addImport("turbo_minifier_parallel_v3", turbo_minifier_parallel_v3_mod);
+    turbo_v3_test.root_module.addImport("turbo_minifier_simple", turbo_minifier_simple_mod);
+    
+    const run_turbo_v3_test = b.addRunArtifact(turbo_v3_test);
+    const turbo_v3_test_step = b.step("test:v3", "Test TURBO V3 parallel implementation");
+    turbo_v3_test_step.dependOn(&run_turbo_v3_test.step);
+    
+    // Debug parallel architecture
+    const debug_parallel = b.addExecutable(.{
+        .name = "debug-parallel",
+        .root_source_file = b.path("tests/modes/debug_parallel_architecture.zig"),
+        .target = target,
+        .optimize = .Debug,
+    });
+    
+    const run_debug_parallel = b.addRunArtifact(debug_parallel);
+    const debug_parallel_step = b.step("debug:parallel", "Debug parallel architecture");
+    debug_parallel_step.dependOn(&run_debug_parallel.step);
+    
+    // TURBO profiling tool
+    const turbo_profile = b.addExecutable(.{
+        .name = "turbo-profile",
+        .root_source_file = b.path("tests/modes/turbo_profile.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    
+    turbo_profile.root_module.addImport("turbo_minifier", turbo_minifier_mod);
+    
+    const run_turbo_profile = b.addRunArtifact(turbo_profile);
+    const turbo_profile_step = b.step("profile:turbo", "Profile TURBO mode performance");
+    turbo_profile_step.dependOn(&run_turbo_profile.step);
 
     const test_parallel_step = b.step("test:parallel", "Run parallel processing tests");
     test_parallel_step.dependOn(&run_parallel_tests.step);

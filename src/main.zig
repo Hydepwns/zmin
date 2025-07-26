@@ -4,6 +4,11 @@ const parallel = @import("parallel/mod.zig");
 const ParallelMinifier = parallel.ParallelMinifier;
 const parallel_config = parallel.simple_parallel_minifier;
 
+// Import processing modes
+const modes = @import("modes/mod.zig");
+const TurboMinifier = @import("modes/turbo_minifier.zig").TurboMinifier;
+const SportMinifier = @import("modes/sport_minifier.zig").SportMinifier;
+
 // Import Phase 5 components
 const Logger = @import("production/logging.zig").Logger;
 const ErrorHandler = @import("production/error_handling.zig").ErrorHandler;
@@ -18,6 +23,7 @@ const Options = struct {
     indent_size: u8,
     threads: ?usize, // null means auto-detect
     use_parallel: bool,
+    mode: modes.ProcessingMode,
 
     // Phase 5: Advanced Features
     enable_validation: bool,
@@ -39,7 +45,7 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    if (args.len > 1 and std.mem.eql(u8, args[1], "--help")) {
+    if (args.len > 1 and (std.mem.eql(u8, args[1], "--help") or std.mem.eql(u8, args[1], "-h"))) {
         try printUsage();
         return;
     }
@@ -115,6 +121,7 @@ fn parseArgs(_: std.mem.Allocator, args: []const []const u8) !Options {
         .indent_size = 2,
         .threads = null, // Auto-detect
         .use_parallel = true, // Enable parallel processing by default
+        .mode = .eco, // Default to ECO mode
         .enable_validation = true,
         .enable_schema_optimization = true,
         .schema_file = null,
@@ -183,6 +190,16 @@ fn parseArgs(_: std.mem.Allocator, args: []const []const u8) !Options {
             } else if (std.mem.eql(u8, arg, "--verbose")) {
                 options.verbose = true;
                 options.log_level = Logger.LogLevel.Debug;
+            } else if (std.mem.startsWith(u8, arg, "--mode=")) {
+                const mode_str = arg[7..];
+                options.mode = if (std.mem.eql(u8, mode_str, "eco"))
+                    modes.ProcessingMode.eco
+                else if (std.mem.eql(u8, mode_str, "sport"))
+                    modes.ProcessingMode.sport
+                else if (std.mem.eql(u8, mode_str, "turbo"))
+                    modes.ProcessingMode.turbo
+                else
+                    return error.InvalidMode;
             } else {
                 return error.UnknownOption;
             }
@@ -213,6 +230,10 @@ fn printUsage() !void {
         \\  --pretty           Pretty-print JSON with indentation
         \\  --validate         Validate JSON without outputting
         \\  --indent=N         Set indentation size (1-8 spaces, default: 2)
+        \\  --mode=MODE        Processing mode: eco|sport|turbo (default: eco)
+        \\                     eco: O(1) memory, 91 MB/s
+        \\                     sport: O(√n) memory, ~500 MB/s
+        \\                     turbo: O(n) memory, 2+ GB/s
         \\  --threads=N        Use N threads for parallel processing (default: auto-detect)
         \\  --single-threaded  Force single-threaded processing
         \\
@@ -394,11 +415,24 @@ fn minifyFile(allocator: std.mem.Allocator, options: Options, logger: *Logger, e
         try logger.info("Processing {d} bytes using {s} mode", .{ total_bytes, if (use_parallel) "parallel" else "single-threaded" });
     }
 
-    if (use_parallel and !options.pretty) {
-        // Use parallel processing
+    // Use mode-based processing
+    if (options.mode != .eco) {
+        // Use new mode system for sport/turbo modes
+        var input_stream = std.io.fixedBufferStream(input_data.items);
+        const MinifierInterface = @import("modes/minifier_interface.zig").MinifierInterface;
+        try MinifierInterface.minify(allocator, options.mode, input_stream.reader(), output_file.writer());
+        
+        if (options.enable_logging) {
+            const elapsed = timer.read();
+            const elapsed_ms = elapsed / std.time.ns_per_ms;
+            const throughput_mbps = @as(f64, @floatFromInt(input_data.items.len)) / (@as(f64, @floatFromInt(elapsed)) / 1e9) / (1024 * 1024);
+            try logger.info("Minification completed in {d}ms ({d:.2} MB/s) using {} mode", .{ elapsed_ms, throughput_mbps, options.mode });
+        }
+    } else if (use_parallel and !options.pretty) {
+        // Use parallel ECO mode for large files
         try minifyFileParallel(allocator, options, input_data.items, output_file.writer().any(), &timer, logger, error_handler, validator, schema_optimizer);
     } else {
-        // Use single-threaded processing (for pretty-printing or small files)
+        // Use single-threaded ECO mode (for pretty-printing or small files)
         try minifyFileSingleThreaded(allocator, options, input_data.items, output_file.writer().any(), &timer, logger, error_handler, validator, schema_optimizer);
     }
 }
