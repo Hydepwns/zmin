@@ -1,5 +1,12 @@
 const std = @import("std");
 const testing = std.testing;
+
+// Import helper modules
+const helpers = @import("test_helpers.zig");
+const generators = @import("test_data_generators.zig");
+const assertions = @import("assertion_helpers.zig");
+
+// Import MinifyingParser for remaining tests that need direct access
 const MinifyingParser = @import("src").minifier.MinifyingParser;
 
 test "error handling - invalid object key" {
@@ -9,142 +16,36 @@ test "error handling - invalid object key" {
     };
 
     for (invalid_inputs) |input| {
-        var output = std.ArrayList(u8).init(testing.allocator);
-        defer output.deinit();
-
-        var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-        defer parser.deinit(testing.allocator);
-
-        // Should fail with an error
-        const result = parser.feed(input);
-        try testing.expectError(error.InvalidObjectKey, result);
+        try helpers.testMinifySpecificError(input, error.InvalidObjectKey);
     }
 }
 
 test "error handling - invalid escape sequences" {
-    const invalid_inputs = [_][]const u8{
-        "{\"key\":\"\\x\"}", // Invalid escape sequence
-    };
-
-    for (invalid_inputs) |input| {
-        var output = std.ArrayList(u8).init(testing.allocator);
-        defer output.deinit();
-
-        var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-        defer parser.deinit(testing.allocator);
-
-        // Should fail with an error
-        const result = parser.feed(input);
-        try testing.expectError(error.InvalidEscapeSequence, result);
-    }
+    try helpers.testMinifySpecificError("{\"key\":\"\\x\"}", error.InvalidEscapeSequence);
 }
 
 test "error handling - invalid unicode escape" {
-    const invalid_inputs = [_][]const u8{
-        "{\"key\":\"\\u123x\"}", // Invalid hex in unicode escape
-    };
-
-    for (invalid_inputs) |input| {
-        var output = std.ArrayList(u8).init(testing.allocator);
-        defer output.deinit();
-
-        var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-        defer parser.deinit(testing.allocator);
-
-        // Should fail with an error
-        const result = parser.feed(input);
-        try testing.expectError(error.InvalidUnicodeEscape, result);
-    }
+    try helpers.testMinifySpecificError("{\"key\":\"\\u123x\"}", error.InvalidUnicodeEscape);
 }
 
 test "error handling - invalid numbers" {
-    const invalid_inputs = [_][]const u8{
-        "{\"key\":1e}", // Incomplete exponent
-    };
-
-    for (invalid_inputs) |input| {
-        var output = std.ArrayList(u8).init(testing.allocator);
-        defer output.deinit();
-
-        var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-        defer parser.deinit(testing.allocator);
-
-        // Should fail with an error
-        const result = parser.feed(input);
-        try testing.expectError(error.InvalidNumber, result);
-    }
+    try helpers.testMinifySpecificError("{\"key\":1e}", error.InvalidNumber);
 }
 
 test "error handling - invalid booleans" {
-    const invalid_inputs = [_][]const u8{
-        "{\"key\":tr}", // Incomplete true
-    };
-
-    for (invalid_inputs) |input| {
-        var output = std.ArrayList(u8).init(testing.allocator);
-        defer output.deinit();
-
-        var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-        defer parser.deinit(testing.allocator);
-
-        // Should fail with an error
-        const result = parser.feed(input);
-        try testing.expectError(error.InvalidTrue, result);
-    }
+    try helpers.testMinifySpecificError("{\"key\":tr}", error.InvalidTrue);
 }
 
 test "error handling - invalid false" {
-    const invalid_inputs = [_][]const u8{
-        "{\"key\":fa}", // Incomplete false
-    };
-
-    for (invalid_inputs) |input| {
-        var output = std.ArrayList(u8).init(testing.allocator);
-        defer output.deinit();
-
-        var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-        defer parser.deinit(testing.allocator);
-
-        // Should fail with an error
-        const result = parser.feed(input);
-        try testing.expectError(error.InvalidFalse, result);
-    }
+    try helpers.testMinifySpecificError("{\"key\":fa}", error.InvalidFalse);
 }
 
 test "error handling - invalid null" {
-    const invalid_inputs = [_][]const u8{
-        "{\"key\":nu}", // Incomplete null
-    };
-
-    for (invalid_inputs) |input| {
-        var output = std.ArrayList(u8).init(testing.allocator);
-        defer output.deinit();
-
-        var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-        defer parser.deinit(testing.allocator);
-
-        // Should fail with an error
-        const result = parser.feed(input);
-        try testing.expectError(error.InvalidNull, result);
-    }
+    try helpers.testMinifySpecificError("{\"key\":nu}", error.InvalidNull);
 }
 
 test "error handling - invalid top level" {
-    const invalid_inputs = [_][]const u8{
-        "x", // Invalid character at top level
-    };
-
-    for (invalid_inputs) |input| {
-        var output = std.ArrayList(u8).init(testing.allocator);
-        defer output.deinit();
-
-        var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-        defer parser.deinit(testing.allocator);
-
-        // Should fail with an error
-        const result = parser.feed(input);
-        try testing.expectError(error.InvalidTopLevel, result);
-    }
+    try helpers.testMinifySpecificError("x", error.InvalidTopLevel);
 }
 
 test "error handling - unexpected character" {
@@ -155,48 +56,16 @@ test "error handling - unexpected character" {
     };
 
     for (invalid_inputs) |input| {
-        var output = std.ArrayList(u8).init(testing.allocator);
-        defer output.deinit();
-
-        var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-        defer parser.deinit(testing.allocator);
-
-        // Should fail with an error
-        const result = parser.feed(input);
-        try testing.expectError(error.UnexpectedCharacter, result);
+        try helpers.testMinifySpecificError(input, error.UnexpectedCharacter);
     }
 }
 
 test "edge cases - empty input" {
-    const input = "";
-    const expected = "";
-
-    var output = std.ArrayList(u8).init(testing.allocator);
-    defer output.deinit();
-
-    var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-    defer parser.deinit(testing.allocator);
-
-    try parser.feed(input);
-    try parser.flush();
-
-    try testing.expectEqualStrings(expected, output.items);
+    try helpers.testMinify("", "");
 }
 
 test "edge cases - single character" {
-    const input = " ";
-    const expected = "";
-
-    var output = std.ArrayList(u8).init(testing.allocator);
-    defer output.deinit();
-
-    var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-    defer parser.deinit(testing.allocator);
-
-    try parser.feed(input);
-    try parser.flush();
-
-    try testing.expectEqualStrings(expected, output.items);
+    try helpers.testMinify(" ", "");
 }
 
 test "edge cases - very large strings" {
@@ -298,119 +167,48 @@ test "edge cases - control characters in strings" {
 }
 
 test "edge cases - mixed whitespace" {
-    const input = "{\n\t\"key\"\t:\n\"value\"\r\n}";
-    const expected = "{\"key\":\"value\"}";
-
-    var output = std.ArrayList(u8).init(testing.allocator);
-    defer output.deinit();
-
-    var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-    defer parser.deinit(testing.allocator);
-
-    try parser.feed(input);
-    try parser.flush();
-
-    try testing.expectEqualStrings(expected, output.items);
+    try helpers.testMinify("{\n\t\"key\"\t:\n\"value\"\r\n}", "{\"key\":\"value\"}");
 }
 
 test "state machine - deep nesting" {
-    var input = std.ArrayList(u8).init(testing.allocator);
-    defer input.deinit();
-
-    // Create 30 levels of nesting
-    var i: usize = 0;
-    while (i < 30) : (i += 1) {
-        try input.appendSlice("{\"key\":");
-    }
-    try input.appendSlice("\"value\"");
-    i = 0;
-    while (i < 30) : (i += 1) {
-        try input.append('}');
-    }
-
-    var expected = std.ArrayList(u8).init(testing.allocator);
-    defer expected.deinit();
-
-    i = 0;
-    while (i < 30) : (i += 1) {
-        try expected.appendSlice("{\"key\":");
-    }
-    try expected.appendSlice("\"value\"");
-    i = 0;
-    while (i < 30) : (i += 1) {
-        try expected.append('}');
-    }
-
-    var output = std.ArrayList(u8).init(testing.allocator);
-    defer output.deinit();
-
-    var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-    defer parser.deinit(testing.allocator);
-
-    try parser.feed(input.items);
-    try parser.flush();
-
-    try testing.expectEqualStrings(expected.items, output.items);
+    const depth = 30;
+    
+    const input = try generators.generateNestedObject(testing.allocator, depth);
+    defer testing.allocator.free(input);
+    
+    const expected = try generators.generateNestedObject(testing.allocator, depth);
+    defer testing.allocator.free(expected);
+    
+    try helpers.testMinify(input, expected);
 }
 
 test "state machine - nesting too deep" {
-    var input = std.ArrayList(u8).init(testing.allocator);
-    defer input.deinit();
+    const max_depth = 33; // Exceeds typical limit
+    
+    const nested_object = try generators.generateNestedObject(testing.allocator, max_depth);
+    defer testing.allocator.free(nested_object);
 
-    // Create 33 levels of nesting (exceeds 32 limit)
-    var i: usize = 0;
-    while (i < 33) : (i += 1) {
-        try input.appendSlice("{\"key\":");
-    }
-    try input.appendSlice("\"value\"");
-    i = 0;
-    while (i < 33) : (i += 1) {
-        try input.append('}');
-    }
-
-    var output = std.ArrayList(u8).init(testing.allocator);
-    defer output.deinit();
-
-    var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-    defer parser.deinit(testing.allocator);
-
-    // Should fail with nesting too deep error
-    const result = parser.feed(input.items);
-    try testing.expectError(error.NestingTooDeep, result);
+    try helpers.testMinifySpecificError(nested_object, error.NestingTooDeep);
 }
 
 test "buffer management - large output" {
+    const size = 100000;
+    
     var input = std.ArrayList(u8).init(testing.allocator);
     defer input.deinit();
-
-    try input.appendSlice("{\"key\":\"");
-    // Add a 100KB string to test buffer flushing
-    var i: usize = 0;
-    while (i < 100000) : (i += 1) {
-        try input.append('a');
-    }
-    try input.appendSlice("\"}");
+    try input.appendSlice("{\"key\":");
+    const large_string = try generators.generateLargeJsonString(testing.allocator, size, 'a');
+    defer testing.allocator.free(large_string);
+    try input.appendSlice(large_string);
+    try input.append('}');
 
     var expected = std.ArrayList(u8).init(testing.allocator);
     defer expected.deinit();
+    try expected.appendSlice("{\"key\":");
+    try expected.appendSlice(large_string);
+    try expected.append('}');
 
-    try expected.appendSlice("{\"key\":\"");
-    i = 0;
-    while (i < 100000) : (i += 1) {
-        try expected.append('a');
-    }
-    try expected.appendSlice("\"}");
-
-    var output = std.ArrayList(u8).init(testing.allocator);
-    defer output.deinit();
-
-    var parser = try MinifyingParser.init(testing.allocator, output.writer().any());
-    defer parser.deinit(testing.allocator);
-
-    try parser.feed(input.items);
-    try parser.flush();
-
-    try testing.expectEqualStrings(expected.items, output.items);
+    try helpers.testMinify(input.items, expected.items);
 }
 
 test "integration - round trip validation" {
