@@ -130,7 +130,7 @@ Production-ready features:
 
 ### Test Organization
 
-```
+```bash
 tests/
 ├── minifier/              # Core minifier tests
 │   ├── basic.zig         # Basic functionality (✅ Working)
