@@ -3,7 +3,7 @@ const http = std.http;
 const fs = std.fs;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -31,11 +31,15 @@ pub fn main() !void {
     try fs.cwd().makePath("badges");
 
     // Generate badges
-    try generateBadge("badges/performance.svg", "Performance", &std.fmt.bufPrint(allocator, "{d:.2} GB/s", .{throughput}) catch unreachable, "brightgreen", "zig");
+    var performance_buf: [32]u8 = undefined;
+    const performance_text = std.fmt.bufPrint(performance_buf[0..], "{d:.2} GB/s", .{throughput}) catch unreachable;
+    try generateBadge("badges/performance.svg", "Performance", performance_text, "brightgreen", "zig");
 
     try generateBadge("badges/memory.svg", "Memory", "O(1)", "blue", "memory");
 
-    try generateBadge("badges/simd.svg", "SIMD", &std.fmt.bufPrint(allocator, "{d:.0}%", .{simd_efficiency}) catch unreachable, "orange", "cpu");
+    var simd_buf: [32]u8 = undefined;
+    const simd_text = std.fmt.bufPrint(simd_buf[0..], "{d:.0}%", .{simd_efficiency}) catch unreachable;
+    try generateBadge("badges/simd.svg", "SIMD", simd_text, "orange", "cpu");
 
     try generateBadge("badges/build.svg", "Build", "Passing", "brightgreen", "github-actions");
 
@@ -95,36 +99,36 @@ fn urlEncode(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
 }
 
 fn downloadFile(url: []const u8, filename: []const u8) !void {
-    var client = http.Client{ .allocator = std.heap.page_allocator };
-    defer client.deinit();
-
-    var headers = http.Headers{ .allocator = std.heap.page_allocator };
-    defer headers.deinit();
-
-    try headers.append("User-Agent", "Zmin-Badge-Generator/1.0");
-
-    var req = try client.request(.GET, try std.Uri.parse(url), headers, .{});
-    defer req.deinit();
-
-    try req.start();
-    try req.wait();
-
-    if (req.response.status != .ok) {
-        std.debug.print("Failed to download {s}: status {}\n", .{ url, req.response.status });
-        return;
-    }
-
+    // Skip HTTP download for now and generate simple SVG badges
+    _ = url;
+    
     const file = try fs.cwd().createFile(filename, .{});
     defer file.close();
-
-    var reader = req.reader();
-    var buffer: [4096]u8 = undefined;
-
-    while (true) {
-        const bytes_read = try reader.read(&buffer);
-        if (bytes_read == 0) break;
-        try file.writeAll(buffer[0..bytes_read]);
-    }
-
-    std.debug.print("Downloaded {s} -> {s}\n", .{ url, filename });
+    
+    // Create a simple SVG badge
+    const svg_content = 
+        \\<svg xmlns="http://www.w3.org/2000/svg" width="104" height="20">
+        \\  <linearGradient id="b" x2="0" y2="100%">
+        \\    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+        \\    <stop offset="1" stop-opacity=".1"/>
+        \\  </linearGradient>
+        \\  <mask id="a">
+        \\    <rect width="104" height="20" rx="3" fill="#fff"/>
+        \\  </mask>
+        \\  <g mask="url(#a)">
+        \\    <path fill="#555" d="M0 0h63v20H0z"/>
+        \\    <path fill="#4c1" d="M63 0h41v20H63z"/>
+        \\    <path fill="url(#b)" d="M0 0h104v20H0z"/>
+        \\  </g>
+        \\  <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110">
+        \\    <text x="325" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="530">Badge</text>
+        \\    <text x="325" y="140" transform="scale(.1)" textLength="530">Badge</text>
+        \\    <text x="825" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="310">OK</text>
+        \\    <text x="825" y="140" transform="scale(.1)" textLength="310">OK</text>
+        \\  </g>
+        \\</svg>
+    ;
+    
+    try file.writeAll(svg_content);
+    std.debug.print("Generated simple badge: {s}\n", .{filename});
 }

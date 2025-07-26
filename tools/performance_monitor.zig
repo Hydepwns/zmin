@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -10,7 +10,7 @@ pub fn main() !void {
 
     if (args.len < 2) {
         std.debug.print("Usage: {s} <benchmark_output_file>\n", .{args[0]});
-        std.os.exit(1);
+        std.process.exit(1);
     }
 
     const filename = args[1];
@@ -20,7 +20,7 @@ pub fn main() !void {
     const content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(content);
 
-    var performance_data = PerformanceData{};
+    var performance_data = PerformanceData.init();
     try parseBenchmarkOutput(content, &performance_data);
 
     // Output in JSON format for CI/CD parsing
@@ -49,7 +49,7 @@ const PerformanceData = struct {
 };
 
 fn parseBenchmarkOutput(content: []const u8, data: *PerformanceData) !void {
-    var lines = std.mem.split(u8, content, "\n");
+    var lines = std.mem.splitSequence(u8, content, "\n");
 
     while (lines.next()) |line| {
         // Parse throughput (GB/s)
@@ -131,7 +131,7 @@ fn extractFloat(line: []const u8, unit: []const u8) ?f64 {
 }
 
 fn extractU32(line: []const u8) ?u32 {
-    var iter = std.mem.tokenize(u8, line, " \t");
+    var iter = std.mem.tokenizeAny(u8, line, " \t");
     while (iter.next()) |token| {
         if (std.fmt.parseInt(u32, token, 10)) |value| {
             return value;
@@ -157,7 +157,8 @@ fn extractDuration(line: []const u8) ?u64 {
     // Parse duration in format like "1234.56ms" or "1.23s"
     if (std.mem.endsWith(u8, duration_str, "ms")) {
         const ms_str = duration_str[0 .. duration_str.len - 2];
-        return std.fmt.parseFloat(f64, ms_str) catch null;
+        const ms = std.fmt.parseFloat(f64, ms_str) catch return null;
+        return @as(u64, @intFromFloat(ms));
     } else if (std.mem.endsWith(u8, duration_str, "s")) {
         const s_str = duration_str[0 .. duration_str.len - 1];
         const seconds = std.fmt.parseFloat(f64, s_str) catch null;

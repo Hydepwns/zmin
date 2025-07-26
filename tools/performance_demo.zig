@@ -24,9 +24,9 @@ pub fn main() !void {
         
         const start_time = std.time.nanoTimestamp();
         
-        var minifier = try ParallelMinifier.create(allocator, output_buffer.writer().any(), Config{
-            .thread_count = 1,
-            .chunk_size = 64 * 1024,
+        var minifier = try ParallelMinifier.create(allocator, output_buffer.writer().any(), ParallelMinifier.Config{
+            .buffer_size = 256 * 1024,
+            .enable_pipeline = false,
         });
         defer minifier.destroy();
         
@@ -46,7 +46,7 @@ pub fn main() !void {
         
         const start_time = std.time.nanoTimestamp();
         
-        var minifier = try ParallelMinifier.create(allocator, output_buffer.writer().any(), Config{
+        var minifier = try ParallelMinifier.create(allocator, output_buffer.writer().any(), ParallelMinifier.Config{
             .thread_count = 4,
             .chunk_size = 64 * 1024,
         });
