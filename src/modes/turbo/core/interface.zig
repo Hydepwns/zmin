@@ -143,8 +143,14 @@ pub const SystemCapabilities = struct {
     }
     
     fn detectNumaNodes() u32 {
-        // TODO: Implement NUMA detection
-        return 1;
+        const detector = @import("../../../performance/numa_detector.zig");
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        defer _ = gpa.deinit();
+        
+        const topology = detector.detect(gpa.allocator()) catch return 1;
+        defer topology.deinit();
+        
+        return topology.node_count;
     }
 };
 

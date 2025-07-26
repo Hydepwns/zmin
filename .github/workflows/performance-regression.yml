@@ -1,0 +1,118 @@
+name: Performance Regression Detection
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  ZIG_VERSION: "0.14.1"
+
+jobs:
+  performance-test:
+    name: Performance Regression Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout PR branch
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+
+    - name: Cache benchmark datasets
+      uses: actions/cache@v4
+      with:
+        path: benchmarks/datasets
+        key: benchmark-datasets-v1
+
+    - name: Build optimized binaries
+      run: |
+        # Build current branch
+        zig build --release=fast
+        mv zig-out/bin/zmin zmin-current
+        
+        # Build baseline (main branch)
+        git checkout origin/main
+        zig build --release=fast
+        mv zig-out/bin/zmin zmin-baseline
+        
+        # Return to PR branch
+        git checkout -
+
+    - name: Run performance benchmarks
+      run: |
+        # Create test datasets if not cached
+        if [ ! -d benchmarks/datasets ]; then
+          mkdir -p benchmarks/datasets
+          python3 scripts/generate_test_data.py
+        fi
+        
+        echo "## Performance Comparison Report" > performance-report.md
+        echo "" >> performance-report.md
+        echo "**Date**: $(date)" >> performance-report.md
+        echo "**Commit**: ${{ github.sha }}" >> performance-report.md
+        echo "" >> performance-report.md
+        
+        # Run benchmarks for each mode and dataset
+        for mode in eco sport turbo; do
+          for dataset in small medium large; do
+            echo "Testing $mode mode with $dataset dataset..."
+            
+            # Baseline performance
+            baseline_time=$(./scripts/benchmark-single.sh ./zmin-baseline $mode benchmarks/datasets/$dataset.json)
+            
+            # Current performance
+            current_time=$(./scripts/benchmark-single.sh ./zmin-current $mode benchmarks/datasets/$dataset.json)
+            
+            # Calculate change
+            change=$(echo "scale=2; (($current_time - $baseline_time) / $baseline_time) * 100" | bc)
+            
+            # Format result
+            if (( $(echo "$change < -5" | bc -l) )); then
+              echo "✅ **$mode/$dataset**: ${change}% (improvement)" >> performance-report.md
+            elif (( $(echo "$change > 5" | bc -l) )); then
+              echo "❌ **$mode/$dataset**: +${change}% (regression)" >> performance-report.md
+              echo "::warning::Performance regression detected in $mode mode with $dataset dataset: +${change}%"
+            else
+              echo "➖ **$mode/$dataset**: ${change}% (no significant change)" >> performance-report.md
+            fi
+          done
+        done
+
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('performance-report.md', 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+          });
+
+    - name: Upload performance artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results
+        path: |
+          performance-report.md
+          benchmark-results.json
+
+    - name: Check for regressions
+      run: |
+        # Fail if any significant regressions detected
+        if grep -q "❌" performance-report.md; then
+          echo "Performance regressions detected!"
+          exit 1
+        fi

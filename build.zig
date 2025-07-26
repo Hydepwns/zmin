@@ -31,6 +31,12 @@ const ModuleRegistry = struct {
     // Performance and parallel modules
     optimized_work_stealing_mod: *std.Build.Module,
     memory_optimizer_mod: *std.Build.Module,
+    numa_detector_mod: *std.Build.Module,
+    memory_profiler_mod: *std.Build.Module,
+    
+    // Error handling modules
+    core_errors_mod: *std.Build.Module,
+    error_recovery_mod: *std.Build.Module,
 };
 
 pub fn build(b: *std.Build) void {
@@ -173,6 +179,31 @@ fn createModules(b: *std.Build, config: Config) ModuleRegistry {
         .optimize = config.optimize,
     });
 
+    // Phase 2: New performance and reliability modules
+    const numa_detector_mod = b.createModule(.{
+        .root_source_file = b.path("src/performance/numa_detector.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+
+    const memory_profiler_mod = b.createModule(.{
+        .root_source_file = b.path("src/performance/memory_profiler.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+
+    const core_errors_mod = b.createModule(.{
+        .root_source_file = b.path("src/core/errors.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+
+    const error_recovery_mod = b.createModule(.{
+        .root_source_file = b.path("src/core/error_recovery.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+
     return ModuleRegistry{
         .lib_mod = lib_mod,
         .exe_mod = exe_mod,
@@ -191,6 +222,10 @@ fn createModules(b: *std.Build, config: Config) ModuleRegistry {
         .turbo_unified_mod = turbo_unified_mod,
         .optimized_work_stealing_mod = optimized_work_stealing_mod,
         .memory_optimizer_mod = memory_optimizer_mod,
+        .numa_detector_mod = numa_detector_mod,
+        .memory_profiler_mod = memory_profiler_mod,
+        .core_errors_mod = core_errors_mod,
+        .error_recovery_mod = error_recovery_mod,
     };
 }
 
@@ -212,6 +247,17 @@ fn setupModuleDependencies(modules: ModuleRegistry) void {
     modules.eco_minifier_mod.addImport("minifier", modules.minifier_mod);
     modules.sport_minifier_mod.addImport("minifier", modules.minifier_mod);
     modules.turbo_unified_mod.addImport("cpu_detection", modules.cpu_detection_mod);
+    modules.turbo_unified_mod.addImport("numa_detector", modules.numa_detector_mod);
+    
+    // Setup error handling dependencies
+    modules.error_recovery_mod.addImport("errors", modules.core_errors_mod);
+    modules.error_recovery_mod.addImport("modes", modules.modes_mod);
+    
+    // Add new modules to lib
+    modules.lib_mod.addImport("numa_detector", modules.numa_detector_mod);
+    modules.lib_mod.addImport("memory_profiler", modules.memory_profiler_mod);
+    modules.lib_mod.addImport("errors", modules.core_errors_mod);
+    modules.lib_mod.addImport("error_recovery", modules.error_recovery_mod);
 
     // Setup minifier interface dependencies
     modules.minifier_interface_mod.addImport("mod", modules.modes_mod);
