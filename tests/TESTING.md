@@ -77,18 +77,15 @@ The JSON minifier has achieved complete coverage of core JSON processing functio
 ### Running Tests
 
 ```bash
-# Run all comprehensive tests
-zig test complete_test_suite.zig
-
-# Run individual test suites
-zig test comprehensive_test.zig
-zig test error_handling_tests.zig
-zig test edge_case_tests.zig
-zig test performance_tests.zig
-zig test integration_tests.zig
-
-# Run through build system (for project integration)
+# Run all tests
 zig build test
+
+# Run specific test suites
+zig test tests/minifier/basic.zig
+zig test tests/minifier/comprehensive_test.zig
+
+# Performance benchmarks
+zig build benchmark
 ```
 
 ## 🎯 Test Results Summary
@@ -124,14 +121,9 @@ zig build test
 
 ### Quick Test Commands
 
+For all test commands, use:
 ```bash
-# Complete test suite with performance metrics
-zig test complete_test_suite.zig
-
-# Individual focused testing
-zig test comprehensive_test.zig     # Core functionality
-zig test performance_tests.zig      # Performance benchmarks
-zig test integration_tests.zig      # Real-world compatibility
+zig build test    # Runs complete test suite
 ```
 
 ### Test Categories Deep Dive

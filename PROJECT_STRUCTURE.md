@@ -2,7 +2,7 @@
 
 ## 🏗️ Architecture Overview
 
-Zmin is a high-performance JSON minifier written in Zig, designed with a modular architecture for maximum performance and maintainability.
+Zmin is a high-performance JSON minifier written in Zig with modular architecture.
 
 ## 📁 Directory Structure
 
@@ -144,20 +144,7 @@ tests/
 
 ### Build Commands
 
-```bash
-# Development build
-zig build
-
-# Optimized release build
-zig build -Doptimize=ReleaseFast
-
-# Run tests
-zig build test
-
-# Run specific test categories
-zig build test:minifier
-zig build test:fast
-```
+See [README.md](../README.md#quick-start) for basic commands or [CI_CD_GUIDE.md](../tests/CI_CD_GUIDE.md) for complete build options.
 
 ### Build Targets
 
@@ -195,10 +182,7 @@ zig build test:fast
 
 ### Performance Targets
 
-- **Throughput**: 4+ GB/s
-- **Memory Usage**: O(1) constant memory
-- **SIMD Efficiency**: Significant improvement over scalar
-- **Multi-threading**: Linear scaling with cores
+See [PERFORMANCE.md](../PERFORMANCE.md) for current benchmarks and targets.
 
 ### Design Principles
 

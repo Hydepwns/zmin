@@ -133,27 +133,11 @@ gh workflow run ci.yml
 
 ### Key Metrics
 
-The pipeline automatically tracks and validates:
+The pipeline tracks performance metrics as defined in [PERFORMANCE.md](../PERFORMANCE.md). Current targets:
 
-1. **Throughput** (GB/s)
-   - Target: ≥ 4.0 GB/s
-   - Current: 5.72 GB/s (142.9% of target)
-
-2. **Memory Usage** (MB)
-   - Target: O(1) constant memory
-   - Current: 64KB fixed buffer
-
-3. **SIMD Efficiency** (%)
-   - Target: > 100% (vectorization benefit)
-   - Current: 6400% (64x improvement)
-
-4. **Cache Hit Ratio** (%)
-   - Target: > 95%
-   - Current: 100%
-
-5. **Thread Utilization**
-   - Target: Optimal for available cores
-   - Current: 24-thread work-stealing
+- **Throughput**: ≥ 90 MB/s (single-threaded)
+- **Memory**: O(1) constant (64KB buffer)
+- **Test Coverage**: > 90%
 
 ### Regression Detection
 
@@ -275,16 +259,11 @@ To add new platforms:
 ### Debug Commands
 
 ```bash
-# Run specific workflow steps locally
-zig build test:ultimate
-zig build tools:performance-monitor
-zig build tools:badges
+# Run tests locally
+zig build test
+zig build benchmark
 
-# Check generated artifacts
-ls -la badges/
-ls -la zig-out/bin/
-
-# Verify performance metrics
+# Verify CI locally
 ./scripts/test-ci.sh
 ```
 

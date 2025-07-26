@@ -1,22 +1,12 @@
 # Tools Directory
 
-This directory contains utility scripts and tools for the zmin project.
+Development utilities for zmin.
 
-## Files
+## Available Tools
 
-- `performance_demo.zig` - Performance comparison between single-threaded and multi-threaded processing
-- `generate_large_fixture.zig` - Utility to generate large JSON test fixtures
+- `performance_demo.zig` - Compare single vs multi-threaded performance
+- `generate_large_fixture.zig` - Generate test JSON fixtures
+- `performance_monitor.zig` - Parse benchmarks for CI/CD
+- `generate_badges.zig` - Create performance badges
 
-## Usage
-
-### Performance Demo
-
-```bash
-zig build perf
-```
-
-### Generate Large Fixture
-
-```bash
-zig run tools/generate_large_fixture.zig
-```
+See [CI_CD_GUIDE.md](../tests/CI_CD_GUIDE.md) for detailed usage.
