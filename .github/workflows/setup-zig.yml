@@ -1,0 +1,71 @@
+name: Setup Zig
+
+on:
+  workflow_call:
+    inputs:
+      zig-version:
+        description: 'Zig version to install'
+        required: false
+        type: string
+        default: '0.14.1'
+      install-valgrind:
+        description: 'Install Valgrind for memory testing'
+        required: false
+        type: boolean
+        default: false
+      install-memory-tools:
+        description: 'Install additional memory profiling tools'
+        required: false
+        type: boolean
+        default: false
+      build-mode:
+        description: 'Build mode (default, --release=fast, etc)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      zig-version: ${{ steps.output-version.outputs.version }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ inputs.zig-version }}
+
+    - name: Install Valgrind
+      if: ${{ inputs.install-valgrind }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind
+
+    - name: Install memory profiling tools
+      if: ${{ inputs.install-memory-tools }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y massif-visualizer valgrind time
+
+    - name: Build project
+      run: |
+        if [ -n "${{ inputs.build-mode }}" ]; then
+          zig build ${{ inputs.build-mode }}
+        else
+          zig build
+        fi
+
+    - name: Generate test datasets
+      if: hashFiles('scripts/generate_test_data.py') != ''
+      run: |
+        if [ ! -d benchmarks/datasets ]; then
+          mkdir -p benchmarks/datasets
+          python3 scripts/generate_test_data.py
+        fi
+
+    - name: Output version
+      id: output-version
+      run: echo "version=${{ inputs.zig-version }}" >> $GITHUB_OUTPUT
