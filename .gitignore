@@ -47,7 +47,6 @@ Thumbs.db
 dist/
 target/
 
-# Hugo build artifacts
+# Hugo build artifacts (but not the build/ directory with Zig files)
 .hugo_build.lock
 public/
-build/
