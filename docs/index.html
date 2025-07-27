@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>zmin - High-performance JSON minifier</title>
     <style>
-        /* Dark theme inspired by The Monospace Web */
+        /* Minimalist theme inspired by The Monospace Web */
         :root {
-            --bg-primary: #0a0a0a;
-            --bg-secondary: #1a1a1a;
-            --bg-tertiary: #2a2a2a;
-            --text-primary: #e0e0e0;
-            --text-secondary: #a0a0a0;
-            --text-muted: #606060;
-            --accent: #00ff41;
-            --accent-hover: #00cc33;
-            --border: #333333;
-            --border-light: #404040;
-            --shadow: rgba(0, 0, 0, 0.5);
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f8f8;
+            --bg-tertiary: #f0f0f0;
+            --text-primary: #000000;
+            --text-secondary: #333333;
+            --text-muted: #666666;
+            --accent: #000000;
+            --accent-hover: #333333;
+            --border: #dddddd;
+            --border-light: #eeeeee;
+            --shadow: rgba(0, 0, 0, 0.1);
             --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
         }
 
@@ -44,7 +44,7 @@
 
         /* Header */
         .header {
-            background: var(--bg-secondary);
+            background: var(--bg-primary);
             padding: 4rem 2rem;
             text-align: center;
             border-bottom: 1px solid var(--border);
@@ -53,7 +53,7 @@
         .header h1 {
             font-size: 4rem;
             font-weight: 400;
-            color: var(--accent);
+            color: var(--text-primary);
             margin-bottom: 1rem;
             letter-spacing: -0.02em;
         }
@@ -73,7 +73,7 @@
 
         /* Navigation */
         .nav {
-            background: var(--bg-secondary);
+            background: var(--bg-primary);
             padding: 1rem 2rem;
             border-bottom: 1px solid var(--border);
             position: sticky;
@@ -98,7 +98,7 @@
         }
 
         .nav a:hover {
-            color: var(--accent);
+            color: var(--text-primary);
         }
 
         /* Main content */
@@ -114,7 +114,7 @@
 
         .section h2 {
             font-size: 2rem;
-            color: var(--accent);
+            color: var(--text-primary);
             margin-bottom: 1.5rem;
             font-weight: 400;
         }
@@ -136,18 +136,18 @@
         .feature {
             background: var(--bg-secondary);
             padding: 2rem;
-            border-radius: 8px;
+            border-radius: 0;
             border: 1px solid var(--border);
             transition: transform 0.2s ease, border-color 0.2s ease;
         }
 
         .feature:hover {
             transform: translateY(-2px);
-            border-color: var(--accent);
+            border-color: var(--text-primary);
         }
 
         .feature h3 {
-            color: var(--accent);
+            color: var(--text-primary);
             font-size: 1.2rem;
             margin-bottom: 1rem;
             font-weight: 400;
@@ -160,9 +160,9 @@
 
         /* Code blocks */
         .code-block {
-            background: var(--bg-primary);
+            background: var(--bg-secondary);
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: 0;
             padding: 1.5rem;
             margin: 1.5rem 0;
             overflow-x: auto;
@@ -180,11 +180,12 @@
         }
 
         .code-block .string {
-            color: #ff6b6b;
+            color: var(--text-primary);
         }
 
         .code-block .keyword {
-            color: var(--accent);
+            color: var(--text-primary);
+            font-weight: 600;
         }
 
         /* Performance table */
@@ -193,7 +194,7 @@
             border-collapse: collapse;
             margin: 2rem 0;
             background: var(--bg-secondary);
-            border-radius: 8px;
+            border-radius: 0;
             overflow: hidden;
             border: 1px solid var(--border);
         }
@@ -207,7 +208,7 @@
 
         .performance-table th {
             background: var(--bg-tertiary);
-            color: var(--accent);
+            color: var(--text-primary);
             font-weight: 400;
         }
 
@@ -222,43 +223,45 @@
         /* Buttons */
         .btn {
             display: inline-block;
-            background: var(--accent);
+            background: var(--text-primary);
             color: var(--bg-primary);
             padding: 0.75rem 1.5rem;
             text-decoration: none;
-            border-radius: 4px;
+            border-radius: 0;
             font-family: var(--font-mono);
             font-size: 0.9rem;
             transition: background 0.2s ease;
-            border: none;
+            border: 1px solid var(--text-primary);
             cursor: pointer;
         }
 
         .btn:hover {
-            background: var(--accent-hover);
+            background: var(--text-secondary);
+            border-color: var(--text-secondary);
         }
 
         .btn-secondary {
-            background: var(--bg-tertiary);
+            background: var(--bg-primary);
             color: var(--text-primary);
             border: 1px solid var(--border);
         }
 
         .btn-secondary:hover {
             background: var(--bg-secondary);
+            border-color: var(--text-primary);
         }
 
         /* Quick start section */
         .quick-start {
             background: var(--bg-secondary);
             padding: 2rem;
-            border-radius: 8px;
+            border-radius: 0;
             border: 1px solid var(--border);
             margin: 2rem 0;
         }
 
         .quick-start h3 {
-            color: var(--accent);
+            color: var(--text-primary);
             margin-bottom: 1rem;
             font-weight: 400;
         }
@@ -272,7 +275,7 @@
         }
 
         .links a {
-            color: var(--accent);
+            color: var(--text-primary);
             text-decoration: none;
             font-size: 0.9rem;
         }
@@ -330,10 +333,10 @@
         }
         ::-webkit-scrollbar-thumb {
             background: var(--border);
-            border-radius: 4px;
+            border-radius: 0;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--border-light);
+            background: var(--text-muted);
         }
     </style>
 </head>
@@ -491,7 +494,7 @@ zmin --validate --format-check input.json out.json</pre>
 
     <footer class="footer">
         <p>zmin - High-performance JSON minifier written in Zig</p>
-        <p>MIT License • <a href="https://github.com/hydepwns/zmin" style="color: var(--accent);">GitHub</a></p>
+        <p>MIT License • <a href="https://github.com/hydepwns/zmin" style="color: var(--text-primary);">GitHub</a></p>
     </footer>
 </body>
 </html>

@@ -6,19 +6,19 @@
     <title>zmin API Reference</title>
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
     <style>
-        /* Dark theme inspired by The Monospace Web */
+        /* Minimalist theme inspired by The Monospace Web */
         :root {
-            --bg-primary: #0a0a0a;
-            --bg-secondary: #1a1a1a;
-            --bg-tertiary: #2a2a2a;
-            --text-primary: #e0e0e0;
-            --text-secondary: #a0a0a0;
-            --text-muted: #606060;
-            --accent: #00ff41;
-            --accent-hover: #00cc33;
-            --border: #333333;
-            --border-light: #404040;
-            --shadow: rgba(0, 0, 0, 0.5);
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f8f8;
+            --bg-tertiary: #f0f0f0;
+            --text-primary: #000000;
+            --text-secondary: #333333;
+            --text-muted: #666666;
+            --accent: #000000;
+            --accent-hover: #333333;
+            --border: #dddddd;
+            --border-light: #eeeeee;
+            --shadow: rgba(0, 0, 0, 0.1);
             --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
         }
 
@@ -41,7 +41,7 @@
             font-family: var(--font-mono);
         }
 
-        /* Swagger UI dark theme customizations */
+        /* Swagger UI minimalist theme customizations */
         .swagger-ui {
             background: var(--bg-primary) !important;
             color: var(--text-primary) !important;
@@ -53,11 +53,11 @@
             margin: 2rem 0;
             background: var(--bg-secondary) !important;
             padding: 2rem;
-            border-radius: 8px;
+            border-radius: 0;
             border: 1px solid var(--border);
         }
         .swagger-ui .info .title {
-            color: var(--accent) !important;
+            color: var(--text-primary) !important;
             font-size: 1.8rem;
             font-family: var(--font-mono);
         }
@@ -68,7 +68,7 @@
             background: var(--bg-tertiary) !important;
             margin: 0 0 20px;
             padding: 20px;
-            border-radius: 6px;
+            border-radius: 0;
             border: 1px solid var(--border);
         }
         .swagger-ui .scheme-container .schemes-title {
@@ -84,7 +84,7 @@
             border: 1px solid var(--border);
         }
         .swagger-ui .scheme-container .schemes .scheme:hover {
-            background: var(--bg-tertiary) !important;
+            background: var(--bg-secondary) !important;
         }
 
         /* Operation blocks */
@@ -92,14 +92,14 @@
             background: var(--bg-secondary) !important;
             border: 1px solid var(--border) !important;
             margin: 0 0 1rem 0;
-            border-radius: 6px;
+            border-radius: 0;
         }
         .swagger-ui .opblock .opblock-summary {
             background: var(--bg-tertiary) !important;
             border-bottom: 1px solid var(--border);
         }
         .swagger-ui .opblock .opblock-summary .opblock-summary-method {
-            background: var(--accent) !important;
+            background: var(--text-primary) !important;
             color: var(--bg-primary) !important;
             font-family: var(--font-mono);
         }
@@ -124,25 +124,26 @@
             font-family: var(--font-mono);
         }
         .swagger-ui .parameters-container .parameter__name {
-            color: var(--accent) !important;
+            color: var(--text-primary) !important;
             font-family: var(--font-mono);
+            font-weight: 600;
         }
         .swagger-ui .parameters-container .parameter__type {
             color: var(--text-secondary) !important;
         }
         .swagger-ui .parameters-container .parameter__deprecated {
-            color: #ff6b6b !important;
+            color: #dc3545 !important;
         }
 
         /* Code blocks */
         .swagger-ui .highlight-code {
-            background: var(--bg-primary) !important;
+            background: var(--bg-secondary) !important;
             color: var(--text-primary) !important;
             border: 1px solid var(--border);
             font-family: var(--font-mono);
         }
         .swagger-ui .highlight-code .hljs {
-            background: var(--bg-primary) !important;
+            background: var(--bg-secondary) !important;
             color: var(--text-primary) !important;
         }
 
@@ -157,12 +158,13 @@
             background: var(--bg-secondary) !important;
         }
         .swagger-ui .btn.execute {
-            background: var(--accent) !important;
+            background: var(--text-primary) !important;
             color: var(--bg-primary) !important;
-            border-color: var(--accent) !important;
+            border-color: var(--text-primary) !important;
         }
         .swagger-ui .btn.execute:hover {
-            background: var(--accent-hover) !important;
+            background: var(--text-secondary) !important;
+            border-color: var(--text-secondary) !important;
         }
 
         /* Models */
@@ -171,11 +173,11 @@
             color: var(--text-primary) !important;
         }
         .swagger-ui .model .model-title {
-            color: var(--accent) !important;
+            color: var(--text-primary) !important;
             font-family: var(--font-mono);
         }
         .swagger-ui .model .model-title .model-title__text {
-            color: var(--accent) !important;
+            color: var(--text-primary) !important;
         }
 
         /* Scrollbars */
@@ -188,10 +190,10 @@
         }
         ::-webkit-scrollbar-thumb {
             background: var(--border);
-            border-radius: 4px;
+            border-radius: 0;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--border-light);
+            background: var(--text-muted);
         }
     </style>
 </head>
@@ -220,7 +222,6 @@
                 showExtensions: true,
                 showCommonExtensions: true,
                 tryItOutEnabled: true,
-                theme: "dark",
                 requestInterceptor: function(request) {
                     // Add any request interceptors here if needed
                     return request;
