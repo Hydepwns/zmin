@@ -145,10 +145,10 @@ pub fn main() !void {
 
 - Read the [Usage Guide](usage.md) for advanced features
 - Check the [Performance Guide](performance.md) for optimization tips
-- See the [API Reference](api-reference.md) for library documentation
-- Learn about the [Architecture](architecture.md) for technical details
+- See the [API Reference](api-reference.yaml) for library documentation
+- Learn about the [Architecture](performance.md#technical-implementation) for technical details
 
 ## Getting Help
 
 - Run `zmin --help` for command-line options
-- Check [Troubleshooting](troubleshooting.md) for common issues
+- Check the [Usage Guide](usage.md) for advanced troubleshooting

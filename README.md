@@ -1,15 +1,55 @@
-# Zmin: High-Performance JSON Minifier
+# Zmin: Ultra-High-Performance JSON Minifier
 
-JSON minifier with **3.5+ GB/s** throughput. Zero dependencies, pure Zig.
+A zero-dependency JSON minifier written in Zig, delivering **3.5+ GB/s** throughput with memory safety guarantees.
 
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen) ![Zig Version](https://img.shields.io/badge/zig-0.11-orange) ![Performance](https://img.shields.io/badge/performance-3.5GB%2Fs-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows-lightgrey) ![Memory](https://img.shields.io/badge/memory-64KB-yellow) ![SIMD](https://img.shields.io/badge/SIMD-enabled-brightgreen) ![Test Coverage](https://img.shields.io/badge/test%20coverage-98.7%25-brightgreen)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/hydepwns/zmin/actions) [![Zig Version](https://img.shields.io/badge/zig-0.11-orange)](https://ziglang.org/) [![Performance](https://img.shields.io/badge/performance-3.5GB%2Fs-blue)](https://github.com/hydepwns/zmin#performance-modes) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows-lightgrey)](https://github.com/hydepwns/zmin#installation) [![Memory](https://img.shields.io/badge/memory-64KB-yellow)](https://github.com/hydepwns/zmin#performance-modes) [![SIMD](https://img.shields.io/badge/SIMD-enabled-brightgreen)](https://github.com/hydepwns/zmin#technical-implementation)
+
+## Features
+
+- **Ultra-high performance**: 3.5+ GB/s throughput in TURBO mode
+- **Memory efficient**: ECO mode uses only 64KB memory
+- **Zero dependencies**: Pure Zig implementation
+- **Cross-platform**: Linux, macOS, Windows
+- **Multiple language bindings**: Node.js, Go, Python
+- **Three performance modes**: ECO, SPORT, TURBO
+- **SIMD optimized**: Automatic CPU instruction detection
+- **Memory safe**: Built with Zig's memory safety guarantees
+
+## Installation
+
+### From Source
+
+```bash
+git clone https://github.com/hydepwns/zmin
+cd zmin
+zig build
+```
+
+### Language Bindings
+
+#### Node.js / npm
+
+```bash
+npm install @zmin/cli
+```
+
+#### Go
+
+```bash
+go get github.com/hydepwns/zmin-go
+```
+
+#### Python
+
+```bash
+pip install zmin
+```
 
 ## Quick Start
 
-```bash
-# Build & install
-git clone https://github.com/hydepwns/zmin && cd zmin && zig build
+### Command Line
 
+```bash
 # Basic usage
 zmin input.json -o output.json
 
@@ -18,38 +58,69 @@ zmin input.json                        # ECO (default)
 zmin --mode sport input.json           # SPORT 
 zmin --mode turbo input.json           # TURBO
 
+# Pretty print
+zmin --pretty input.json
+
 # Development
 zig build test && zig build benchmark  # Test & benchmark
-zmin --pretty input.json               # Pretty print
+```
+
+### Programmatic Usage
+
+#### Node.js
+
+```typescript
+import { minify } from '@zmin/cli';
+
+const minified = await minify('{"key": "value"}', { mode: 'turbo' });
+console.log(minified); // {"key":"value"}
+```
+
+#### Go
+
+```go
+import "github.com/hydepwns/zmin-go"
+
+result := zmin.Minify(`{"key": "value"}`, zmin.TurboMode)
+fmt.Println(result) // {"key":"value"}
+```
+
+#### Python
+
+```python
+import zmin
+
+result = zmin.minify('{"key": "value"}', mode='turbo')
+print(result)  # {"key":"value"}
 ```
 
 ## Performance Modes
 
 Zmin offers three performance modes optimized for different use cases:
 
-| Mode | Speed | Memory | Use Case | Implementation |
-|------|-------|--------|----------|----------------|
-| ECO | 580 MB/s | 64KB | Memory-constrained environments | Streaming state machine |
-| SPORT | 850 MB/s | O(√n) | Balanced performance/memory | Chunk-based processing |
-| TURBO | **3.5+ GB/s** | O(n) | Maximum speed | SIMD + NUMA + parallel |
+| Mode | Throughput | Memory Usage | Use Case | Implementation |
+|------|------------|--------------|----------|----------------|
+| **ECO** | 580 MB/s | 64KB | Memory-constrained environments | Streaming state machine |
+| **SPORT** | 850 MB/s | O(√n) | Balanced performance/memory | Chunk-based processing |
+| **TURBO** | **3.5+ GB/s** | O(n) | Maximum speed | SIMD + NUMA + parallel |
 
 ### Mode Selection Guidelines
 
-**Choose ECO when:**
+**ECO Mode** - Choose when:
 
 - Memory is limited (< 100MB available)
 - Running in containers or embedded systems
 - Processing files larger than available memory
 - Need predictable memory usage
 
-**Choose SPORT when:**
+**SPORT Mode** - Choose when:
 
 - General purpose use
 - Good balance of speed and memory
 - Processing medium-sized files (1-100MB)
 - Running on standard systems
 
-**Choose TURBO when:**
+**TURBO Mode** - Choose when:
 
 - Maximum speed is required
 - Processing large files (> 100MB)
@@ -65,7 +136,7 @@ Zmin offers three performance modes optimized for different use cases:
 | 10-50 MB | 833 MB/s | NUMA-aware allocation |
 | 50+ MB | **3.5+ GB/s** | Full optimization stack |
 
-### Competitive Benchmarks
+## Benchmarks
 
 | Tool | Speed | Memory | Notes |
 |------|-------|--------|-------|
@@ -76,7 +147,7 @@ Zmin offers three performance modes optimized for different use cases:
 | RapidJSON | 399 MB/s | O(n) | C++ DOM parsing |
 | jq -c | 149 MB/s | O(n) | Full JSON parsing |
 
-## Technical Implementation
+## Technical Implementaton
 
 **TURBO Mode**: AVX1/AVX/SSE detection, NUMA-aware allocation, adaptive chunking, work-stealing parallelism, GPU offloading framework
 
@@ -86,4 +157,12 @@ Zmin offers three performance modes optimized for different use cases:
 - *SPORT*: Chunk-based processing  
 - *TURBO*: SIMD + NUMA + parallel + GPU framework
 
-See [TECHNICAL_IMPLEMENTATION.md](TECHNICAL_IMPLEMENTATION.md) for detailed implementation information.
+See [docs/performance.md](docs/performance.md) for detailed implementation information.
+
+## Contributing
+
+We welcome contributions! Please see our [docs/PUBLISHING.md](docs/PUBLISHING.md) for development guidelines.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.

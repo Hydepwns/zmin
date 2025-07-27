@@ -32,7 +32,7 @@ zmin is designed for extreme performance:
 
 ### Mode Comparison
 
-```
+```bash
 Throughput (MB/s) - 100MB file
 ┌─────────────────────────────────────────┐
 │ ECO    ████████ 312                     │

@@ -133,7 +133,7 @@ gh workflow run ci.yml
 
 ### Key Metrics
 
-The pipeline tracks performance metrics as defined in [PERFORMANCE_MODES.md](../docs/PERFORMANCE_MODES.md). Current targets:
+The pipeline tracks performance metrics as defined in [docs/performance.md](../docs/performance.md). Current targets:
 
 - **Throughput**: ≥ 90 MB/s (single-threaded)
 - **Memory**: O(1) constant (64KB buffer)

@@ -9,9 +9,9 @@ Welcome to the zmin documentation! This guide covers everything you need to know
 - [Usage Guide](usage.md)
 - [OpenAPI Reference](api-reference.yaml)
 - [Performance Guide](performance.md)
-- [Architecture](architecture.md)
-- [Contributing](contributing.md)
-- [Troubleshooting](troubleshooting.md)
+- [Architecture](performance.md#technical-implementation)
+- [Contributing](PUBLISHING.md)
+- [Troubleshooting](getting-started.md#troubleshooting)
 
 ## Quick Start
 
@@ -51,6 +51,6 @@ zmin offers three processing modes optimized for different scenarios:
 - **Usage Guide**: Comprehensive guide to all features
 - **API Reference**: Complete API documentation for library usage
 - **Performance Guide**: Optimization tips and benchmarks
-- **Architecture**: Deep dive into zmin's design
-- **Contributing**: Guidelines for contributors
-- **Troubleshooting**: Common issues and solutions
+- **Architecture**: Deep dive into zmin's design (see Performance Guide)
+- **Contributing**: Guidelines for contributors (see PUBLISHING.md)
+- **Troubleshooting**: Common issues and solutions (see Getting Started)

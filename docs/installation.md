@@ -139,14 +139,14 @@ Pre-built binaries are available for:
 - macOS ARM64 (Apple Silicon)
 - Windows x86_64
 
-Download from [GitHub Releases](https://github.com/yourusername/zmin/releases).
+Download from [GitHub Releases](https://github.com/hydepwns/zmin/releases).
 
 ### Verify Checksums
 
 ```bash
 # Download binary and checksum
-wget https://github.com/yourusername/zmin/releases/download/v1.0.0/zmin-linux-x64
-wget https://github.com/yourusername/zmin/releases/download/v1.0.0/checksums.txt
+wget https://github.com/hydepwns/zmin/releases/download/v1.0.0/zmin-linux-x64
+wget https://github.com/hydepwns/zmin/releases/download/v1.0.0/checksums.txt
 
 # Verify
 sha256sum -c checksums.txt
