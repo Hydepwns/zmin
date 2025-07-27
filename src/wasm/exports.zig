@@ -54,14 +54,14 @@ export fn zmin_minify_mode(input_ptr: [*]const u8, input_len: u32, mode: i32) Wa
 /// Returns 0 for valid, error code for invalid
 export fn zmin_validate(input_ptr: [*]const u8, input_len: u32) i32 {
     const input = input_ptr[0..input_len];
-    
+
     zmin.validate(input) catch |err| {
         return switch (err) {
             error.InvalidJson => @intFromEnum(WasmError.invalid_json),
             else => @intFromEnum(WasmError.unknown_error),
         };
     };
-    
+
     return 0;
 }
 
@@ -109,7 +109,7 @@ export fn zmin_get_max_memory() u32 {
 // Internal helper function
 fn minifyWithMode(input_ptr: [*]const u8, input_len: u32, mode_int: i32) WasmResult {
     const input = input_ptr[0..input_len];
-    
+
     // Validate mode
     const mode = switch (mode_int) {
         0 => zmin.ProcessingMode.eco,
@@ -121,7 +121,7 @@ fn minifyWithMode(input_ptr: [*]const u8, input_len: u32, mode_int: i32) WasmRes
             .error_code = @intFromEnum(WasmError.invalid_mode),
         },
     };
-    
+
     // For ECO mode in WASM, create a smaller allocator
     const allocator = if (mode == .eco) blk: {
         // ECO mode gets its own 64KB allocator
@@ -135,7 +135,7 @@ fn minifyWithMode(input_ptr: [*]const u8, input_len: u32, mode_int: i32) WasmRes
         var eco_fba = std.heap.FixedBufferAllocator.init(eco_buffer);
         break :blk eco_fba.allocator();
     } else wasm_allocator;
-    
+
     // Minify
     const output = zmin.minifyWithMode(allocator, input, mode) catch |err| {
         const error_code = switch (err) {
@@ -143,14 +143,14 @@ fn minifyWithMode(input_ptr: [*]const u8, input_len: u32, mode_int: i32) WasmRes
             error.OutOfMemory => WasmError.out_of_memory,
             else => WasmError.unknown_error,
         };
-        
+
         return WasmResult{
             .ptr = undefined,
             .len = 0,
             .error_code = @intFromEnum(error_code),
         };
     };
-    
+
     return WasmResult{
         .ptr = output.ptr,
         .len = @intCast(output.len),
@@ -162,15 +162,15 @@ fn minifyWithMode(input_ptr: [*]const u8, input_len: u32, mode_int: i32) WasmRes
 pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
     _ = error_return_trace;
     _ = ret_addr;
-    
+
     // Write panic message to a known location for debugging
     const panic_msg = "PANIC: ";
     const max_len = @min(msg.len, 256);
-    
+
     if (wasm_allocator.alloc(u8, panic_msg.len + max_len)) |panic_buffer| {
         @memcpy(panic_buffer[0..panic_msg.len], panic_msg);
         @memcpy(panic_buffer[panic_msg.len..][0..max_len], msg[0..max_len]);
     } else |_| {}
-    
+
     @trap();
 }

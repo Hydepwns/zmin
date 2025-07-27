@@ -66,7 +66,7 @@ pub const TelemetryCollector = struct {
     system_info: SystemInfo,
     metrics_buffer: std.ArrayList(PerformanceMetrics),
     mutex: std.Thread.Mutex = .{},
-    
+
     pub fn init(allocator: std.mem.Allocator, config: TelemetryConfig) !TelemetryCollector {
         return TelemetryCollector{
             .allocator = allocator,
@@ -75,54 +75,54 @@ pub const TelemetryCollector = struct {
             .metrics_buffer = std.ArrayList(PerformanceMetrics).init(allocator),
         };
     }
-    
+
     pub fn deinit(self: *TelemetryCollector) void {
         self.mutex.lock();
         defer self.mutex.unlock();
-        
+
         // Flush any remaining metrics
         if (self.config.enabled and self.metrics_buffer.items.len > 0) {
             self.flushMetrics() catch {};
         }
-        
+
         self.metrics_buffer.deinit();
     }
-    
+
     /// Record a performance metric
     pub fn recordPerformance(self: *TelemetryCollector, metrics: PerformanceMetrics) !void {
         if (!self.config.enabled) return;
-        
+
         // Sample based on sample rate
         if (std.crypto.random.float(f32) > self.config.sample_rate) return;
-        
+
         self.mutex.lock();
         defer self.mutex.unlock();
-        
+
         try self.metrics_buffer.append(metrics);
-        
+
         // Flush if buffer is getting large
         if (self.metrics_buffer.items.len >= 100) {
             try self.flushMetrics();
         }
     }
-    
+
     /// Flush metrics to configured destinations
     fn flushMetrics(self: *TelemetryCollector) !void {
         if (self.metrics_buffer.items.len == 0) return;
-        
+
         // Write to local file if configured
         if (self.config.metrics_file) |file_path| {
             try self.writeMetricsToFile(file_path);
         }
-        
+
         // Send to remote endpoint if configured
         if (self.config.remote_endpoint) |endpoint| {
             try self.sendMetricsToRemote(endpoint);
         }
-        
+
         self.metrics_buffer.clearRetainingCapacity();
     }
-    
+
     fn writeMetricsToFile(self: *TelemetryCollector, file_path: []const u8) !void {
         const file = std.fs.cwd().createFile(file_path, .{ .truncate = false }) catch |err| switch (err) {
             error.FileNotFound => {
@@ -135,19 +135,19 @@ pub const TelemetryCollector = struct {
             else => return err,
         };
         defer file.close();
-        
+
         // Seek to end of file for appending
         try file.seekFromEnd(0);
-        
+
         const writer = file.writer();
-        
+
         // Write JSON Lines format
         for (self.metrics_buffer.items) |metric| {
             try std.json.stringify(metric, .{}, writer);
             try writer.writeByte('\n');
         }
     }
-    
+
     fn sendMetricsToRemote(self: *TelemetryCollector, endpoint: []const u8) !void {
         // In a real implementation, this would send metrics to a remote endpoint
         // For now, just log that we would send them
@@ -159,13 +159,13 @@ pub const TelemetryCollector = struct {
 /// Collect system information for telemetry
 fn collectSystemInfo(allocator: std.mem.Allocator) !SystemInfo {
     _ = allocator;
-    
+
     const builtin = @import("builtin");
-    
+
     return SystemInfo{
         .os = switch (builtin.os.tag) {
             .linux => "linux",
-            .macos => "macos", 
+            .macos => "macos",
             .windows => "windows",
             .freebsd => "freebsd",
             else => "other",
@@ -181,7 +181,7 @@ fn collectSystemInfo(allocator: std.mem.Allocator) !SystemInfo {
         .version = "0.1.0", // TODO: Get from build system
         .optimization = switch (builtin.mode) {
             .Debug => "debug",
-            .ReleaseSafe => "release_safe", 
+            .ReleaseSafe => "release_safe",
             .ReleaseFast => "release_fast",
             .ReleaseSmall => "release_small",
         },
@@ -228,7 +228,7 @@ var global_telemetry: ?*TelemetryCollector = null;
 /// Initialize global telemetry
 pub fn initGlobalTelemetry(allocator: std.mem.Allocator, config: TelemetryConfig) !void {
     if (global_telemetry != null) return;
-    
+
     global_telemetry = try allocator.create(TelemetryCollector);
     global_telemetry.?.* = try TelemetryCollector.init(allocator, config);
 }
@@ -255,12 +255,12 @@ pub fn isTelemetryEnabled() bool {
     if (std.process.getEnvVarOwned(std.heap.page_allocator, "ZMIN_TELEMETRY_DISABLE")) |_| {
         return false;
     } else |_| {}
-    
+
     // Check for opt-in environment variable
     if (std.process.getEnvVarOwned(std.heap.page_allocator, "ZMIN_TELEMETRY_ENABLE")) |_| {
         return true;
     } else |_| {}
-    
+
     // Default to disabled for privacy
     return false;
 }
@@ -268,30 +268,30 @@ pub fn isTelemetryEnabled() bool {
 /// Load telemetry configuration from environment
 pub fn loadTelemetryConfig(allocator: std.mem.Allocator) TelemetryConfig {
     _ = allocator;
-    
+
     var config = TelemetryConfig{};
-    
+
     // Check if telemetry is enabled
     config.enabled = isTelemetryEnabled();
-    
+
     // Check for anonymous stats preference
     if (std.process.getEnvVarOwned(std.heap.page_allocator, "ZMIN_ANONYMOUS_STATS")) |value| {
         defer std.heap.page_allocator.free(value);
         config.anonymous_stats = std.mem.eql(u8, value, "1") or std.mem.eql(u8, value, "true");
     } else |_| {}
-    
+
     // Check for metrics file path
     if (std.process.getEnvVarOwned(std.heap.page_allocator, "ZMIN_METRICS_FILE")) |value| {
         defer std.heap.page_allocator.free(value);
         // TODO: Clone the value to persist beyond this function
         config.metrics_file = value;
     } else |_| {}
-    
+
     // Check for sample rate
     if (std.process.getEnvVarOwned(std.heap.page_allocator, "ZMIN_SAMPLE_RATE")) |value| {
         defer std.heap.page_allocator.free(value);
         config.sample_rate = std.fmt.parseFloat(f32, value) catch 0.1;
     } else |_| {}
-    
+
     return config;
 }

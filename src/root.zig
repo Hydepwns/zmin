@@ -16,3 +16,23 @@ pub const parallel_minifier_simple = parallel.SimpleParallelMinifier;
 pub const modes = @import("modes/mod.zig");
 pub const ProcessingMode = modes.ProcessingMode;
 
+// Export minifier interface
+pub const MinifierInterface = @import("modes/minifier_interface.zig").MinifierInterface;
+
+// Convenience functions
+pub fn minify(allocator: std.mem.Allocator, input: []const u8, mode: ProcessingMode) ![]u8 {
+    return MinifierInterface.minifyString(allocator, mode, input);
+}
+
+pub fn minifyWithMode(allocator: std.mem.Allocator, input: []const u8, mode: ProcessingMode) ![]u8 {
+    return MinifierInterface.minifyString(allocator, mode, input);
+}
+
+pub fn validate(input: []const u8) !void {
+    // Simple validation - just try to parse as JSON
+    var parser = try minifier.MinifyingParser.init(std.heap.page_allocator, std.io.null_writer);
+    defer parser.deinit(std.heap.page_allocator);
+
+    try parser.feed(input);
+    try parser.flush();
+}

@@ -18,14 +18,14 @@ const Stats = struct {
     output_size: usize,
     processing_time_us: u64,
     mode: zmin.ProcessingMode,
-    
+
     fn print(self: Stats, writer: anytype, verbose: bool) !void {
-        const compression = @as(f32, @floatFromInt(self.input_size - self.output_size)) / 
-                           @as(f32, @floatFromInt(self.input_size)) * 100;
-        const throughput_mbps = @as(f32, @floatFromInt(self.input_size)) / 
-                               (@as(f32, @floatFromInt(self.processing_time_us)) / 1_000_000) / 
-                               (1024 * 1024);
-        
+        const compression = @as(f32, @floatFromInt(self.input_size - self.output_size)) /
+            @as(f32, @floatFromInt(self.input_size)) * 100;
+        const throughput_mbps = @as(f32, @floatFromInt(self.input_size)) /
+            (@as(f32, @floatFromInt(self.processing_time_us)) / 1_000_000) /
+            (1024 * 1024);
+
         if (verbose) {
             try writer.print(
                 \\
@@ -62,15 +62,15 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     // Get command-line arguments
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
-    
+
     // Parse arguments
     var parser = ArgParser.init(allocator, args[0]);
     const parse_result = try parser.parse(args[1..]);
-    
+
     switch (parse_result) {
         .error_message => |msg| {
             defer allocator.free(msg);
@@ -87,23 +87,23 @@ pub fn main() !void {
 fn processOptions(allocator: std.mem.Allocator, parser: *ArgParser, options: Options) !void {
     const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
-    
+
     // Handle special commands
     if (options.help) {
         try parser.printHelp(stdout);
         return;
     }
-    
+
     if (options.version) {
         try parser.printVersion(stdout);
         return;
     }
-    
+
     if (options.completion) |shell| {
         try generateCompletion(shell, parser.program_name, stdout);
         return;
     }
-    
+
     if (options.interactive) {
         // Enter interactive mode
         const config = InteractiveConfig{
@@ -112,14 +112,14 @@ fn processOptions(allocator: std.mem.Allocator, parser: *ArgParser, options: Opt
             .history_file = ".zmin_history",
             .syntax_highlight = true,
         };
-        
+
         var cli = try InteractiveCLI.init(allocator, config);
         defer cli.deinit();
-        
+
         try cli.run();
         return;
     }
-    
+
     // Regular CLI mode
     if (options.input == null and !std.io.getStdIn().isTty()) {
         // Read from stdin
@@ -142,24 +142,24 @@ fn processStdin(allocator: std.mem.Allocator, options: Options) !void {
     const stdin = std.io.getStdIn().reader();
     const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
-    
+
     // Read all input
     const input = try stdin.readAllAlloc(allocator, 1024 * 1024 * 1024); // 1GB max
     defer allocator.free(input);
-    
+
     if (options.validate_only) {
         // Validate only
         zmin.validate(input) catch |err| {
             try stderr.print("Invalid JSON: {}\n", .{err});
             std.process.exit(1);
         };
-        
+
         if (!options.quiet) {
             try stdout.print("Valid JSON\n", .{});
         }
         return;
     }
-    
+
     // Minify
     const start = std.time.microTimestamp();
     const output = zmin.minifyWithMode(allocator, input, options.mode) catch |err| {
@@ -168,7 +168,7 @@ fn processStdin(allocator: std.mem.Allocator, options: Options) !void {
     };
     defer allocator.free(output);
     const duration = std.time.microTimestamp() - start;
-    
+
     // Write output
     if (options.output) |output_file| {
         if (std.mem.eql(u8, output_file, "-")) {
@@ -179,7 +179,7 @@ fn processStdin(allocator: std.mem.Allocator, options: Options) !void {
     } else {
         try stdout.print("{s}", .{output});
     }
-    
+
     // Show stats if requested
     if (options.show_stats and !options.quiet) {
         const stats = Stats{
@@ -195,7 +195,7 @@ fn processStdin(allocator: std.mem.Allocator, options: Options) !void {
 fn processFile(allocator: std.mem.Allocator, input_file: []const u8, options: Options) !void {
     const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
-    
+
     // Handle stdin input
     const input = if (std.mem.eql(u8, input_file, "-")) blk: {
         const stdin = std.io.getStdIn().reader();
@@ -204,20 +204,20 @@ fn processFile(allocator: std.mem.Allocator, input_file: []const u8, options: Op
         break :blk try std.fs.cwd().readFileAlloc(allocator, input_file, 1024 * 1024 * 1024);
     };
     defer allocator.free(input);
-    
+
     if (options.validate_only) {
         // Validate only
         zmin.validate(input) catch |err| {
             try stderr.print("Invalid JSON in '{}': {}\n", .{ input_file, err });
             std.process.exit(1);
         };
-        
+
         if (!options.quiet) {
             try stdout.print("Valid JSON: {s}\n", .{input_file});
         }
         return;
     }
-    
+
     // Minify
     const start = std.time.microTimestamp();
     const output = zmin.minifyWithMode(allocator, input, options.mode) catch |err| {
@@ -226,7 +226,7 @@ fn processFile(allocator: std.mem.Allocator, input_file: []const u8, options: Op
     };
     defer allocator.free(output);
     const duration = std.time.microTimestamp() - start;
-    
+
     // Write output
     if (options.output) |output_file| {
         if (std.mem.eql(u8, output_file, "-")) {
@@ -240,7 +240,7 @@ fn processFile(allocator: std.mem.Allocator, input_file: []const u8, options: Op
     } else {
         try stdout.print("{s}", .{output});
     }
-    
+
     // Show stats if requested
     if (options.show_stats and !options.quiet) {
         const stats = Stats{
@@ -256,11 +256,11 @@ fn processFile(allocator: std.mem.Allocator, input_file: []const u8, options: Op
 fn runBenchmark(allocator: std.mem.Allocator, input_file: []const u8, options: Options) !void {
     const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
-    
+
     // Read input file
     const input = try std.fs.cwd().readFileAlloc(allocator, input_file, 1024 * 1024 * 1024);
     defer allocator.free(input);
-    
+
     if (!options.quiet) {
         try stdout.print("Running benchmark: {} iterations of {} mode on '{}' ({} bytes)\n", .{
             options.benchmark_iterations,
@@ -269,42 +269,42 @@ fn runBenchmark(allocator: std.mem.Allocator, input_file: []const u8, options: O
             input.len,
         });
     }
-    
+
     var total_time: u64 = 0;
     var min_time: u64 = std.math.maxInt(u64);
     var max_time: u64 = 0;
-    
+
     // Warmup
     for (0..10) |_| {
         const output = try zmin.minifyWithMode(allocator, input, options.mode);
         allocator.free(output);
     }
-    
+
     // Benchmark
     for (0..options.benchmark_iterations) |i| {
         const start = std.time.microTimestamp();
         const output = try zmin.minifyWithMode(allocator, input, options.mode);
         const duration = std.time.microTimestamp() - start;
         allocator.free(output);
-        
+
         total_time += duration;
         min_time = @min(min_time, duration);
         max_time = @max(max_time, duration);
-        
+
         if (!options.quiet and (i + 1) % 10 == 0) {
             try stderr.print("\rProgress: {}/{}", .{ i + 1, options.benchmark_iterations });
         }
     }
-    
+
     if (!options.quiet) {
         try stderr.print("\r", .{});
     }
-    
+
     const avg_time = total_time / options.benchmark_iterations;
-    const throughput_mbps = @as(f32, @floatFromInt(input.len)) / 
-                           (@as(f32, @floatFromInt(avg_time)) / 1_000_000) / 
-                           (1024 * 1024);
-    
+    const throughput_mbps = @as(f32, @floatFromInt(input.len)) /
+        (@as(f32, @floatFromInt(avg_time)) / 1_000_000) /
+        (1024 * 1024);
+
     try stdout.print(
         \\
         \\Benchmark Results

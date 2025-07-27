@@ -84,10 +84,10 @@ pub const PrometheusExporter = struct {
         for (self.metrics.items) |metric| {
             // Write HELP line
             try writer.print("# HELP {s} {s}\n", .{ metric.name, metric.help });
-            
+
             // Write TYPE line
             try writer.print("# TYPE {s} {s}\n", .{ metric.name, metric.type.toString() });
-            
+
             // Write metric value
             if (metric.labels) |labels| {
                 try writer.print("{s}{{", .{metric.name});
@@ -191,7 +191,7 @@ test "PrometheusExporter basic functionality" {
     defer buffer.deinit();
 
     try exporter.generateMetrics(buffer.writer());
-    
+
     const output = buffer.items;
     try std.testing.expect(std.mem.indexOf(u8, output, "zmin_throughput_mbps 1500.5") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "zmin_errors_total 1") != null);

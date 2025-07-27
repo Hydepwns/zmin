@@ -56,22 +56,22 @@ pub const ParseResult = union(enum) {
 pub const ArgParser = struct {
     allocator: std.mem.Allocator,
     program_name: []const u8,
-    
+
     pub fn init(allocator: std.mem.Allocator, program_name: []const u8) ArgParser {
         return .{
             .allocator = allocator,
             .program_name = program_name,
         };
     }
-    
+
     pub fn parse(self: *ArgParser, args: []const []const u8) !ParseResult {
         var options = Options{};
         var positional_count: usize = 0;
-        
+
         var i: usize = 0;
         while (i < args.len) : (i += 1) {
             const arg = args[i];
-            
+
             if (std.mem.startsWith(u8, arg, "--")) {
                 // Long option
                 if (std.mem.eql(u8, arg, "--help")) {
@@ -103,11 +103,7 @@ pub const ArgParser = struct {
                     const shell_str = arg[13..];
                     options.completion = try parseShell(shell_str);
                 } else {
-                    return ParseResult{ .error_message = try std.fmt.allocPrint(
-                        self.allocator,
-                        "Unknown option: {s}",
-                        .{arg}
-                    ) };
+                    return ParseResult{ .error_message = try std.fmt.allocPrint(self.allocator, "Unknown option: {s}", .{arg}) };
                 }
             } else if (std.mem.startsWith(u8, arg, "-") and arg.len > 1) {
                 // Short options (can be combined like -vq)
@@ -134,11 +130,7 @@ pub const ArgParser = struct {
                             options.threads = try std.fmt.parseInt(u32, args[i], 10);
                         },
                         else => {
-                            return ParseResult{ .error_message = try std.fmt.allocPrint(
-                                self.allocator,
-                                "Unknown option: -{c}",
-                                .{c}
-                            ) };
+                            return ParseResult{ .error_message = try std.fmt.allocPrint(self.allocator, "Unknown option: -{c}", .{c}) };
                         },
                     }
                 }
@@ -154,15 +146,15 @@ pub const ArgParser = struct {
                 positional_count += 1;
             }
         }
-        
+
         // Validate options
         if (options.verbose and options.quiet) {
             return ParseResult{ .error_message = "Cannot use --verbose and --quiet together" };
         }
-        
+
         return ParseResult{ .options = options };
     }
-    
+
     fn parseMode(mode_str: []const u8) !zmin.ProcessingMode {
         if (std.mem.eql(u8, mode_str, "eco")) {
             return .eco;
@@ -174,7 +166,7 @@ pub const ArgParser = struct {
             return error.InvalidMode;
         }
     }
-    
+
     fn parseShell(shell_str: []const u8) !Shell {
         if (std.mem.eql(u8, shell_str, "bash")) {
             return .bash;
@@ -188,7 +180,7 @@ pub const ArgParser = struct {
             return error.InvalidShell;
         }
     }
-    
+
     pub fn printHelp(self: *ArgParser, writer: anytype) !void {
         try writer.print(
             \\Usage: {s} [OPTIONS] [INPUT] [OUTPUT]
@@ -226,7 +218,7 @@ pub const ArgParser = struct {
             \\
         , .{ self.program_name, self.program_name, self.program_name, self.program_name, self.program_name });
     }
-    
+
     pub fn printVersion(self: *ArgParser, writer: anytype) !void {
         _ = self;
         try writer.print(

@@ -421,7 +421,7 @@ fn minifyFile(allocator: std.mem.Allocator, options: Options, logger: *Logger, e
         var input_stream = std.io.fixedBufferStream(input_data.items);
         const MinifierInterface = @import("modes/minifier_interface.zig").MinifierInterface;
         try MinifierInterface.minify(allocator, options.mode, input_stream.reader(), output_file.writer());
-        
+
         if (options.enable_logging) {
             const elapsed = timer.read();
             const elapsed_ms = elapsed / std.time.ns_per_ms;
@@ -449,7 +449,7 @@ fn minifyFileSingleThreaded(allocator: std.mem.Allocator, options: Options, inpu
         const optimized_data = try schema_optimizer.optimizeForSchema(input_data);
         defer allocator.free(optimized_data);
         processed_data = optimized_data;
-        
+
         if (options.enable_logging and options.verbose) {
             try schema_optimizer.printOptimizations(logger.stdout_writer);
         }

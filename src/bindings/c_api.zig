@@ -41,7 +41,7 @@ export fn zmin_minify_mode(input: [*c]const u8, input_size: usize, mode: c_int) 
             .error_code = -99, // Not initialized
         };
     };
-    
+
     // Convert mode
     const processing_mode = switch (mode) {
         0 => zmin.ProcessingMode.eco,
@@ -53,10 +53,10 @@ export fn zmin_minify_mode(input: [*c]const u8, input_size: usize, mode: c_int) 
             .error_code = -3, // Invalid mode
         },
     };
-    
+
     // Get input slice
     const input_slice = input[0..input_size];
-    
+
     // Minify
     const output = zmin.minifyWithMode(allocator, input_slice, processing_mode) catch |err| {
         const error_code: c_int = switch (err) {
@@ -64,14 +64,14 @@ export fn zmin_minify_mode(input: [*c]const u8, input_size: usize, mode: c_int) 
             error.OutOfMemory => -2,
             else => -99,
         };
-        
+
         return ZminResult{
             .data = null,
             .size = 0,
             .error_code = error_code,
         };
     };
-    
+
     // Convert to C string (null-terminated)
     const c_output = allocator.allocSentinel(u8, output.len, 0) catch {
         allocator.free(output);
@@ -81,10 +81,10 @@ export fn zmin_minify_mode(input: [*c]const u8, input_size: usize, mode: c_int) 
             .error_code = -2, // Out of memory
         };
     };
-    
+
     @memcpy(c_output[0..output.len], output);
     allocator.free(output);
-    
+
     return ZminResult{
         .data = c_output.ptr,
         .size = output.len,
@@ -96,14 +96,14 @@ export fn zmin_minify_mode(input: [*c]const u8, input_size: usize, mode: c_int) 
 /// Returns 0 for valid, error code for invalid
 export fn zmin_validate(input: [*c]const u8, input_size: usize) c_int {
     const input_slice = input[0..input_size];
-    
+
     zmin.validate(input_slice) catch |err| {
         return switch (err) {
             error.InvalidJson => -1,
             else => -99,
         };
     };
-    
+
     return 0;
 }
 
@@ -111,7 +111,7 @@ export fn zmin_validate(input: [*c]const u8, input_size: usize) c_int {
 export fn zmin_free_result(result: *ZminResult) void {
     if (result.data != null and result.size > 0) {
         const allocator = c_allocator orelse return;
-        const slice = result.data[0..result.size + 1]; // +1 for null terminator
+        const slice = result.data[0 .. result.size + 1]; // +1 for null terminator
         allocator.free(slice);
         result.data = null;
         result.size = 0;
@@ -141,7 +141,7 @@ export fn zmin_estimate_output_size(input_size: usize) usize {
 /// Create a new minifier instance (for languages that prefer object-oriented API)
 export fn zmin_create_minifier(mode: c_int) ?*anyopaque {
     const allocator = c_allocator orelse return null;
-    
+
     const minifier = allocator.create(MinifierState) catch return null;
     minifier.* = MinifierState{
         .mode = switch (mode) {
@@ -152,7 +152,7 @@ export fn zmin_create_minifier(mode: c_int) ?*anyopaque {
         },
         .allocator = allocator,
     };
-    
+
     return @ptrCast(minifier);
 }
 
@@ -171,7 +171,7 @@ export fn zmin_minifier_minify(minifier: ?*anyopaque, input: [*c]const u8, input
         .size = 0,
         .error_code = -99,
     };
-    
+
     const state: *MinifierState = @ptrCast(@alignCast(ptr));
     return zmin_minify_mode(input, input_size, @intFromEnum(state.mode));
 }

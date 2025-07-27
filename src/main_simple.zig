@@ -22,56 +22,56 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     // Parse command line arguments
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
-    
+
     const config = try parseArgs(allocator, args);
-    
+
     if (config.help) {
         printHelp();
         return;
     }
-    
+
     if (config.version) {
         printVersion();
         return;
     }
-    
+
     // Set up input reader
     var input_reader: std.io.AnyReader = undefined;
     var input_file: ?std.fs.File = null;
     defer if (input_file) |f| f.close();
-    
+
     if (config.input_file) |path| {
         input_file = try std.fs.cwd().openFile(path, .{});
         input_reader = input_file.?.reader().any();
     } else {
         input_reader = std.io.getStdIn().reader().any();
     }
-    
+
     // Set up output writer
     var output_writer: std.io.AnyWriter = undefined;
     var output_file: ?std.fs.File = null;
     defer if (output_file) |f| f.close();
-    
+
     if (config.output_file) |path| {
         output_file = try std.fs.cwd().createFile(path, .{});
         output_writer = output_file.?.writer().any();
     } else {
         output_writer = std.io.getStdOut().writer().any();
     }
-    
+
     // Process JSON
     const start_time = std.time.nanoTimestamp();
     const stats = try processJson(allocator, input_reader, output_writer, config);
     const end_time = std.time.nanoTimestamp();
-    
+
     if (config.stats and !config.quiet) {
         printStats(stats, end_time - start_time, config);
     }
-    
+
     if (!config.quiet) {
         const stderr = std.io.getStdErr().writer();
         if (config.input_file != null and config.output_file != null) {
@@ -92,49 +92,49 @@ const ProcessStats = struct {
 
 fn processJson(allocator: std.mem.Allocator, reader: std.io.AnyReader, writer: std.io.AnyWriter, config: Config) !ProcessStats {
     var stats = ProcessStats{};
-    
+
     // For large files with parallel enabled and not pretty printing, use parallel processing
     const use_parallel = config.parallel and !config.pretty;
-    
+
     if (use_parallel) {
         // Read all data first for parallel processing
         var data = std.ArrayList(u8).init(allocator);
         defer data.deinit();
-        
+
         const buffer_size = 64 * 1024;
         var buffer = try allocator.alloc(u8, buffer_size);
         defer allocator.free(buffer);
-        
+
         while (true) {
             const bytes_read = try reader.read(buffer);
             if (bytes_read == 0) break;
             try data.appendSlice(buffer[0..bytes_read]);
         }
-        
+
         stats.bytes_read = data.items.len;
-        
+
         // Only use parallel for files > 1MB
         if (data.items.len > 1024 * 1024) {
             const parallel_config = ParallelMinifier.Config{
                 .buffer_size = 256 * 1024,
                 .enable_pipeline = true,
             };
-            
+
             var minifier = try ParallelMinifier.create(allocator, writer, parallel_config);
             defer minifier.destroy();
-            
+
             try minifier.process(data.items);
             try minifier.flush();
-            
+
             stats.bytes_written = data.items.len; // Approximate
         } else {
             // Fall back to single-threaded for small files
             var parser = try MinifyingParser.init(allocator, writer);
             defer parser.deinit(allocator);
-            
+
             try parser.feed(data.items);
             try parser.flush();
-            
+
             stats.bytes_written = parser.bytes_processed;
         }
     } else {
@@ -144,44 +144,44 @@ fn processJson(allocator: std.mem.Allocator, reader: std.io.AnyReader, writer: s
         else
             try MinifyingParser.init(allocator, writer);
         defer parser.deinit(allocator);
-        
+
         // Read and process in chunks for streaming
         const buffer_size = 64 * 1024; // 64KB chunks
         var buffer = try allocator.alloc(u8, buffer_size);
         defer allocator.free(buffer);
-        
+
         while (true) {
             const bytes_read = try reader.read(buffer);
             if (bytes_read == 0) break;
-            
+
             stats.bytes_read += bytes_read;
-            
+
             // Feed to parser
             try parser.feed(buffer[0..bytes_read]);
         }
-        
+
         // Flush any remaining output
         try parser.flush();
-        
+
         stats.bytes_written = parser.bytes_processed;
     }
-    
+
     // Calculate stats
     if (stats.bytes_read > 0) {
         stats.compression_ratio = @as(f64, @floatFromInt(stats.bytes_read - stats.bytes_written)) / @as(f64, @floatFromInt(stats.bytes_read)) * 100.0;
     }
-    
+
     return stats;
 }
 
 fn parseArgs(allocator: std.mem.Allocator, args: []const []const u8) !Config {
     _ = allocator;
     var config = Config{};
-    
+
     var i: usize = 1; // Skip program name
     while (i < args.len) : (i += 1) {
         const arg = args[i];
-        
+
         if (std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "--help")) {
             config.help = true;
         } else if (std.mem.eql(u8, arg, "-v") or std.mem.eql(u8, arg, "--version")) {
@@ -233,7 +233,7 @@ fn parseArgs(allocator: std.mem.Allocator, args: []const []const u8) !Config {
             }
         }
     }
-    
+
     return config;
 }
 
@@ -286,11 +286,11 @@ fn printVersion() void {
 
 fn printStats(stats: ProcessStats, elapsed_ns: i128, config: Config) void {
     const elapsed_ms = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
-    const throughput_mbps = if (elapsed_ms > 0) 
+    const throughput_mbps = if (elapsed_ms > 0)
         (@as(f64, @floatFromInt(stats.bytes_read)) / 1024.0 / 1024.0) / (elapsed_ms / 1000.0)
-    else 
+    else
         0.0;
-    
+
     std.debug.print("\n📊 Processing Statistics:\n", .{});
     std.debug.print("────────────────────────────────────────\n", .{});
     std.debug.print("  Input size:    {} bytes\n", .{stats.bytes_read});
