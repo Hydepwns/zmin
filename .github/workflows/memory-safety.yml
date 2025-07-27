@@ -33,7 +33,7 @@ jobs:
 
     - name: Build with debug symbols
       run: |
-        zig build -Doptimize=Debug
+        zig build
         
     - name: Run Valgrind memory check
       run: |
@@ -83,8 +83,8 @@ jobs:
     - name: Build with AddressSanitizer
       run: |
         # Note: Zig AddressSanitizer support may vary by version
-        zig build -Doptimize=ReleaseSafe || \
-        zig build -Doptimize=Debug
+        zig build --release=safe || \
+        zig build
 
     - name: Run tests with AddressSanitizer
       run: |
@@ -127,7 +127,7 @@ jobs:
     - name: Build with ThreadSanitizer
       run: |
         # Build with thread safety checks
-        zig build -Doptimize=Debug || echo "ThreadSanitizer may not be available"
+        zig build || echo "ThreadSanitizer may not be available"
 
     - name: Run parallel tests
       run: |
@@ -208,7 +208,7 @@ jobs:
         version: ${{ env.ZIG_VERSION }}
 
     - name: Build with debug symbols
-      run: zig build -Doptimize=Debug
+      run: zig build
 
     - name: Run leak detection tests
       run: |
