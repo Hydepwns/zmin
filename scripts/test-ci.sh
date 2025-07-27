@@ -103,7 +103,7 @@ check_artifacts() {
 # Run security analysis
 run_security_analysis() {
     print_status "Running security analysis..."
-    zig build -Doptimize=ReleaseSafe
+    zig build --release=safe
     zig build test
     print_success "Security analysis completed"
 }

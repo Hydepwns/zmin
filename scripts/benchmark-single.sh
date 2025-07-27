@@ -12,16 +12,34 @@ OUTPUT="/tmp/zmin-benchmark-output.json"
 # Number of iterations
 ITERATIONS=5
 
+# Check if binary exists
+if [ ! -x "$BINARY" ]; then
+    echo "Error: Binary $BINARY not found or not executable" >&2
+    exit 1
+fi
+
+# Check if input file exists
+if [ ! -f "$INPUT" ]; then
+    echo "Error: Input file $INPUT not found" >&2
+    exit 1
+fi
+
 # Run warmup
 for i in {1..2}; do
-    $BINARY --mode $MODE $INPUT $OUTPUT >/dev/null 2>&1
+    if ! $BINARY --mode $MODE $INPUT $OUTPUT >/dev/null 2>&1; then
+        echo "Error: Failed to run $BINARY with mode $MODE" >&2
+        exit 1
+    fi
 done
 
 # Run timed iterations
 total_time=0
 for i in $(seq 1 $ITERATIONS); do
     start=$(date +%s%N)
-    $BINARY --mode $MODE $INPUT $OUTPUT >/dev/null 2>&1
+    if ! $BINARY --mode $MODE $INPUT $OUTPUT >/dev/null 2>&1; then
+        echo "Error: Failed to run $BINARY with mode $MODE" >&2
+        exit 1
+    fi
     end=$(date +%s%N)
     
     # Calculate time in milliseconds
