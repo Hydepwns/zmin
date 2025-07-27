@@ -1,0 +1,119 @@
+# Git attributes for better diff handling and file type detection
+
+# Zig files
+*.zig linguist-language=Zig
+*.zig diff=zig
+
+# Documentation
+*.md linguist-documentation
+*.md diff=markdown
+*.txt linguist-documentation
+*.rst linguist-documentation
+
+# Configuration files
+*.yml linguist-language=YAML
+*.yaml linguist-language=YAML
+*.json linguist-language=JSON
+*.toml linguist-language=TOML
+*.ini linguist-language=INI
+
+# Scripts
+*.sh linguist-language=Shell
+*.bash linguist-language=Shell
+*.py linguist-language=Python
+*.js linguist-language=JavaScript
+*.ts linguist-language=TypeScript
+
+# Build and dependency files
+build.zig linguist-language=Zig
+build.zig.zon linguist-language=Zig
+Dockerfile linguist-language=Dockerfile
+Makefile linguist-language=Makefile
+.editorconfig linguist-language=EditorConfig
+
+# Binary files (should not be diffed)
+*.o binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.a binary
+*.lib binary
+*.obj binary
+*.class binary
+*.jar binary
+*.war binary
+*.ear binary
+*.zip binary
+*.tar.gz binary
+*.tar.bz2 binary
+*.rar binary
+*.7z binary
+*.iso binary
+*.img binary
+*.bin binary
+
+# Generated files
+zig-out/ linguist-generated
+.zig-cache/ linguist-generated
+*.generated.* linguist-generated
+api-reference-generated.* linguist-generated
+
+# Large files
+*.log linguist-vendored
+*.tmp linguist-vendored
+*.temp linguist-vendored
+
+# Archive files
+*.zip linguist-vendored
+*.tar.gz linguist-vendored
+*.tar.bz2 linguist-vendored
+*.rar linguist-vendored
+*.7z linguist-vendored
+
+# Test data and fixtures
+tests/fixtures/ linguist-vendored
+benchmarks/datasets/ linguist-vendored
+
+# Documentation assets
+docs/assets/ linguist-vendored
+*.png linguist-vendored
+*.jpg linguist-vendored
+*.jpeg linguist-vendored
+*.gif linguist-vendored
+*.svg linguist-vendored
+*.ico linguist-vendored
+
+# Exclude from language statistics
+.claude/ linguist-vendored
+archive/ linguist-vendored
+node_modules/ linguist-vendored
+vendor/ linguist-vendored
+
+# Line ending normalization
+*.zig text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.xml text eol=lf
+
+# Windows line endings for certain files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Executable scripts
+*.sh text eol=lf executable
+*.py text eol=lf executable
+*.js text eol=lf executable
