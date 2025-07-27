@@ -25,7 +25,7 @@
   "author": "zmin contributors",
   "license": "MIT",
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=16.0.0"
   },
   "dependencies": {
     "bindings": "^1.5.0",

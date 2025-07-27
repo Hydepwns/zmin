@@ -1,6 +1,6 @@
 # @zmin/cli
 
-Ultra-high-performance JSON minifier with **3.5+ GB/s** throughput using WebAssembly.
+Ultra-high-performance JSON minifier with **up to 1.1 GB/s** throughput using WebAssembly.
 
 ## Installation
 
@@ -57,7 +57,7 @@ console.log(formatted);
 
 ## Performance
 
-- **3.5+ GB/s** throughput on modern hardware
+- **Up to 1.1 GB/s** throughput on modern hardware
 - WebAssembly provides near-native performance
 - Automatic SIMD optimization when available
 - Memory efficient streaming for large files
@@ -111,7 +111,7 @@ Formats JSON with proper indentation.
 
 | Library | Throughput | Memory Usage |
 |---------|------------|--------------|
-| @zmin/cli | 3.5 GB/s | Very Low |
+| @zmin/cli | 1.1 GB/s | Very Low |
 | JSON.stringify | 150 MB/s | High |
 | jsonminify | 80 MB/s | Medium |
 | uglify-es | 45 MB/s | High |

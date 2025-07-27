@@ -1,7 +1,7 @@
 {
   "name": "@zmin/cli",
-  "version": "0.1.0",
-  "description": "Ultra-high-performance JSON minifier with 3.5+ GB/s throughput",
+  "version": "1.0.0",
+  "description": "Ultra-high-performance JSON minifier with up to 1.1 GB/s throughput",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {

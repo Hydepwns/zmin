@@ -113,9 +113,9 @@ Creates a new minifier instance.
 
 This native addon provides near-native performance:
 
-- **ECO**: 200-300 MB/s
-- **SPORT**: 400-600 MB/s  
-- **TURBO**: 800-1200 MB/s
+- **ECO**: ~312 MB/s
+- **SPORT**: ~555 MB/s  
+- **TURBO**: ~1.1 GB/s
 
 ## Error Handling
 
@@ -163,6 +163,12 @@ npm test
 - Linux (x86_64, aarch64)
 - macOS (x86_64, arm64)
 - Windows (x86_64)
+
+## Documentation
+
+- **[Main Documentation](https://zmin.droo.foo)** - Interactive guides and examples
+- **[API Reference](https://zmin.droo.foo/api-reference)** - Complete API documentation
+- **[Performance Guide](https://zmin.droo.foo/performance)** - Optimization tips
 
 ## License
 

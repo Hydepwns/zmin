@@ -166,6 +166,11 @@ zmin_time = time.time() - start
 print(f"Python: {py_time:.3f}s")
 print(f"zmin:   {zmin_time:.3f}s")
 print(f"Speedup: {py_time/zmin_time:.1f}x")
+
+# Typical performance results:
+# ECO mode: ~312 MB/s
+# SPORT mode: ~555 MB/s  
+# TURBO mode: ~1.1 GB/s
 ```
 
 ## API Reference
@@ -343,6 +348,12 @@ zig build c-api
 - Linux (x86_64, aarch64)
 - macOS (x86_64, arm64)
 - Windows (x86_64)
+
+## Documentation
+
+- **[Main Documentation](https://zmin.droo.foo)** - Interactive guides and examples
+- **[API Reference](https://zmin.droo.foo/api-reference)** - Complete API documentation
+- **[Performance Guide](https://zmin.droo.foo/performance)** - Optimization tips
 
 ## License
 

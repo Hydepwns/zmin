@@ -171,9 +171,9 @@ func BenchmarkZmin(b *testing.B) {
 Typical results:
 
 - Standard library: 50-100 MB/s
-- zmin ECO: 200-300 MB/s
-- zmin SPORT: 400-600 MB/s
-- zmin TURBO: 800-1200 MB/s
+- zmin ECO: ~312 MB/s
+- zmin SPORT: ~555 MB/s
+- zmin TURBO: ~1.1 GB/s
 
 ## API Reference
 
@@ -331,6 +331,12 @@ See the [examples](examples/) directory for more usage examples:
 - `streaming/` - Processing large files
 - `server/` - HTTP server with JSON minification
 - `cli/` - Command-line tool
+
+## Documentation
+
+- **[Main Documentation](https://zmin.droo.foo)** - Interactive guides and examples
+- **[API Reference](https://zmin.droo.foo/api-reference)** - Complete API documentation
+- **[Performance Guide](https://zmin.droo.foo/performance)** - Optimization tips
 
 ## License
 

@@ -25,7 +25,7 @@ setup(
     version="1.0.0",
     author="zmin contributors",
     author_email="",
-    description="Ultra-high-performance JSON minifier with 3.5+ GB/s throughput",
+    description="Ultra-high-performance JSON minifier with up to 1.1 GB/s throughput",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/hydepwns/zmin",
