@@ -50,3 +50,4 @@ cd zmin && zig build --release=fast
 | **Turbo** | Large files, max speed | **~1.1 GB/s** | Higher |
 
 [Get Started →](/docs/getting-started/)
+# Test commit to trigger workflow
