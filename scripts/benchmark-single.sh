@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Benchmark a single minification operation
-# Usage: ./benchmark-single.sh <binary> <mode> <input_file>
+# Usage: ./benchmark-single.sh <binary> <input_file>
 
 set -euo pipefail
 
+# Source common functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
+
 BINARY=$1
-MODE=$2
-INPUT=$3
+INPUT=$2
 OUTPUT="/tmp/zmin-benchmark-output.json"
 
 # Number of iterations
@@ -26,7 +29,7 @@ fi
 
 # Run warmup
 for i in {1..2}; do
-    if ! $BINARY $INPUT $OUTPUT >/dev/null 2>&1; then
+    if ! $BINARY $INPUT -o $OUTPUT >/dev/null 2>&1; then
         echo "Error: Failed to run $BINARY" >&2
         exit 1
     fi
@@ -36,7 +39,7 @@ done
 total_time=0
 for i in $(seq 1 $ITERATIONS); do
     start=$(date +%s%N)
-    if ! $BINARY $INPUT $OUTPUT >/dev/null 2>&1; then
+    if ! $BINARY $INPUT -o $OUTPUT >/dev/null 2>&1; then
         echo "Error: Failed to run $BINARY" >&2
         exit 1
     fi
