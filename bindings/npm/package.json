@@ -1,0 +1,61 @@
+{
+  "name": "@zmin/cli",
+  "version": "0.1.0",
+  "description": "Ultra-high-performance JSON minifier with 3.5+ GB/s throughput",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "zmin": "./bin/zmin.js"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "npm run build:wasm && npm run build:types",
+    "build:wasm": "zig build wasm -Doptimize=ReleaseSmall",
+    "build:types": "tsc",
+    "test": "node test/test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "json",
+    "minify",
+    "parser",
+    "performance",
+    "wasm",
+    "webassembly",
+    "zig",
+    "simd",
+    "minifier",
+    "compress",
+    "optimize"
+  ],
+  "author": {
+    "name": "zmin contributors",
+    "url": "https://github.com/hydepwns/zmin"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hydepwns/zmin.git",
+    "directory": "bindings/npm"
+  },
+  "bugs": {
+    "url": "https://github.com/hydepwns/zmin/issues"
+  },
+  "homepage": "https://github.com/hydepwns/zmin#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

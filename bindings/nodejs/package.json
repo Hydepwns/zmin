@@ -1,0 +1,53 @@
+{
+  "name": "zmin",
+  "version": "1.0.0",
+  "description": "High-performance JSON minifier",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "jest",
+    "build": "node-gyp rebuild",
+    "install": "node-gyp rebuild",
+    "benchmark": "node benchmark.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/zmin.git"
+  },
+  "keywords": [
+    "json",
+    "minify",
+    "minifier",
+    "performance",
+    "compress",
+    "optimization"
+  ],
+  "author": "zmin contributors",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "dependencies": {
+    "bindings": "^1.5.0",
+    "node-addon-api": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "jest": "^29.0.0",
+    "benchmark": "^2.1.4"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "binding.gyp",
+    "src/",
+    "README.md"
+  ],
+  "binary": {
+    "module_name": "zmin",
+    "module_path": "./build/Release/",
+    "host": "https://github.com/yourusername/zmin/releases/download/",
+    "remote_path": "{version}",
+    "package_name": "{module_name}-v{version}-{node_abi}-{platform}-{arch}.tar.gz"
+  }
+}
