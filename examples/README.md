@@ -12,11 +12,12 @@ This directory contains examples demonstrating various use cases for zmin.
 
 - [parallel_batch.zig](parallel_batch.zig) - Batch processing multiple files
 
-## Integration Examples
+## Language Bindings
 
-- [nodejs_binding](../bindings/nodejs/) - Node.js integration
-- [python_binding](../bindings/python/) - Python integration
-- [go_binding](../bindings/go/) - Go integration
+- **[Node.js](../bindings/nodejs/)** - `npm install zmin` or `npm install @zmin/cli`
+- **[Python](../bindings/python/)** - `pip install zmin`
+- **[Go](../bindings/go/)** - `go get github.com/hydepwns/zmin/go`
+- **[NPM CLI](../bindings/npm/)** - `npm install -g @zmin/cli`
 
 ## Monitoring
 
@@ -69,3 +70,7 @@ zmin --validate data.json
 # Interactive mode
 zmin --interactive
 ```
+
+## Documentation
+
+For complete documentation, visit **[zmin.droo.foo](https://zmin.droo.foo)**

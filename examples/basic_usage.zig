@@ -3,7 +3,7 @@
 //! This example demonstrates the simplest way to use zmin for JSON minification.
 
 const std = @import("std");
-const zmin = @import("zmin");
+const zmin = @import("zmin_lib");
 
 pub fn main() !void {
     // Use a general-purpose allocator
@@ -57,8 +57,8 @@ fn example1_string_minification(allocator: std.mem.Allocator) !void {
         \\}
     ;
 
-    // Minify the JSON
-    const output = try zmin.minify(allocator, input);
+    // Minify the JSON using eco mode (default)
+    const output = try zmin.minify(allocator, input, .eco);
     defer allocator.free(output);
 
     try stdout.print("Original ({d} bytes):\n{s}\n\n", .{ input.len, input });
@@ -87,14 +87,14 @@ fn example2_file_minification(
     // Measure time
     const start = std.time.milliTimestamp();
 
-    // Minify
-    const output = try zmin.minify(allocator, input);
+    // Minify using eco mode
+    const output = try zmin.minify(allocator, input, .eco);
     defer allocator.free(output);
 
     const duration = std.time.milliTimestamp() - start;
 
     // Write output file
-    try std.fs.cwd().writeFile(output_path, output);
+    try std.fs.cwd().writeFile(.{ .sub_path = output_path, .data = output });
 
     try stdout.print("Written '{s}' ({d} bytes)\n", .{ output_path, output.len });
 

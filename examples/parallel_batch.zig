@@ -4,7 +4,7 @@
 //! in parallel using work-stealing and thread pools.
 
 const std = @import("std");
-const zmin = @import("zmin");
+const zmin = @import("zmin_lib");
 
 const WorkItem = struct {
     input_path: []const u8,
@@ -22,7 +22,9 @@ const Stats = struct {
 
 const BatchProcessor = struct {
     allocator: std.mem.Allocator,
-    work_queue: std.atomic.Queue(WorkItem),
+    work_queue: std.ArrayList(WorkItem),
+    work_queue_mutex: std.Thread.Mutex,
+    work_index: std.atomic.Value(usize),
     results: std.ArrayList(WorkItem),
     results_mutex: std.Thread.Mutex,
     thread_count: u32,
@@ -35,7 +37,9 @@ const BatchProcessor = struct {
     ) BatchProcessor {
         return .{
             .allocator = allocator,
-            .work_queue = std.atomic.Queue(WorkItem).init(),
+            .work_queue = std.ArrayList(WorkItem).init(allocator),
+            .work_queue_mutex = std.Thread.Mutex{},
+            .work_index = std.atomic.Value(usize).init(0),
             .results = std.ArrayList(WorkItem).init(allocator),
             .results_mutex = std.Thread.Mutex{},
             .thread_count = thread_count,
@@ -44,6 +48,7 @@ const BatchProcessor = struct {
     }
 
     pub fn deinit(self: *BatchProcessor) void {
+        self.work_queue.deinit();
         self.results.deinit();
     }
 
@@ -53,9 +58,9 @@ const BatchProcessor = struct {
             .output_path = try self.allocator.dupe(u8, output),
         };
 
-        const node = try self.allocator.create(std.atomic.Queue(WorkItem).Node);
-        node.data = work;
-        self.work_queue.put(node);
+        self.work_queue_mutex.lock();
+        defer self.work_queue_mutex.unlock();
+        try self.work_queue.append(work);
     }
 
     pub fn process(self: *BatchProcessor) !void {
@@ -80,13 +85,19 @@ const BatchProcessor = struct {
     fn worker(self: *BatchProcessor, thread_id: usize) !void {
         const thread_allocator = std.heap.page_allocator; // Each thread gets its own allocator
 
-        while (self.work_queue.get()) |node| {
-            var work = node.data;
-            defer {
-                self.allocator.destroy(node);
-                self.allocator.free(work.input_path);
-                self.allocator.free(work.output_path);
-            }
+        while (true) {
+            // Get next work item
+            const idx = self.work_index.fetchAdd(1, .monotonic);
+            
+            self.work_queue_mutex.lock();
+            const queue_len = self.work_queue.items.len;
+            self.work_queue_mutex.unlock();
+            
+            if (idx >= queue_len) break;
+            
+            self.work_queue_mutex.lock();
+            var work = self.work_queue.items[idx];
+            self.work_queue_mutex.unlock();
 
             work.status = .processing;
 
@@ -123,10 +134,10 @@ const BatchProcessor = struct {
         const output = try zmin.minifyWithMode(allocator, input, self.mode);
         defer allocator.free(output);
 
-        const duration = std.time.microTimestamp() - start;
+        const duration = @as(u64, @intCast(std.time.microTimestamp() - start));
 
         // Write output
-        try std.fs.cwd().writeFile(work.output_path, output);
+        try std.fs.cwd().writeFile(.{ .sub_path = work.output_path, .data = output });
 
         // Record stats
         work.stats = Stats{
@@ -259,7 +270,7 @@ fn example2_work_stealing(allocator: std.mem.Allocator) !void {
         const content = try generateJsonWithSize(allocator, size);
         defer allocator.free(content);
 
-        try std.fs.cwd().writeFile(filename, content);
+        try std.fs.cwd().writeFile(.{ .sub_path = filename, .data = content });
     }
     defer {
         for (0..sizes.len) |i| {
@@ -339,7 +350,7 @@ fn createTestFiles(allocator: std.mem.Allocator, dir: []const u8, count: u32) !v
         const content = try generateJsonWithSize(allocator, 100);
         defer allocator.free(content);
 
-        try std.fs.cwd().writeFile(filename, content);
+        try std.fs.cwd().writeFile(.{ .sub_path = filename, .data = content });
     }
 }
 

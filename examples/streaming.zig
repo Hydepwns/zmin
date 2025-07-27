@@ -4,7 +4,7 @@
 //! to minimize memory usage.
 
 const std = @import("std");
-const zmin = @import("zmin");
+const zmin = @import("zmin_lib");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -55,42 +55,30 @@ fn example1_basic_streaming(
     const output_file = try std.fs.cwd().createFile(output_path, .{});
     defer output_file.close();
 
-    // Create streaming minifier
-    var minifier = zmin.StreamingMinifier.init(allocator);
-    defer minifier.deinit();
+    // Get file info for statistics
+    const file_stat = try input_file.stat();
+    const total_input = file_stat.size;
 
-    // Process in chunks
-    const chunk_size = 4096;
-    var buffer: [chunk_size]u8 = undefined;
-    var total_input: usize = 0;
-    var total_output: usize = 0;
+    // Create buffered reader and writer for better performance
+    var buffered_reader = std.io.bufferedReader(input_file.reader());
+    var buffered_writer = std.io.bufferedWriter(output_file.writer());
 
     const start = std.time.milliTimestamp();
 
-    while (true) {
-        const bytes_read = try input_file.read(&buffer);
-        if (bytes_read == 0) break;
+    // Use MinifierInterface for streaming minification
+    try zmin.MinifierInterface.minify(
+        allocator,
+        .sport, // Use sport mode for balanced performance
+        buffered_reader.reader(),
+        buffered_writer.writer(),
+    );
 
-        total_input += bytes_read;
+    // Make sure all data is written
+    try buffered_writer.flush();
 
-        // Process chunk
-        try minifier.process(buffer[0..bytes_read]);
-
-        // Write any available output
-        while (minifier.hasOutput()) {
-            const output = minifier.getOutput();
-            try output_file.writeAll(output);
-            total_output += output.len;
-        }
-    }
-
-    // Finish processing
-    try minifier.finish();
-    while (minifier.hasOutput()) {
-        const output = minifier.getOutput();
-        try output_file.writeAll(output);
-        total_output += output.len;
-    }
+    // Get output file size
+    const output_stat = try output_file.stat();
+    const total_output = output_stat.size;
 
     const duration = std.time.milliTimestamp() - start;
 
@@ -178,10 +166,10 @@ fn example3_pipeline_streaming(allocator: std.mem.Allocator) !void {
     try stdout.print("Demonstrating producer-consumer pipeline...\n\n", .{});
 
     // Create a pipe for communication
-    const pipe = try std.os.pipe();
+    const pipe = try std.posix.pipe();
     defer {
-        std.os.close(pipe[0]);
-        std.os.close(pipe[1]);
+        std.posix.close(pipe[0]);
+        std.posix.close(pipe[1]);
     }
 
     // Producer thread - generates JSON
@@ -197,7 +185,7 @@ fn example3_pipeline_streaming(allocator: std.mem.Allocator) !void {
     try stdout.print("Pipeline processing complete!\n", .{});
 }
 
-fn producer(write_fd: std.os.fd_t, _: std.mem.Allocator) !void {
+fn producer(write_fd: std.posix.fd_t, _: std.mem.Allocator) !void {
     const file = std.fs.File{ .handle = write_fd };
     const writer = file.writer();
 
@@ -222,38 +210,23 @@ fn producer(write_fd: std.os.fd_t, _: std.mem.Allocator) !void {
     try writer.writeAll("\n  ]\n}");
 
     // Close write end to signal EOF
-    std.os.close(write_fd);
+    std.posix.close(write_fd);
 }
 
-fn consumer(read_fd: std.os.fd_t, allocator: std.mem.Allocator) !void {
+fn consumer(read_fd: std.posix.fd_t, allocator: std.mem.Allocator) !void {
     const file = std.fs.File{ .handle = read_fd };
-    const reader = file.reader();
-
-    var minifier = zmin.StreamingMinifier.init(allocator);
-    defer minifier.deinit();
-
-    var buffer: [1024]u8 = undefined;
-    var total_output: usize = 0;
-
-    while (true) {
-        const bytes_read = try reader.read(&buffer);
-        if (bytes_read == 0) break;
-
-        try minifier.process(buffer[0..bytes_read]);
-
-        while (minifier.hasOutput()) {
-            const output = minifier.getOutput();
-            total_output += output.len;
-            // In real use, write to file or send over network
-        }
-    }
-
-    try minifier.finish();
-    while (minifier.hasOutput()) {
-        const output = minifier.getOutput();
-        total_output += output.len;
-    }
+    
+    // Create a counting writer to track output size
+    var count_writer = std.io.countingWriter(std.io.null_writer);
+    
+    // Use MinifierInterface for streaming minification
+    try zmin.MinifierInterface.minify(
+        allocator,
+        .eco, // Use eco mode for minimal memory usage
+        file.reader(),
+        count_writer.writer(),
+    );
 
     const stdout = std.io.getStdOut().writer();
-    try stdout.print("Consumer processed {d} bytes of minified output\n", .{total_output});
+    try stdout.print("Consumer processed {d} bytes of minified output\n", .{count_writer.bytes_written});
 }

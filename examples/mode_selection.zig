@@ -4,7 +4,7 @@
 //! based on your requirements.
 
 const std = @import("std");
-const zmin = @import("zmin");
+const zmin = @import("zmin_lib");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -81,7 +81,7 @@ fn testMode(
     for (0..iterations) |_| {
         const start = std.time.microTimestamp();
         const output = try zmin.minifyWithMode(allocator, json, mode);
-        const duration = std.time.microTimestamp() - start;
+        const duration = @as(u64, @intCast(std.time.microTimestamp() - start));
 
         output_size = output.len;
         allocator.free(output);
