@@ -51,6 +51,9 @@ params:
       url: /docs/performance/
       weight: 4
 
+  # Custom CSS
+  customCSS: ["css/custom.css"]
+
 # Menu configuration
 menu:
   main:
@@ -95,7 +98,3 @@ enableEmoji: true
 # Enable syntax highlighting
 pygmentsUseClasses: true
 pygmentsCodeFences: true
-
-# Custom CSS
-params:
-  customCSS: ["css/custom.css"]
