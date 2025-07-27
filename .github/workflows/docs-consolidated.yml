@@ -15,6 +15,9 @@ on:
       - 'static/**'
       - 'go.mod'
       - 'go.sum'
+      - 'build/**'
+      - '.gitignore'
+      - '.github/workflows/**'
   pull_request:
     branches: [ main ]
     paths:
@@ -23,6 +26,8 @@ on:
       - 'assets/**'
       - 'content/**'
       - 'config.yaml'
+      - 'build/**'
+      - '.github/workflows/**'
   schedule:
     # Run daily at 2 AM UTC to catch any missed updates
     - cron: '0 2 * * *'
