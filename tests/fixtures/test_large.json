@@ -1,7 +1,0 @@
-[
-{"id": 1, "name": "User 1", "email": "user1@example.com", "active": true, "data": {"score": 95, "level": 5}},
-{"id": 2, "name": "User 2", "email": "user2@example.com", "active": false, "data": {"score": 82, "level": 3}},
-{"id": 3, "name": "User 3", "email": "user3@example.com", "active": true, "data": {"score": 91, "level": 4}},
-{"id": 4, "name": "User 4", "email": "user4@example.com", "active": true, "data": {"score": 88, "level": 4}},
-{"id": 5, "name": "User 5", "email": "user5@example.com", "active": false, "data": {"score": 75, "level": 2}}
-]

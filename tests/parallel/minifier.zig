@@ -28,7 +28,7 @@ test "parallel processing - large input with multiple chunks" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     // Create a large JSON object that will be split into multiple chunks
     var large_input = std.ArrayList(u8).init(allocator);
     defer large_input.deinit();
@@ -72,7 +72,7 @@ test "parallel processing - streaming input" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     var output = std.ArrayList(u8).init(allocator);
     defer output.deinit();
 
@@ -97,7 +97,7 @@ test "parallel processing - large streaming input" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     var output = std.ArrayList(u8).init(allocator);
     defer output.deinit();
 
@@ -113,10 +113,10 @@ test "parallel processing - large streaming input" {
     while (i < 100) : (i += 1) {
         var json_object = std.ArrayList(u8).init(allocator);
         defer json_object.deinit();
-        
+
         // Create a complete JSON object
         try json_object.writer().print("{{\"id\":{},\"data\":\"streaming_test_data_item_{}\"}}", .{ i, i });
-        
+
         // Process each complete JSON object
         try minifier.process(json_object.items);
     }
@@ -134,7 +134,7 @@ test "parallel processing - nested structures across chunks" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     var output = std.ArrayList(u8).init(allocator);
     defer output.deinit();
 
@@ -157,7 +157,7 @@ test "parallel processing - performance comparison" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     var large_input = std.ArrayList(u8).init(allocator);
     defer large_input.deinit();
 
@@ -219,7 +219,7 @@ test "parallel processing - error handling" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     var output = std.ArrayList(u8).init(allocator);
     defer output.deinit();
 
@@ -272,7 +272,7 @@ test "parallel processing - chunk size optimization" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     const input = "{\"key\":\"value\"}";
     var output = std.ArrayList(u8).init(allocator);
     defer output.deinit();
@@ -324,7 +324,7 @@ test "parallel processing - concurrent access safety" {
                 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
                 defer _ = gpa.deinit();
                 const allocator = gpa.allocator();
-                
+
                 var output = std.ArrayList(u8).init(allocator);
                 defer output.deinit();
 
@@ -364,7 +364,7 @@ test "parallel processing - stress test with mixed content" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     var output = std.ArrayList(u8).init(allocator);
     defer output.deinit();
 

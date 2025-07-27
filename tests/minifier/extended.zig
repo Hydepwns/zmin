@@ -172,19 +172,19 @@ test "edge cases - mixed whitespace" {
 
 test "state machine - deep nesting" {
     const depth = 30;
-    
+
     const input = try generators.generateNestedObject(testing.allocator, depth);
     defer testing.allocator.free(input);
-    
+
     const expected = try generators.generateNestedObject(testing.allocator, depth);
     defer testing.allocator.free(expected);
-    
+
     try helpers.testMinify(input, expected);
 }
 
 test "state machine - nesting too deep" {
     const max_depth = 33; // Exceeds typical limit
-    
+
     const nested_object = try generators.generateNestedObject(testing.allocator, max_depth);
     defer testing.allocator.free(nested_object);
 
@@ -193,7 +193,7 @@ test "state machine - nesting too deep" {
 
 test "buffer management - large output" {
     const size = 100000;
-    
+
     var input = std.ArrayList(u8).init(testing.allocator);
     defer input.deinit();
     try input.appendSlice("{\"key\":");

@@ -11,7 +11,7 @@ const assertions = @import("assertion_helpers.zig");
 test "edge case - empty and whitespace inputs" {
     // Empty input
     try helpers.testMinify("", "");
-    
+
     // Whitespace-only inputs
     for (generators.TestPatterns.whitespace_only) |input| {
         try helpers.testMinify(input, "");
@@ -35,22 +35,19 @@ test "edge case - minimal valid JSON" {
 
 test "edge case - maximum safe nesting depth" {
     const max_depth = 32; // Should match context_stack size
-    
+
     const nested_object = try generators.generateNestedObject(testing.allocator, max_depth);
     defer testing.allocator.free(nested_object);
-    
+
     // Generate expected output (should be identical for valid nesting)
     const expected = try generators.generateNestedObject(testing.allocator, max_depth);
     defer testing.allocator.free(expected);
-    
+
     try helpers.testMinify(nested_object, expected);
 }
 
 test "edge case - mixed nesting with arrays and objects" {
-    try helpers.testMinify(
-        "[{\"a\":[{\"b\":{\"c\":[1,2,3]}}]}]", 
-        "[{\"a\":[{\"b\":{\"c\":[1,2,3]}}]}]"
-    );
+    try helpers.testMinify("[{\"a\":[{\"b\":{\"c\":[1,2,3]}}]}]", "[{\"a\":[{\"b\":{\"c\":[1,2,3]}}]}]");
 }
 
 // ========== NUMERIC EDGE CASES ==========
@@ -102,11 +99,11 @@ test "edge case - special characters in strings" {
 
 test "edge case - long strings" {
     const lengths = [_]usize{ 1024, 4096, 8192, 16384 };
-    
+
     for (lengths) |length| {
         var input = std.ArrayList(u8).init(testing.allocator);
         defer input.deinit();
-        
+
         try input.append('"');
         for (0..length) |i| {
             try input.append(@intCast('a' + (i % 26)));
@@ -155,11 +152,11 @@ test "edge case - extensive whitespace variations" {
 
 test "edge case - large arrays" {
     const sizes = [_]usize{ 100, 1000, 5000 };
-    
+
     for (sizes) |size| {
         const input = try generators.generateLargeArray(testing.allocator, size);
         defer testing.allocator.free(input);
-        
+
         // For large arrays, we can't easily predict the exact output format,
         // so we'll test that it processes without error and produces reasonable output
         const MinifyingParser = @import("src").minifier.MinifyingParser;
@@ -180,11 +177,11 @@ test "edge case - large arrays" {
 
 test "edge case - large objects" {
     const sizes = [_]usize{ 50, 100, 500 };
-    
+
     for (sizes) |size| {
         const input = try generators.generateLargeObject(testing.allocator, size);
         defer testing.allocator.free(input);
-        
+
         const MinifyingParser = @import("src").minifier.MinifyingParser;
         var output = std.ArrayList(u8).init(testing.allocator);
         defer output.deinit();
@@ -206,7 +203,7 @@ test "edge case - large objects" {
 test "edge case - buffer boundary conditions" {
     const test_input = "{\"key\":\"value\",\"array\":[1,2,3,true,false,null],\"nested\":{\"inner\":\"data\"}}";
     const expected = "{\"key\":\"value\",\"array\":[1,2,3,true,false,null],\"nested\":{\"inner\":\"data\"}}";
-    
+
     try helpers.testBoundaryChunking(test_input, expected, &generators.TestPatterns.chunk_sizes);
 }
 
@@ -222,7 +219,7 @@ test "edge case - unicode boundary conditions" {
         .{ .input = "\"\\u07FF\"", .expected = "\"\\u07FF\"" }, // ߿
         .{ .input = "\"\\u0800\"", .expected = "\"\\u0800\"" }, // ࠀ
         .{ .input = "\"\\uD7FF\"", .expected = "\"\\uD7FF\"" }, // 힟 (last before surrogates)
-        .{ .input = "\"\\uE000\"", .expected = "\"\\uE000\"" }, // 
+        .{ .input = "\"\\uE000\"", .expected = "\"\\uE000\"" }, //
         .{ .input = "\"\\uFFFD\"", .expected = "\"\\uFFFD\"" }, // � (replacement character)
         .{ .input = "\"\\uFFFE\"", .expected = "\"\\uFFFE\"" }, // Non-character
         .{ .input = "\"\\uFFFF\"", .expected = "\"\\uFFFF\"" }, // Non-character

@@ -37,22 +37,22 @@ pub fn testModesConsistency(allocator: std.mem.Allocator, test_case: ModeTestCas
         }
         results.deinit();
     }
-    
+
     // Run each mode
     for (test_case.modes_to_test) |mode| {
         if (!MinifierInterface.isModeSupported(mode)) {
             continue;
         }
-        
+
         const result = try MinifierInterface.minifyString(allocator, mode, test_case.input);
         try results.append(result);
     }
-    
+
     // Verify all results match expected
     for (results.items) |result| {
         try testing.expectEqualStrings(test_case.expected, result);
     }
-    
+
     // Verify all results are identical
     if (results.items.len > 1) {
         const first = results.items[0];
@@ -71,36 +71,36 @@ pub fn testModePerformance(
     if (!MinifierInterface.isModeSupported(requirement.mode)) {
         return;
     }
-    
+
     var timer = try std.time.Timer.start();
     var peak_memory: usize = 0;
-    
+
     // Warm up
     _ = try MinifierInterface.minifyString(allocator, requirement.mode, test_data);
-    
+
     // Measure performance over multiple runs
     const num_runs = 10;
     var total_time: u64 = 0;
-    
+
     for (0..num_runs) |_| {
         timer.reset();
         const result = try MinifierInterface.minifyString(allocator, requirement.mode, test_data);
         defer allocator.free(result);
-        
+
         total_time += timer.read();
-        
+
         // Track memory (simplified - in real implementation would use allocator wrapper)
         const estimated_memory = MinifierInterface.getMemoryRequirement(requirement.mode, test_data.len);
         peak_memory = @max(peak_memory, estimated_memory);
     }
-    
+
     const avg_time_ns = total_time / num_runs;
     const throughput_mbps = (@as(f64, @floatFromInt(test_data.len)) / @as(f64, @floatFromInt(avg_time_ns))) * 1000.0;
-    
+
     // Check throughput requirement
     const min_acceptable = requirement.min_throughput_mbps * (1.0 - requirement.tolerance_percent / 100.0);
     try testing.expect(throughput_mbps >= min_acceptable);
-    
+
     // Check memory requirement
     try testing.expect(peak_memory <= requirement.max_memory_bytes);
 }
@@ -113,11 +113,11 @@ pub fn testMemoryScaling(
     if (!MinifierInterface.isModeSupported(scaling_test.mode)) {
         return;
     }
-    
+
     for (scaling_test.file_sizes) |size| {
         const memory = MinifierInterface.getMemoryRequirement(scaling_test.mode, size);
         const expected = scaling_test.expected_memory_fn(size);
-        
+
         // Allow 20% tolerance for memory estimates
         const ratio = @as(f64, @floatFromInt(memory)) / @as(f64, @floatFromInt(expected));
         try testing.expect(ratio >= 0.8 and ratio <= 1.2);
@@ -128,24 +128,24 @@ pub fn testMemoryScaling(
 pub fn generateTestJson(allocator: std.mem.Allocator, target_size: usize) ![]u8 {
     var result = std.ArrayList(u8).init(allocator);
     try result.appendSlice("[");
-    
+
     var current_size: usize = 1;
     var counter: usize = 0;
-    
+
     while (current_size < target_size - 10) {
         if (counter > 0) {
             try result.appendSlice(",");
             current_size += 1;
         }
-        
+
         const item = try std.fmt.allocPrint(allocator, "{{\"id\":{d},\"value\":\"test{d}\"}}", .{ counter, counter });
         defer allocator.free(item);
-        
+
         try result.appendSlice(item);
         current_size += item.len;
         counter += 1;
     }
-    
+
     try result.appendSlice("]");
     return result.toOwnedSlice();
 }
@@ -164,11 +164,11 @@ pub const common_test_cases = [_]ModeTestCase{
     .{ .name = "simple_object", .input = "{\"a\":1}", .expected = "{\"a\":1}" },
     .{ .name = "simple_array", .input = "[1,2,3]", .expected = "[1,2,3]" },
     .{ .name = "nested", .input = 
-        \\{
-        \\  "a": {
-        \\    "b": [1, 2, 3]
-        \\  }
-        \\}
+    \\{
+    \\  "a": {
+    \\    "b": [1, 2, 3]
+    \\  }
+    \\}
     , .expected = "{\"a\":{\"b\":[1,2,3]}}" },
     .{ .name = "escaped_string", .input = "\"\\\"hello\\\"\"", .expected = "\"\\\"hello\\\"\"" },
     .{ .name = "unicode", .input = "\"\\u0048\\u0065\\u006C\\u006C\\u006F\"", .expected = "\"\\u0048\\u0065\\u006C\\u006C\\u006F\"" },
@@ -177,7 +177,7 @@ pub const common_test_cases = [_]ModeTestCase{
 
 /// Performance requirements for each mode
 pub const performance_requirements = [_]PerformanceRequirement{
-    .{ .mode = .eco, .min_throughput_mbps = 10.0, .max_memory_bytes = 64 * 1024 },     // Relaxed for test env
+    .{ .mode = .eco, .min_throughput_mbps = 10.0, .max_memory_bytes = 64 * 1024 }, // Relaxed for test env
     .{ .mode = .sport, .min_throughput_mbps = 50.0, .max_memory_bytes = 16 * 1024 * 1024 }, // Relaxed for test env
     .{ .mode = .turbo, .min_throughput_mbps = 100.0, .max_memory_bytes = std.math.maxInt(usize) }, // Relaxed for test env
 };

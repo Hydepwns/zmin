@@ -108,7 +108,7 @@ pub fn testBoundaryChunking(input: []const u8, expected: []const u8, chunk_sizes
             try parser.feed(input[pos..end]);
             pos = end;
         }
-        
+
         try parser.flush();
         try testing.expectEqualStrings(expected, output.items);
     }

@@ -113,9 +113,9 @@ test "minifier - boolean and null values" {
 test "minifier - complex nested structure" {
     const input = try generators.generateComplexStructure(testing.allocator);
     defer testing.allocator.free(input);
-    
+
     const expected = "{\"users\":[{\"id\":1,\"name\":\"John Doe\",\"active\":true,\"metadata\":{\"last_login\":null,\"permissions\":[\"read\",\"write\"]}},{\"id\":2,\"name\":\"Jane Smith\",\"active\":false,\"metadata\":{\"last_login\":\"2023-01-01\",\"permissions\":[\"read\"]}}],\"total\":2}";
-    
+
     try helpers.testMinify(input, expected);
 }
 
@@ -148,13 +148,13 @@ test "utils - isHexDigit" {
 test "minifier - chunked input processing" {
     const chunks = [_][]const u8{ "{", "\"test\"", ":", "\"value\"", "}" };
     const expected = "{\"test\":\"value\"}";
-    
+
     try helpers.testMinifyChunked(&chunks, expected);
 }
 
 test "minifier - single character chunks" {
     const input = "{\"a\":1}";
     const expected = "{\"a\":1}";
-    
+
     try helpers.testMinifySingleChars(input, expected);
 }

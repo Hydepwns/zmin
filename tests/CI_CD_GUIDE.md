@@ -6,7 +6,7 @@ Zmin features a comprehensive CI/CD pipeline that automatically builds, tests, b
 
 ## Pipeline Components
 
-### 1. GitHub Actions Workflow (`.github/workflows/ci.yml`)
+### 1. GitHub Actions Workflow (`.github/workflows/ci-consolidated.yml`)
 
 The main CI/CD pipeline includes:
 
@@ -126,7 +126,7 @@ Use GitHub Actions UI or API to manually trigger workflows:
 
 ```bash
 # Trigger via GitHub CLI
-gh workflow run ci.yml
+gh workflow run ci-consolidated.yml
 ```
 
 ## Performance Metrics Tracking
@@ -208,7 +208,7 @@ Badges are generated using shields.io and include:
 3. **Update CI workflow:**
 
    ```yaml
-   # In .github/workflows/ci.yml
+   # In .github/workflows/ci-consolidated.yml
    - name: Extract new metric
      run: |
        NEW_METRIC=$(echo "$OUTPUT" | grep -oP 'New Metric:\s*(\d+\.\d+)' | grep -oP '\d+\.\d+' || echo "0.0")

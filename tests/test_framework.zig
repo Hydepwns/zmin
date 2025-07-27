@@ -13,7 +13,7 @@ pub const TestCategory = enum {
     performance,
     fuzz,
     regression,
-    
+
     pub fn getDescription(self: TestCategory) []const u8 {
         return switch (self) {
             .unit => "Unit tests for individual components",
@@ -33,7 +33,7 @@ pub const TestResult = struct {
     duration_ns: u64,
     memory_used: ?u64 = null,
     error_message: ?[]const u8 = null,
-    
+
     pub fn format(
         self: TestResult,
         comptime fmt: []const u8,
@@ -42,16 +42,16 @@ pub const TestResult = struct {
     ) !void {
         _ = fmt;
         _ = options;
-        
+
         const status = if (self.passed) "✅ PASS" else "❌ FAIL";
         const duration_ms = @as(f64, @floatFromInt(self.duration_ns)) / 1_000_000.0;
-        
+
         try writer.print("{s} {s} ({d:.2}ms)", .{ status, self.name, duration_ms });
-        
+
         if (self.memory_used) |mem| {
             try writer.print(" [{:.2}]", .{std.fmt.fmtIntSizeBin(mem)});
         }
-        
+
         if (self.error_message) |msg| {
             try writer.print("\n    Error: {s}", .{msg});
         }
@@ -64,7 +64,7 @@ pub const TestRunner = struct {
     results: std.ArrayList(TestResult),
     start_time: i128,
     verbose: bool,
-    
+
     pub fn init(allocator: std.mem.Allocator, verbose: bool) TestRunner {
         return TestRunner{
             .allocator = allocator,
@@ -73,11 +73,11 @@ pub const TestRunner = struct {
             .verbose = verbose,
         };
     }
-    
+
     pub fn deinit(self: *TestRunner) void {
         self.results.deinit();
     }
-    
+
     /// Run a single test with tracking
     pub fn runTest(
         self: *TestRunner,
@@ -88,7 +88,7 @@ pub const TestRunner = struct {
         if (self.verbose) {
             std.debug.print("Running {s}...", .{name});
         }
-        
+
         const start = std.time.nanoTimestamp();
         var result = TestResult{
             .name = name,
@@ -96,29 +96,29 @@ pub const TestRunner = struct {
             .passed = true,
             .duration_ns = 0,
         };
-        
+
         // Run the test
         testFn() catch |err| {
             result.passed = false;
             result.error_message = @errorName(err);
         };
-        
+
         result.duration_ns = @intCast(std.time.nanoTimestamp() - start);
-        
+
         if (self.verbose) {
             std.debug.print(" {}\n", .{result});
         }
-        
+
         try self.results.append(result);
     }
-    
+
     /// Generate test report
     pub fn generateReport(self: *TestRunner, writer: anytype) !void {
         const total_duration = @as(f64, @floatFromInt(std.time.nanoTimestamp() - self.start_time)) / 1_000_000_000.0;
-        
+
         var passed: u32 = 0;
         var failed: u32 = 0;
-        
+
         for (self.results.items) |result| {
             if (result.passed) {
                 passed += 1;
@@ -126,7 +126,7 @@ pub const TestRunner = struct {
                 failed += 1;
             }
         }
-        
+
         try writer.print("\n📊 Test Results\n", .{});
         try writer.print("{'='<50}\n", .{});
         try writer.print("Total: {d} | ✅ Passed: {d} | ❌ Failed: {d}\n", .{
@@ -135,7 +135,7 @@ pub const TestRunner = struct {
             failed,
         });
         try writer.print("Duration: {d:.2}s\n", .{total_duration});
-        
+
         if (failed > 0) {
             try writer.print("\nFailed Tests:\n", .{});
             for (self.results.items) |result| {
@@ -153,12 +153,12 @@ pub const TestData = struct {
     pub fn generateJson(allocator: std.mem.Allocator, config: JsonConfig) ![]u8 {
         var json = std.ArrayList(u8).init(allocator);
         errdefer json.deinit();
-        
+
         try generateJsonValue(&json, config, 0);
-        
+
         return json.toOwnedSlice();
     }
-    
+
     pub const JsonConfig = struct {
         max_depth: u32 = 5,
         max_array_size: u32 = 10,
@@ -168,7 +168,7 @@ pub const TestData = struct {
         include_unicode: bool = false,
         seed: u64 = 0,
     };
-    
+
     fn generateJsonValue(
         json: *std.ArrayList(u8),
         config: JsonConfig,
@@ -179,10 +179,10 @@ pub const TestData = struct {
             try json.appendSlice("\"leaf\"");
             return;
         }
-        
+
         var prng = std.rand.DefaultPrng.init(config.seed + depth);
         const random = prng.random();
-        
+
         const value_type = random.intRangeAtMost(u8, 0, 6);
         switch (value_type) {
             0 => try json.appendSlice("null"),
@@ -195,14 +195,14 @@ pub const TestData = struct {
             else => unreachable,
         }
     }
-    
+
     fn generateJsonString(
         json: *std.ArrayList(u8),
         config: JsonConfig,
         random: std.rand.Random,
     ) !void {
         try json.append('"');
-        
+
         const length = random.intRangeAtMost(u32, 0, config.max_string_length);
         for (0..length) |_| {
             if (config.include_unicode and random.intRangeAtMost(u8, 0, 10) == 0) {
@@ -218,10 +218,10 @@ pub const TestData = struct {
                 }
             }
         }
-        
+
         try json.append('"');
     }
-    
+
     fn generateJsonArray(
         json: *std.ArrayList(u8),
         config: JsonConfig,
@@ -229,7 +229,7 @@ pub const TestData = struct {
         random: std.rand.Random,
     ) !void {
         try json.append('[');
-        
+
         const size = random.intRangeAtMost(u32, 0, config.max_array_size);
         for (0..size) |i| {
             if (i > 0) {
@@ -238,10 +238,10 @@ pub const TestData = struct {
             }
             try generateJsonValue(json, config, depth);
         }
-        
+
         try json.append(']');
     }
-    
+
     fn generateJsonObject(
         json: *std.ArrayList(u8),
         config: JsonConfig,
@@ -250,25 +250,25 @@ pub const TestData = struct {
     ) !void {
         try json.append('{');
         if (config.include_whitespace) try json.append('\n');
-        
+
         const size = random.intRangeAtMost(u32, 0, config.max_object_keys);
         for (0..size) |i| {
             if (i > 0) {
                 try json.append(',');
                 if (config.include_whitespace) try json.append('\n');
             }
-            
+
             // Generate key
             try json.append('"');
             try json.writer().print("key_{d}", .{i});
             try json.append('"');
             try json.append(':');
             if (config.include_whitespace) try json.append(' ');
-            
+
             // Generate value
             try generateJsonValue(json, config, depth);
         }
-        
+
         if (config.include_whitespace) try json.append('\n');
         try json.append('}');
     }
@@ -278,17 +278,95 @@ pub const TestData = struct {
 pub const assertions = struct {
     /// Assert that two JSON strings are semantically equivalent
     pub fn assertJsonEqual(expected: []const u8, actual: []const u8) !void {
-        // TODO: Implement proper JSON comparison that ignores whitespace differences
-        // For now, do simple string comparison
-        try std.testing.expectEqualStrings(expected, actual);
+        // Normalize both JSON strings by removing non-significant whitespace
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        defer _ = gpa.deinit();
+        const allocator = gpa.allocator();
+        
+        const normalized_expected = try normalizeJson(allocator, expected);
+        defer allocator.free(normalized_expected);
+        
+        const normalized_actual = try normalizeJson(allocator, actual);
+        defer allocator.free(normalized_actual);
+        
+        try std.testing.expectEqualStrings(normalized_expected, normalized_actual);
     }
     
+    /// Normalize JSON by removing insignificant whitespace
+    fn normalizeJson(allocator: std.mem.Allocator, json: []const u8) ![]u8 {
+        var result = std.ArrayList(u8).init(allocator);
+        defer result.deinit();
+        
+        var in_string = false;
+        var escape_next = false;
+        var i: usize = 0;
+        
+        while (i < json.len) : (i += 1) {
+            const char = json[i];
+            
+            if (escape_next) {
+                try result.append(char);
+                escape_next = false;
+                continue;
+            }
+            
+            switch (char) {
+                '"' => {
+                    in_string = !in_string;
+                    try result.append(char);
+                },
+                '\\' => {
+                    if (in_string) {
+                        escape_next = true;
+                    }
+                    try result.append(char);
+                },
+                ' ', '\t', '\n', '\r' => {
+                    if (in_string) {
+                        try result.append(char);
+                    } else {
+                        // Skip whitespace outside strings, but preserve structure
+                        // Check if we need a space between tokens
+                        if (result.items.len > 0 and i + 1 < json.len) {
+                            const prev = result.items[result.items.len - 1];
+                            const next = json[i + 1];
+                            
+                            // Add space between value tokens that need separation
+                            if ((isAlphaNumeric(prev) and isAlphaNumeric(next)) or
+                                (prev == '"' and next == '"') or
+                                (isDigit(prev) and isDigit(next)))
+                            {
+                                try result.append(' ');
+                            }
+                        }
+                    }
+                },
+                else => {
+                    try result.append(char);
+                },
+            }
+        }
+        
+        return result.toOwnedSlice();
+    }
+    
+    fn isAlphaNumeric(c: u8) bool {
+        return (c >= 'a' and c <= 'z') or
+               (c >= 'A' and c <= 'Z') or
+               (c >= '0' and c <= '9') or
+               c == '_';
+    }
+    
+    fn isDigit(c: u8) bool {
+        return c >= '0' and c <= '9';
+    }
+
     /// Assert that a string is valid JSON
     pub fn assertValidJson(json: []const u8) !void {
         // TODO: Implement JSON validation
         _ = json;
     }
-    
+
     /// Assert memory usage is within bounds
     pub fn assertMemoryUsage(actual: u64, max_expected: u64) !void {
         if (actual > max_expected) {
@@ -296,7 +374,7 @@ pub const assertions = struct {
             return error.ExcessiveMemoryUsage;
         }
     }
-    
+
     /// Assert performance meets threshold
     pub fn assertPerformance(throughput_mbps: f64, min_expected: f64) !void {
         if (throughput_mbps < min_expected) {
@@ -311,19 +389,19 @@ pub const assertions = struct {
 
 /// Test fixtures and sample data
 pub const fixtures = struct {
-    pub const simple_json = 
+    pub const simple_json =
         \\{
         \\  "name": "test",
         \\  "value": 42,
         \\  "active": true
         \\}
     ;
-    
-    pub const simple_json_minified = 
+
+    pub const simple_json_minified =
         \\{"name":"test","value":42,"active":true}
     ;
-    
-    pub const nested_json = 
+
+    pub const nested_json =
         \\{
         \\  "user": {
         \\    "id": 123,
@@ -334,7 +412,7 @@ pub const fixtures = struct {
         \\  }
         \\}
     ;
-    
+
     pub const edge_cases = [_][]const u8{
         "{}",
         "[]",
@@ -353,17 +431,17 @@ pub const fixtures = struct {
 pub fn detectLeaks(allocator: std.mem.Allocator) type {
     return struct {
         const Self = @This();
-        
+
         wrapped_allocator: std.mem.Allocator,
         allocation_count: usize = 0,
-        
+
         pub fn init() Self {
             return Self{
                 .wrapped_allocator = allocator,
             };
         }
-        
-        pub fn allocator(self: *Self) std.mem.Allocator {
+
+        pub fn getAllocator(self: *Self) std.mem.Allocator {
             return .{
                 .ptr = self,
                 .vtable = &.{
@@ -373,7 +451,7 @@ pub fn detectLeaks(allocator: std.mem.Allocator) type {
                 },
             };
         }
-        
+
         fn alloc(ctx: *anyopaque, len: usize, log2_align: u8, ret_addr: usize) ?[*]u8 {
             const self: *Self = @ptrCast(@alignCast(ctx));
             const result = self.wrapped_allocator.rawAlloc(len, log2_align, ret_addr);
@@ -382,18 +460,18 @@ pub fn detectLeaks(allocator: std.mem.Allocator) type {
             }
             return result;
         }
-        
+
         fn resize(ctx: *anyopaque, buf: []u8, log2_align: u8, new_len: usize, ret_addr: usize) bool {
             const self: *Self = @ptrCast(@alignCast(ctx));
             return self.wrapped_allocator.rawResize(buf, log2_align, new_len, ret_addr);
         }
-        
+
         fn free(ctx: *anyopaque, buf: []u8, log2_align: u8, ret_addr: usize) void {
             const self: *Self = @ptrCast(@alignCast(ctx));
             self.wrapped_allocator.rawFree(buf, log2_align, ret_addr);
             self.allocation_count -= 1;
         }
-        
+
         pub fn checkLeaks(self: Self) !void {
             if (self.allocation_count != 0) {
                 std.debug.print("Memory leak detected: {d} allocations not freed\n", .{self.allocation_count});

@@ -6,7 +6,7 @@ const framework = @import("mode_test_framework.zig");
 
 test "all modes produce identical output for common cases" {
     const allocator = testing.allocator;
-    
+
     for (framework.common_test_cases) |test_case| {
         try framework.testModesConsistency(allocator, test_case);
     }
@@ -14,7 +14,7 @@ test "all modes produce identical output for common cases" {
 
 test "all modes handle edge cases identically" {
     const allocator = testing.allocator;
-    
+
     const edge_cases = [_]framework.ModeTestCase{
         // Very long string
         .{
@@ -37,23 +37,23 @@ test "all modes handle edge cases identically" {
         // Mixed content
         .{
             .name = "mixed_content",
-            .input = 
-                \\{
-                \\  "strings": ["hello", "world"],
-                \\  "numbers": [1, 2.5, -3, 1e10],
-                \\  "booleans": [true, false],
-                \\  "null": null,
-                \\  "nested": {
-                \\    "deep": {
-                \\      "value": "found"
-                \\    }
-                \\  }
-                \\}
+            .input =
+            \\{
+            \\  "strings": ["hello", "world"],
+            \\  "numbers": [1, 2.5, -3, 1e10],
+            \\  "booleans": [true, false],
+            \\  "null": null,
+            \\  "nested": {
+            \\    "deep": {
+            \\      "value": "found"
+            \\    }
+            \\  }
+            \\}
             ,
             .expected = "{\"strings\":[\"hello\",\"world\"],\"numbers\":[1,2.5,-3,1e10],\"booleans\":[true,false],\"null\":null,\"nested\":{\"deep\":{\"value\":\"found\"}}}",
         },
     };
-    
+
     for (edge_cases) |test_case| {
         try framework.testModesConsistency(allocator, test_case);
     }
@@ -61,7 +61,7 @@ test "all modes handle edge cases identically" {
 
 test "all modes handle special characters" {
     const allocator = testing.allocator;
-    
+
     const special_cases = [_]framework.ModeTestCase{
         .{
             .name = "escape_sequences",
@@ -79,7 +79,7 @@ test "all modes handle special characters" {
             .expected = "{\"emoji\":\"😀🎉🚀\",\"text\":\"Hello\"}",
         },
     };
-    
+
     for (special_cases) |test_case| {
         try framework.testModesConsistency(allocator, test_case);
     }
@@ -87,7 +87,7 @@ test "all modes handle special characters" {
 
 test "all modes handle whitespace variations" {
     const allocator = testing.allocator;
-    
+
     const whitespace_cases = [_]framework.ModeTestCase{
         .{
             .name = "no_whitespace",
@@ -115,7 +115,7 @@ test "all modes handle whitespace variations" {
             .expected = "{\"a\":1,\"b\":2}",
         },
     };
-    
+
     for (whitespace_cases) |test_case| {
         try framework.testModesConsistency(allocator, test_case);
     }
@@ -123,7 +123,7 @@ test "all modes handle whitespace variations" {
 
 test "all modes handle number formats" {
     const allocator = testing.allocator;
-    
+
     const number_cases = [_]framework.ModeTestCase{
         .{
             .name = "integers",
@@ -146,7 +146,7 @@ test "all modes handle number formats" {
             .expected = "[0.000000000001,999999999999999999999]",
         },
     };
-    
+
     for (number_cases) |test_case| {
         try framework.testModesConsistency(allocator, test_case);
     }

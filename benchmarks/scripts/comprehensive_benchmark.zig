@@ -210,9 +210,111 @@ pub const BenchmarkSuite = struct {
     }
     
     fn generateJsonReport(self: *BenchmarkSuite, writer: anytype) !void {
-        // TODO: Implement JSON report generation
-        _ = self;
-        _ = writer;
+        try writer.writeAll("{\n");
+        
+        // Metadata
+        try writer.print("  \"metadata\": {{\n", .{});
+        try writer.print("    \"timestamp\": \"{}\",\n", .{self.start_time});
+        try writer.print("    \"duration_seconds\": {},\n", .{self.end_time - self.start_time});
+        try writer.print("    \"zmin_version\": \"1.0.0\",\n", .{});
+        try writer.print("    \"benchmark_version\": \"1.0.0\"\n", .{});
+        try writer.print("  }},\n", .{});
+        
+        // System information
+        try writer.print("  \"system\": {{\n", .{});
+        try writer.print("    \"os\": \"{s}\",\n", .{self.system_info.os_name});
+        try writer.print("    \"cpu_model\": \"{s}\",\n", .{self.system_info.cpu_model});
+        try writer.print("    \"cpu_cores\": {},\n", .{self.system_info.cpu_cores});
+        try writer.print("    \"numa_nodes\": {},\n", .{self.system_info.numa_nodes});
+        try writer.print("    \"total_memory_gb\": {d:.2},\n", .{@as(f64, @floatFromInt(self.system_info.total_memory)) / (1024.0 * 1024.0 * 1024.0)});
+        try writer.print("    \"zig_version\": \"{s}\"\n", .{self.system_info.zig_version});
+        try writer.print("  }},\n", .{});
+        
+        // Configuration
+        try writer.print("  \"configuration\": {{\n", .{});
+        try writer.print("    \"iterations\": {},\n", .{self.config.iterations});
+        try writer.print("    \"warmup_iterations\": {},\n", .{self.config.warmup_iterations});
+        try writer.print("    \"modes\": [", .{});
+        for (self.config.modes, 0..) |mode, i| {
+            if (i > 0) try writer.writeAll(", ");
+            try writer.print("\"{s}\"", .{@tagName(mode)});
+        }
+        try writer.writeAll("],\n");
+        try writer.print("    \"dataset_sizes\": [", .{});
+        for (self.config.dataset_sizes, 0..) |size, i| {
+            if (i > 0) try writer.writeAll(", ");
+            try writer.print("\"{s}\"", .{size.getDescription()});
+        }
+        try writer.writeAll("]\n");
+        try writer.print("  }},\n", .{});
+        
+        // Results
+        try writer.print("  \"results\": [\n", .{});
+        for (self.results.items, 0..) |result, i| {
+            if (i > 0) try writer.writeAll(",\n");
+            try writer.print("    {{\n", .{});
+            try writer.print("      \"mode\": \"{s}\",\n", .{@tagName(result.mode)});
+            try writer.print("      \"dataset_size\": \"{s}\",\n", .{result.dataset_size.getDescription()});
+            try writer.print("      \"input_bytes\": {},\n", .{result.input_bytes});
+            try writer.print("      \"output_bytes\": {},\n", .{result.output_bytes});
+            try writer.print("      \"compression_ratio\": {d:.4},\n", .{result.compression_ratio});
+            try writer.print("      \"iterations\": {},\n", .{result.iterations});
+            try writer.print("      \"timing\": {{\n", .{});
+            try writer.print("        \"min_time_us\": {},\n", .{result.min_time_us});
+            try writer.print("        \"max_time_us\": {},\n", .{result.max_time_us});
+            try writer.print("        \"avg_time_us\": {},\n", .{result.avg_time_us});
+            try writer.print("        \"median_time_us\": {},\n", .{result.median_time_us});
+            try writer.print("        \"stddev_time_us\": {d:.2}\n", .{result.stddev_time_us});
+            try writer.print("      }},\n", .{});
+            try writer.print("      \"throughput\": {{\n", .{});
+            try writer.print("        \"min_mbps\": {d:.2},\n", .{result.min_throughput_mbps});
+            try writer.print("        \"max_mbps\": {d:.2},\n", .{result.max_throughput_mbps});
+            try writer.print("        \"avg_mbps\": {d:.2}\n", .{result.avg_throughput_mbps});
+            try writer.print("      }},\n", .{});
+            try writer.print("      \"memory\": {{\n", .{});
+            try writer.print("        \"peak_bytes\": {},\n", .{result.peak_memory_bytes});
+            try writer.print("        \"peak_mb\": {d:.2}\n", .{@as(f64, @floatFromInt(result.peak_memory_bytes)) / (1024.0 * 1024.0)});
+            try writer.print("      }},\n", .{});
+            try writer.print("      \"system\": {{\n", .{});
+            try writer.print("        \"cpu_cores\": {},\n", .{result.cpu_cores});
+            try writer.print("        \"numa_nodes\": {}\n", .{result.numa_nodes});
+            try writer.print("      }}\n", .{});
+            try writer.print("    }}", .{});
+        }
+        try writer.writeAll("\n  ],\n");
+        
+        // Summary statistics
+        try writer.print("  \"summary\": {{\n", .{});
+        try writer.print("    \"total_results\": {},\n", .{self.results.items.len});
+        
+        // Calculate overall statistics
+        if (self.results.items.len > 0) {
+            var total_throughput: f64 = 0;
+            var total_input_bytes: u64 = 0;
+            var total_output_bytes: u64 = 0;
+            
+            for (self.results.items) |result| {
+                total_throughput += result.avg_throughput_mbps;
+                total_input_bytes += result.input_bytes;
+                total_output_bytes += result.output_bytes;
+            }
+            
+            const avg_throughput = total_throughput / @as(f64, @floatFromInt(self.results.items.len));
+            const overall_compression = 1.0 - (@as(f64, @floatFromInt(total_output_bytes)) / @as(f64, @floatFromInt(total_input_bytes)));
+            
+            try writer.print("    \"average_throughput_mbps\": {d:.2},\n", .{avg_throughput});
+            try writer.print("    \"overall_compression_ratio\": {d:.4},\n", .{overall_compression});
+            try writer.print("    \"total_input_bytes\": {},\n", .{total_input_bytes});
+            try writer.print("    \"total_output_bytes\": {}\n", .{total_output_bytes});
+        } else {
+            try writer.print("    \"average_throughput_mbps\": 0,\n", .{});
+            try writer.print("    \"overall_compression_ratio\": 0,\n", .{});
+            try writer.print("    \"total_input_bytes\": 0,\n", .{});
+            try writer.print("    \"total_output_bytes\": 0\n", .{});
+        }
+        
+        try writer.print("  }}\n", .{});
+        try writer.writeAll("}\n");
     }
     
     fn generateCsvReport(self: *BenchmarkSuite, writer: anytype) !void {

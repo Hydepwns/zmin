@@ -122,20 +122,20 @@ const regression_tests = [_]RegressionTest{
 test "regression: all fixed issues" {
     const allocator = std.testing.allocator;
     var failures: u32 = 0;
-    
+
     std.debug.print("\nRunning regression tests for {d} fixed issues...\n", .{regression_tests.len});
-    
+
     for (regression_tests) |test_case| {
         std.debug.print("\nTesting {s}: {s}\n", .{ test_case.issue, test_case.description });
-        
+
         for (test_case.affected_modes) |mode| {
             const result = zmin.minifyWithMode(allocator, test_case.input, mode);
-            
+
             if (test_case.expected_output) |expected| {
                 // Should succeed with expected output
                 if (result) |output| {
                     defer allocator.free(output);
-                    
+
                     if (!std.mem.eql(u8, output, expected)) {
                         std.debug.print("  ❌ {s} mode: Output mismatch\n", .{@tagName(mode)});
                         std.debug.print("    Expected: {s}\n", .{expected});
@@ -158,18 +158,14 @@ test "regression: all fixed issues" {
                     if (err == expected_err) {
                         std.debug.print("  ✅ {s} mode: Correct error\n", .{@tagName(mode)});
                     } else {
-                        std.debug.print("  ❌ {s} mode: Wrong error: expected {}, got {}\n", .{ 
-                            @tagName(mode), 
-                            expected_err, 
-                            err 
-                        });
+                        std.debug.print("  ❌ {s} mode: Wrong error: expected {}, got {}\n", .{ @tagName(mode), expected_err, err });
                         failures += 1;
                     }
                 }
             }
         }
     }
-    
+
     if (failures > 0) {
         std.debug.print("\n❌ Regression tests failed: {d} failures\n", .{failures});
         return error.RegressionTestsFailed;
@@ -180,37 +176,37 @@ test "regression: all fixed issues" {
 
 test "regression: memory safety" {
     const allocator = std.testing.allocator;
-    
+
     // Test cases that previously caused memory issues
     const memory_regression_cases = [_][]const u8{
         // Empty inputs
         "",
         "   ",
         "\n\n\n",
-        
+
         // Truncated inputs
         "{",
         "[",
         "\"",
         "{\"a\":",
         "[1,",
-        
+
         // Large repetitive patterns
         "{" ++ "\"a\":1," ** 1000 ++ "}",
         "[" ++ "1," ** 1000 ++ "]",
-        
+
         // Mixed valid/invalid
         "[1, 2, {\"valid\": true}, INVALID, 5]",
         "{\"good\": 1, bad, \"ok\": 2}",
     };
-    
+
     std.debug.print("\nTesting memory safety regression cases...\n", .{});
-    
+
     for (memory_regression_cases, 0..) |input, i| {
         // Use leak detector
         var leak_detector = test_framework.detectLeaks(allocator).init();
         const test_allocator = leak_detector.allocator();
-        
+
         // Try to minify (may fail, that's ok)
         const result = zmin.minifyWithMode(test_allocator, input, .eco);
         if (result) |output| {
@@ -218,20 +214,20 @@ test "regression: memory safety" {
         } else |_| {
             // Error is fine, we're testing for crashes/leaks
         }
-        
+
         // Check for leaks
         leak_detector.checkLeaks() catch {
             std.debug.print("  ❌ Memory leak in test case {d}\n", .{i});
             return error.MemoryLeakDetected;
         };
     }
-    
+
     std.debug.print("  ✅ No memory leaks detected\n", .{});
 }
 
 test "regression: performance" {
     const allocator = std.testing.allocator;
-    
+
     // Test cases that previously had performance issues
     const performance_cases = [_]struct {
         name: []const u8,
@@ -259,21 +255,21 @@ test "regression: performance" {
             .min_throughput_mbps = 200.0,
         },
     };
-    
+
     std.debug.print("\nTesting performance regression cases...\n", .{});
-    
+
     for (performance_cases) |test_case| {
         const input = try test_case.generate_input(allocator);
         defer allocator.free(input);
-        
+
         const start = std.time.microTimestamp();
         const output = try zmin.minifyWithMode(allocator, input, .turbo);
         defer allocator.free(output);
         const duration_us = std.time.microTimestamp() - start;
-        
-        const throughput_mbps = (@as(f64, @floatFromInt(input.len)) / (1024.0 * 1024.0)) / 
-                               (@as(f64, @floatFromInt(duration_us)) / 1_000_000.0);
-        
+
+        const throughput_mbps = (@as(f64, @floatFromInt(input.len)) / (1024.0 * 1024.0)) /
+            (@as(f64, @floatFromInt(duration_us)) / 1_000_000.0);
+
         if (throughput_mbps < test_case.min_throughput_mbps) {
             std.debug.print("  ❌ {s}: {d:.0} MB/s (below {d:.0} MB/s threshold)\n", .{
                 test_case.name,
@@ -289,30 +285,30 @@ test "regression: performance" {
 
 fn generateDeeplyNestedJson(allocator: std.mem.Allocator) ![]u8 {
     var json = std.ArrayList(u8).init(allocator);
-    
+
     // Create 50 levels of nesting
     for (0..50) |i| {
         try json.writer().print("{{\"level_{d}\":", .{i});
     }
-    
+
     try json.appendSlice("\"deep\"");
-    
+
     for (0..50) |_| {
         try json.append('}');
     }
-    
+
     return json.toOwnedSlice();
 }
 
 fn generateLargeNumberArray(allocator: std.mem.Allocator) ![]u8 {
     var json = std.ArrayList(u8).init(allocator);
     try json.append('[');
-    
+
     for (0..10000) |i| {
         if (i > 0) try json.append(',');
         try json.writer().print("{d}", .{i});
     }
-    
+
     try json.append(']');
     return json.toOwnedSlice();
 }
@@ -320,12 +316,12 @@ fn generateLargeNumberArray(allocator: std.mem.Allocator) ![]u8 {
 fn generateManyStrings(allocator: std.mem.Allocator) ![]u8 {
     var json = std.ArrayList(u8).init(allocator);
     try json.append('[');
-    
+
     for (0..1000) |i| {
         if (i > 0) try json.append(',');
         try json.writer().print("\"string_{d}_with_some_content\"", .{i});
     }
-    
+
     try json.append(']');
     return json.toOwnedSlice();
 }
@@ -333,7 +329,7 @@ fn generateManyStrings(allocator: std.mem.Allocator) ![]u8 {
 fn generateUnicodeContent(allocator: std.mem.Allocator) ![]u8 {
     var json = std.ArrayList(u8).init(allocator);
     try json.appendSlice("{");
-    
+
     const unicode_samples = [_][]const u8{
         "\"emoji\":\"🚀🎉✅❌🔥💯\"",
         "\"chinese\":\"你好世界，这是一个测试\"",
@@ -343,19 +339,19 @@ fn generateUnicodeContent(allocator: std.mem.Allocator) ![]u8 {
         "\"hebrew\":\"שלום עולם, זה מבחן\"",
         "\"russian\":\"Привет мир, это тест\"",
     };
-    
+
     for (unicode_samples, 0..) |sample, i| {
         if (i > 0) try json.append(',');
         try json.appendSlice(sample);
     }
-    
+
     try json.append('}');
     return json.toOwnedSlice();
 }
 
 test "regression: edge cases" {
     const allocator = std.testing.allocator;
-    
+
     // Collection of edge cases that were problematic
     const edge_cases = [_]struct {
         input: []const u8,
@@ -368,32 +364,32 @@ test "regression: edge cases" {
         .{ .input = "1e400", .should_succeed = false, .description = "Number too large" },
         .{ .input = "1e-400", .should_succeed = true, .description = "Very small number" },
         .{ .input = "0.000000000000000000000000000001", .should_succeed = true, .description = "Many decimals" },
-        
+
         // String edge cases
         .{ .input = "\"\"", .should_succeed = true, .description = "Empty string" },
         .{ .input = "\"\\u0000\"", .should_succeed = true, .description = "Null character" },
         .{ .input = "\"\\\"", .should_succeed = false, .description = "Incomplete escape" },
         .{ .input = "\"\\u\"", .should_succeed = false, .description = "Incomplete unicode" },
         .{ .input = "\"\\u000\"", .should_succeed = false, .description = "Incomplete unicode hex" },
-        
+
         // Structural edge cases
         .{ .input = "[]", .should_succeed = true, .description = "Empty array" },
         .{ .input = "{}", .should_succeed = true, .description = "Empty object" },
         .{ .input = "[,]", .should_succeed = false, .description = "Array with only comma" },
         .{ .input = "{,}", .should_succeed = false, .description = "Object with only comma" },
         .{ .input = "[1 2]", .should_succeed = false, .description = "Missing comma in array" },
-        
+
         // Whitespace edge cases
         .{ .input = " \n\r\t{}\n\r\t ", .should_succeed = true, .description = "Whitespace around object" },
         .{ .input = "[\n\n\n]", .should_succeed = true, .description = "Newlines in array" },
         .{ .input = "{\"a\"\n:\n1}", .should_succeed = true, .description = "Newlines in object" },
     };
-    
+
     std.debug.print("\nTesting edge case regressions...\n", .{});
-    
+
     for (edge_cases) |test_case| {
         const result = zmin.minifyWithMode(allocator, test_case.input, .eco);
-        
+
         if (test_case.should_succeed) {
             if (result) |output| {
                 allocator.free(output);

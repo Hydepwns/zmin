@@ -9,7 +9,7 @@ test "performance test - single vs multi-threaded" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     // Create a large JSON input
     var large_input = std.ArrayList(u8).init(allocator);
     defer large_input.deinit();

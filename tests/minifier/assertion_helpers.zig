@@ -39,18 +39,18 @@ pub fn expectMinified(output: []const u8) !void {
     // Check that there are no spaces outside of strings
     var in_string = false;
     var escaped = false;
-    
+
     for (output) |char| {
         if (!in_string and (char == ' ' or char == '\t' or char == '\n' or char == '\r')) {
             std.debug.print("Found unexpected whitespace in minified output: '{}'\n", .{output});
             return error.AssertionFailed;
         }
-        
+
         if (escaped) {
             escaped = false;
             continue;
         }
-        
+
         if (char == '"') {
             in_string = !in_string;
         } else if (in_string and char == '\\') {
@@ -93,13 +93,13 @@ pub const JsonContentAssertion = struct {
     pub fn expectKeyValuePair(output: []const u8, key: []const u8, value: []const u8) !void {
         const pattern = try std.fmt.allocPrint(testing.allocator, "\"{s}\":{s}", .{ key, value });
         defer testing.allocator.free(pattern);
-        
+
         if (std.mem.indexOf(u8, output, pattern) == null) {
             std.debug.print("Expected to find key-value pair '{}' in '{}'\n", .{ pattern, output });
             return error.KeyValuePairNotFound;
         }
     }
-    
+
     /// Assert that array contains expected elements in order
     pub fn expectArrayElements(output: []const u8, elements: []const []const u8) !void {
         var current_pos: usize = 0;
@@ -110,7 +110,7 @@ pub const JsonContentAssertion = struct {
                 return error.ArrayElementNotFound;
             }
             current_pos = pos.? + element.len;
-            
+
             // For elements after the first, ensure there's a comma before
             if (i > 0) {
                 const comma_pos = std.mem.lastIndexOfScalar(u8, output[0..pos.?], ',');
@@ -121,7 +121,7 @@ pub const JsonContentAssertion = struct {
             }
         }
     }
-    
+
     /// Assert that object has expected properties
     pub fn expectObjectProperties(output: []const u8, properties: []const []const u8) !void {
         for (properties) |property| {
@@ -150,7 +150,7 @@ pub const ErrorAssertion = struct {
         std.debug.print("Got unexpected error: {}\n", .{result});
         return error.UnexpectedError;
     }
-    
+
     /// Assert that function throws any error (used for invalid input testing)
     pub fn expectAnyErrorThrown(comptime func: anytype, args: anytype) !void {
         const result = @call(.auto, func, args);
