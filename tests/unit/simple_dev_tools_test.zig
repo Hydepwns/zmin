@@ -71,7 +71,6 @@ test "DevToolError types exist and have proper names" {
 }
 
 test "Error context formatting" {
-    const allocator = testing.allocator;
     
     // Test error context structure
     const ErrorContext = struct {
@@ -102,7 +101,7 @@ test "Error context formatting" {
         .operation = "test operation",
     };
     
-    var buffer1 = std.ArrayList(u8).init(allocator);
+    var buffer1 = std.ArrayList(u8).init(testing.allocator);
     defer buffer1.deinit();
     try ctx1.format(buffer1.writer());
     try testing.expect(std.mem.indexOf(u8, buffer1.items, "test-tool") != null);
@@ -115,7 +114,7 @@ test "Error context formatting" {
         .details = "test details",
     };
     
-    var buffer2 = std.ArrayList(u8).init(allocator);
+    var buffer2 = std.ArrayList(u8).init(testing.allocator);
     defer buffer2.deinit();
     try ctx2.format(buffer2.writer());
     try testing.expect(std.mem.indexOf(u8, buffer2.items, "test details") != null);
@@ -127,24 +126,16 @@ test "Error context formatting" {
         .file_path = "/test/file.txt",
     };
     
-    var buffer3 = std.ArrayList(u8).init(allocator);
+    var buffer3 = std.ArrayList(u8).init(testing.allocator);
     defer buffer3.deinit();
     try ctx3.format(buffer3.writer());
     try testing.expect(std.mem.indexOf(u8, buffer3.items, "/test/file.txt") != null);
 }
 
 test "HTTP request parsing simulation" {
-    const allocator = testing.allocator;
     
     // Test HTTP request parsing functionality (simulated)
-    const valid_request = 
-        \\GET /api/minify HTTP/1.1
-        \\Host: localhost:8080
-        \\Content-Type: application/json
-        \\Content-Length: 43
-        \\
-        \\{"input": "{\"test\": true}", "mode": "sport"}
-    ;
+    const valid_request = "GET /api/minify HTTP/1.1\r\nHost: localhost:8080\r\nContent-Type: application/json\r\nContent-Length: 43\r\n\r\n{\"input\": \"{\\\"test\\\": true}\", \"mode\": \"sport\"}";
 
     // Parse request line
     var lines = std.mem.splitSequence(u8, valid_request, "\r\n");
@@ -170,7 +161,6 @@ test "HTTP request parsing simulation" {
 }
 
 test "JSON response formatting simulation" {
-    const allocator = testing.allocator;
     
     // Test JSON response creation
     const test_data = .{
@@ -180,7 +170,7 @@ test "JSON response formatting simulation" {
         .compression_ratio = 0.87,
     };
 
-    const response_json = try std.fmt.allocPrint(allocator, 
+    const response_json = try std.fmt.allocPrint(testing.allocator, 
         \\{{"output":"{s}","original_size":{d},"minified_size":{d},"compression_ratio":{d:.2}}}
     , .{
         test_data.output,
@@ -188,7 +178,7 @@ test "JSON response formatting simulation" {
         test_data.minified_size,
         test_data.compression_ratio,
     });
-    defer allocator.free(response_json);
+    defer testing.allocator.free(response_json);
 
     // Validate JSON structure
     try testing.expect(std.mem.indexOf(u8, response_json, "output") != null);
@@ -197,7 +187,7 @@ test "JSON response formatting simulation" {
     try testing.expect(std.mem.indexOf(u8, response_json, "compression_ratio") != null);
     
     // Test HTTP response formatting
-    const http_response = try std.fmt.allocPrint(allocator,
+    const http_response = try std.fmt.allocPrint(testing.allocator,
         \\HTTP/1.1 200 OK
         \\Content-Type: application/json
         \\Access-Control-Allow-Origin: *
@@ -205,7 +195,7 @@ test "JSON response formatting simulation" {
         \\
         \\
     , .{response_json.len});
-    defer allocator.free(http_response);
+    defer testing.allocator.free(http_response);
     
     try testing.expect(std.mem.indexOf(u8, http_response, "200 OK") != null);
     try testing.expect(std.mem.indexOf(u8, http_response, "application/json") != null);
@@ -329,8 +319,8 @@ test "Memory tracking simulation" {
     const allocator = testing.allocator;
     
     // Test memory allocation tracking patterns
-    const initial_memory = 0; // Simulated initial state
-    var current_memory = initial_memory;
+    const initial_memory: usize = 0; // Simulated initial state
+    var current_memory: usize = initial_memory;
     
     // Simulate allocation
     const allocation_size = 1024;
