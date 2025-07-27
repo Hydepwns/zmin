@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # Development container with mounted source
+  zmin-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build
+    volumes:
+      - .:/workspace
+      - zig-cache:/workspace/zig-cache
+    working_dir: /workspace
+    entrypoint: ["sh"]
+    command: ["-c", "while true; do sleep 3600; done"]
+
+  # Production container
+  zmin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./test-data:/data:ro
+    command: ["--help"]
+
+  # Benchmark runner
+  zmin-benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./test-data:/data:ro
+      - ./benchmarks:/benchmarks
+    command: ["--benchmark", "/data/large.json"]
+
+  # Interactive CLI
+  zmin-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./test-data:/data
+    entrypoint: ["zmin-cli"]
+
+volumes:
+  zig-cache:

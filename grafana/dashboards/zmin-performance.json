@@ -1,0 +1,150 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "zmin-performance",
+    "title": "Zmin Performance Dashboard",
+    "tags": ["zmin", "performance", "json"],
+    "timezone": "browser",
+    "schemaVersion": 30,
+    "version": 1,
+    "refresh": "5s",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "type": "graph",
+        "title": "Throughput by Mode",
+        "targets": [
+          {
+            "expr": "zmin_throughput_mbps",
+            "legendFormat": "{{ mode }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "MB/s",
+            "format": "MBs"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "type": "graph",
+        "title": "Memory Usage",
+        "targets": [
+          {
+            "expr": "zmin_memory_usage_bytes",
+            "legendFormat": "Memory Usage",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Memory",
+            "format": "bytes"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+        "type": "stat",
+        "title": "Current Throughput",
+        "targets": [
+          {
+            "expr": "zmin_throughput_mbps",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "unit": "MBs"
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+        "type": "stat",
+        "title": "Error Rate",
+        "targets": [
+          {
+            "expr": "rate(zmin_errors_total[5m])",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "unit": "errors/s"
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+        "type": "gauge",
+        "title": "GPU Utilization",
+        "targets": [
+          {
+            "expr": "zmin_gpu_utilization_percent",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": true,
+          "unit": "percent"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 50 },
+                { "color": "red", "value": 80 }
+              ]
+            },
+            "max": 100,
+            "min": 0
+          }
+        }
+      },
+      {
+        "id": 6,
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
+        "type": "stat",
+        "title": "Processing Latency (P95)",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(zmin_request_duration_seconds_bucket[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "unit": "s"
+        }
+      },
+      {
+        "id": 7,
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+        "type": "table",
+        "title": "Mode Performance Comparison",
+        "targets": [
+          {
+            "expr": "zmin_mode_usage_total",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showHeader": true
+        }
+      }
+    ]
+  }
+}
