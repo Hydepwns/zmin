@@ -57,7 +57,7 @@ declare module 'zmin' {
      * @param mode - Processing mode (default: SPORT)
      * @returns Transform stream
      */
-    export function createMinifyStream(mode?: ProcessingMode): NodeJS.ReadWriteStream;
+    export function createMinifyStream(mode?: ProcessingMode): import('stream').Transform;
 
     /**
      * Minify a JSON file

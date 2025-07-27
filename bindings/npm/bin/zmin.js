@@ -6,7 +6,6 @@
  */
 
 const fs = require('fs');
-const path = require('path');
 const { minify, validate, formatJson, sync } = require('../dist/index.js');
 
 function showHelp() {

@@ -29,7 +29,8 @@
   },
   "dependencies": {
     "bindings": "^1.5.0",
-    "node-addon-api": "^7.0.0"
+    "node-addon-api": "^7.0.0",
+    "stream": "^0.0.4"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
