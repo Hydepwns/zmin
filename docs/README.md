@@ -1,56 +1,23 @@
 # zmin Documentation
 
-Welcome to the zmin documentation! This guide covers everything you need to know about using zmin, the high-performance JSON minifier.
+High-performance JSON minifier documentation.
 
-## Table of Contents
+## Quick Links
 
-- [Getting Started](getting-started.md)
-- [Installation](installation.md)
-- [Usage Guide](usage.md)
-- [OpenAPI Reference](api-reference.yaml)
-- [Performance Guide](performance.md)
-- [Architecture](performance.md#technical-implementation)
-- [Contributing](PUBLISHING.md)
-- [Troubleshooting](getting-started.md#troubleshooting)
+- **[Interactive API Docs](https://hydepwns.github.io/zmin/)** - Live testing + examples
+- [Getting Started](getting-started.md) - Installation & basic usage
+- [Usage Guide](usage.md) - Advanced features
+- [Performance Guide](performance.md) - Optimization & benchmarks
 
-## Quick Start
+## Modes
+
+- **ECO**: Memory-efficient (64KB limit)
+- **SPORT**: Balanced (default)
+- **TURBO**: Maximum performance
+
+## Example
 
 ```bash
-# Install zmin
 zig build --release=fast
-
-# Minify a JSON file
-./zig-out/bin/zmin input.json output.json
-
-# Use different modes
-./zig-out/bin/zmin --mode turbo large-file.json minified.json
+./zig-out/bin/zmin --mode turbo input.json output.json
 ```
-
-## Processing Modes
-
-zmin offers three processing modes optimized for different scenarios:
-
-- **ECO Mode**: Memory-efficient mode with 64KB limit, perfect for embedded systems
-- **SPORT Mode**: Balanced mode for general use, handles most files efficiently
-- **TURBO Mode**: Maximum performance mode using all available CPU cores
-
-## Key Features
-
-- ⚡ Extremely fast JSON minification (1GB/s+ on modern hardware)
-- 🔧 Multiple processing modes for different use cases
-- 🧵 Parallel processing with work-stealing scheduler
-- 🛡️ Memory-safe with comprehensive error handling
-- 📊 NUMA-aware optimization for multi-socket systems
-- 🔍 Extensive testing including fuzz testing
-- 📈 Performance monitoring and profiling tools
-
-## Documentation Structure
-
-- **Getting Started**: Quick introduction and basic usage
-- **Installation**: Detailed installation instructions for all platforms
-- **Usage Guide**: Comprehensive guide to all features
-- **API Reference**: Complete API documentation for library usage
-- **Performance Guide**: Optimization tips and benchmarks
-- **Architecture**: Deep dive into zmin's design (see Performance Guide)
-- **Contributing**: Guidelines for contributors (see PUBLISHING.md)
-- **Troubleshooting**: Common issues and solutions (see Getting Started)

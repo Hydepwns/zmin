@@ -1,10 +1,10 @@
 # Getting Started with zmin
 
-This guide will help you get up and running with zmin quickly.
+Quick setup guide for zmin.
 
-## What is zmin?
+## Overview
 
-zmin is a high-performance JSON minifier written in Zig. It removes unnecessary whitespace and formatting from JSON files while preserving data integrity, making files smaller and faster to transmit.
+JSON minifier that removes whitespace for smaller file sizes. 1-3 GB/s throughput.
 
 ## Installation
 
@@ -145,7 +145,7 @@ pub fn main() !void {
 
 - Read the [Usage Guide](usage.md) for advanced features
 - Check the [Performance Guide](performance.md) for optimization tips
-- See the [API Reference](api-reference.yaml) for library documentation
+- Try the [Interactive API Docs](https://hydepwns.github.io/zmin/) for live examples
 - Learn about the [Architecture](performance.md#technical-implementation) for technical details
 
 ## Getting Help
