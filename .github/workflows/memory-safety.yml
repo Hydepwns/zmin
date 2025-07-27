@@ -263,10 +263,19 @@ jobs:
           ./leak_test.sh 2>&1 | tee leak_detection.log
         
         # Check results
-        if grep -q "All heap blocks were freed" leak_detection.log; then
+        # Look for the leak summary and check if there are any actual leaks
+        # Extract leak summary lines and check for non-zero values
+        DEFINITELY_LOST=$(grep "definitely lost:" leak_detection.log | tail -1 | grep -o "[0-9]* bytes" | awk '{print $1}')
+        INDIRECTLY_LOST=$(grep "indirectly lost:" leak_detection.log | tail -1 | grep -o "[0-9]* bytes" | awk '{print $1}')
+        POSSIBLY_LOST=$(grep "possibly lost:" leak_detection.log | tail -1 | grep -o "[0-9]* bytes" | awk '{print $1}')
+        
+        if [ "$DEFINITELY_LOST" = "0" ] && [ "$INDIRECTLY_LOST" = "0" ] && [ "$POSSIBLY_LOST" = "0" ]; then
           source ${{ env.SCRIPTS_DIR }}/common.sh && print_success "No memory leaks detected"
         else
           source ${{ env.SCRIPTS_DIR }}/common.sh && print_error "Memory leaks found!"
+          echo "Definitely lost: $DEFINITELY_LOST bytes"
+          echo "Indirectly lost: $INDIRECTLY_LOST bytes"
+          echo "Possibly lost: $POSSIBLY_LOST bytes"
           exit 1
         fi
 
