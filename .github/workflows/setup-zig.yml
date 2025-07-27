@@ -3,11 +3,6 @@ name: Setup Zig
 on:
   workflow_call:
     inputs:
-      zig-version:
-        description: 'Zig version to install'
-        required: false
-        type: string
-        default: '0.14.1'
       install-valgrind:
         description: 'Install Valgrind for memory testing'
         required: false
@@ -32,11 +27,19 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        sparse-checkout: |
+          .github/versions.json
+
+    - name: Read Zig version
+      id: read-version
+      run: |
+        echo "version=$(jq -r '.zig' .github/versions.json)" >> $GITHUB_OUTPUT
 
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
-        version: ${{ inputs.zig-version }}
+        version: ${{ steps.read-version.outputs.version }}
 
     - name: Install Valgrind
       if: ${{ inputs.install-valgrind }}
@@ -68,4 +71,4 @@ jobs:
 
     - name: Output version
       id: output-version
-      run: echo "version=${{ inputs.zig-version }}" >> $GITHUB_OUTPUT
+      run: echo "version=${{ steps.read-version.outputs.version }}" >> $GITHUB_OUTPUT
