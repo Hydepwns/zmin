@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
 import os
-import sys
-from setuptools import setup, find_packages
+try:
+    from setuptools import setup, find_packages  # type: ignore
+except ImportError:
+    print("setuptools is required. Install with: pip install setuptools")
+    exit(1)
 
 # Read version from package
 here = os.path.abspath(os.path.dirname(__file__))
@@ -19,7 +22,7 @@ if os.path.exists(os.path.join(here, "requirements.txt")):
 
 setup(
     name="zmin",
-    version="0.1.0",
+    version="1.0.0",
     author="zmin contributors",
     author_email="",
     description="Ultra-high-performance JSON minifier with 3.5+ GB/s throughput",

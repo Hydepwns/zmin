@@ -15,7 +15,7 @@ pip install zmin
 ```bash
 # Build the shared library
 cd ../..
-zig build-lib -dynamic src/bindings/c_api.zig -lc
+zig build c-api
 
 # Install Python package
 cd bindings/python
@@ -56,6 +56,11 @@ minified = zmin.minify(large_json, mode=ProcessingMode.SPORT)
 
 # TURBO mode - Maximum performance
 minified = zmin.minify(large_json, mode=ProcessingMode.TURBO)
+
+# Convenience functions
+minified = zmin.eco(large_json)      # ECO mode
+minified = zmin.sport(large_json)    # SPORT mode  
+minified = zmin.turbo(large_json)    # TURBO mode
 ```
 
 ### File Operations
@@ -79,6 +84,9 @@ minifier = zmin.Zmin(lib_path='/custom/path/to/libzmin.so')
 version = minifier.get_version()
 print(f"zmin version: {version}")
 
+# Estimate output size
+estimated_size = minifier.estimate_output_size(len(input_json))
+
 # Batch processing
 import glob
 
@@ -91,26 +99,45 @@ for file_path in glob.glob('*.json'):
         print(f"Error processing {file_path}: {e}")
 ```
 
+### Async Support
+
+```python
+import asyncio
+
+async def process_json():
+    # Async minification
+    result = await zmin.minify_async(large_json, ProcessingMode.TURBO)
+    
+    # Async validation
+    is_valid = await zmin.validate_async(large_json)
+    
+    # Mode-specific async functions
+    result = await zmin.turbo_async(large_json)
+```
+
 ## Command Line Interface
 
 ```bash
 # Minify a file
-pyzmin input.json output.json
+python zmin.py input.json output.json
 
 # Use different modes
-pyzmin --mode turbo large.json compressed.json
+python zmin.py --mode turbo large.json compressed.json
 
 # Validate only
-pyzmin --validate data.json
+python zmin.py --validate data.json
 
 # Show statistics
-pyzmin --stats input.json output.json
+python zmin.py --stats input.json output.json
 
 # Read from stdin
-echo '{"test": true}' | pyzmin
+echo '{"test": true}' | python zmin.py
 
 # Show version
-pyzmin --version
+python zmin.py --version
+
+# Pretty format
+python zmin.py --pretty input.json output.json
 ```
 
 ## Performance
@@ -146,9 +173,11 @@ print(f"Speedup: {py_time/zmin_time:.1f}x")
 ### Functions
 
 #### `minify(input_json, mode=ProcessingMode.SPORT) -> str`
+
 Minify JSON data.
 
 **Parameters:**
+
 - `input_json`: JSON string, dict, or list
 - `mode`: Processing mode (ECO, SPORT, or TURBO)
 
@@ -157,39 +186,94 @@ Minify JSON data.
 **Raises:** `ZminError` if minification fails
 
 #### `validate(input_json) -> bool`
+
 Validate JSON data.
 
 **Parameters:**
+
 - `input_json`: JSON string, dict, or list
 
 **Returns:** True if valid JSON
 
 #### `minify_file(input_path, output_path, mode=ProcessingMode.SPORT)`
+
 Minify a JSON file.
 
 #### `validate_file(file_path) -> bool`
+
 Validate a JSON file.
+
+#### `get_version() -> str`
+
+Get the zmin library version.
+
+#### `format_json(input_json, indent=2, sort_keys=False) -> str`
+
+Format JSON with pretty printing.
+
+### Convenience Functions
+
+#### `eco(input_json) -> str`
+
+Minify using ECO mode.
+
+#### `sport(input_json) -> str`
+
+Minify using SPORT mode.
+
+#### `turbo(input_json) -> str`
+
+Minify using TURBO mode.
+
+### Async Functions
+
+#### `minify_async(input_json, mode=ProcessingMode.SPORT) -> str`
+
+Async version of minify.
+
+#### `validate_async(input_json) -> bool`
+
+Async version of validate.
+
+#### `eco_async(input_json) -> str`
+
+Async ECO mode minification.
+
+#### `sport_async(input_json) -> str`
+
+Async SPORT mode minification.
+
+#### `turbo_async(input_json) -> str`
+
+Async TURBO mode minification.
 
 ### Classes
 
 #### `Zmin`
+
 Main class for JSON minification.
 
 **Methods:**
+
 - `__init__(lib_path=None)`: Initialize with optional library path
 - `minify(input_json, mode)`: Minify JSON
 - `validate(input_json)`: Validate JSON
 - `get_version()`: Get library version
+- `estimate_output_size(input_size)`: Estimate output size
 - `minify_file(input_path, output_path, mode)`: Minify file
 - `validate_file(file_path)`: Validate file
+- `__enter__()`, `__exit__()`: Context manager support
 
 #### `ProcessingMode`
+
 Enum for processing modes:
+
 - `ECO`: Memory-efficient mode (64KB limit)
 - `SPORT`: Balanced mode (default)
 - `TURBO`: Maximum performance mode
 
 #### `ZminError`
+
 Exception raised for minification errors.
 
 ## Error Handling
@@ -245,14 +329,13 @@ black --check zmin.py
 The Python bindings require the zmin shared library. Build it with:
 
 ```bash
-# Linux
-zig build-lib -dynamic -lc src/bindings/c_api.zig -femit-bin=libzmin.so
+# Build C API shared library
+zig build c-api
 
-# macOS
-zig build-lib -dynamic -lc src/bindings/c_api.zig -femit-bin=libzmin.dylib
-
-# Windows
-zig build-lib -dynamic -lc src/bindings/c_api.zig -femit-bin=zmin.dll
+# The library will be in zig-out/lib/
+# - Linux: libzmin.so
+# - macOS: libzmin.dylib  
+# - Windows: zmin.dll
 ```
 
 ## Platform Support
