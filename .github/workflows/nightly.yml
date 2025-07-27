@@ -12,7 +12,7 @@ env:
 
 jobs:
   versions:
-    uses: github/workflows/read-versions.yml
+    uses: .github/workflows/read-versions.yml
 
   benchmark:
     name: Performance Benchmarks
