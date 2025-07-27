@@ -499,6 +499,19 @@ fn createTestSuite(b: *std.Build, config: Config, modules: ModuleRegistry) void 
     test_quality_step.dependOn(&run_property_tests.step);
     test_quality_step.dependOn(&run_fuzz_tests.step);
     test_quality_step.dependOn(&run_regression_tests.step);
+
+    // Ultimate test suite for CI/CD
+    const test_ultimate_step = b.step("test:ultimate", "Run comprehensive test suite including performance");
+    test_ultimate_step.dependOn(test_step);
+    test_ultimate_step.dependOn(&run_integration_tests.step);
+    test_ultimate_step.dependOn(&run_property_tests.step);
+    test_ultimate_step.dependOn(&run_fuzz_tests.step);
+    test_ultimate_step.dependOn(&run_regression_tests.step);
+
+    // CI pipeline step
+    const ci_pipeline_step = b.step("ci:pipeline", "Run complete CI/CD pipeline");
+    ci_pipeline_step.dependOn(test_step);
+    ci_pipeline_step.dependOn(test_quality_step);
 }
 
 fn createBenchmarks(b: *std.Build, config: Config, modules: ModuleRegistry) void {
