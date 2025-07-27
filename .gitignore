@@ -2,6 +2,18 @@
 .zig-cache/
 zig-out/
 *.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Build executables and libraries
+numa_allocator
+test_*
+lib*_test.a
+generate-api-docs
+generate-api-docs.o
 
 # Temporary and output files
 *.tmp
@@ -9,6 +21,8 @@ zig-out/
 *.log
 *_out.json
 *_output.json
+*.output
+*.minified
 
 # IDE and editor files
 .vscode/
@@ -28,3 +42,8 @@ Thumbs.db
 
 # Claude AI assistant files
 .claude/
+
+# Build directories
+build/
+dist/
+target/
