@@ -24,12 +24,12 @@ pub const BenchmarkConfig = struct {
 
 /// Dataset size categories
 pub const DatasetSize = enum {
-    tiny,    // < 1KB
-    small,   // 1KB - 100KB
-    medium,  // 100KB - 10MB
-    large,   // 10MB - 100MB
-    xlarge,  // > 100MB
-    
+    tiny, // < 1KB
+    small, // 1KB - 100KB
+    medium, // 100KB - 10MB
+    large, // 10MB - 100MB
+    xlarge, // > 100MB
+
     pub fn getDescription(self: DatasetSize) []const u8 {
         return switch (self) {
             .tiny => "< 1KB",
@@ -39,7 +39,7 @@ pub const DatasetSize = enum {
             .xlarge => "> 100MB",
         };
     }
-    
+
     pub fn getTargetSize(self: DatasetSize) usize {
         return switch (self) {
             .tiny => 512,
@@ -75,26 +75,26 @@ pub const BenchmarkResult = struct {
     output_bytes: u64,
     compression_ratio: f64,
     iterations: u32,
-    
+
     // Timing statistics (microseconds)
     min_time_us: u64,
     max_time_us: u64,
     avg_time_us: u64,
     median_time_us: u64,
     stddev_time_us: f64,
-    
+
     // Throughput statistics (MB/s)
     min_throughput_mbps: f64,
     max_throughput_mbps: f64,
     avg_throughput_mbps: f64,
-    
+
     // Memory statistics
     peak_memory_bytes: u64,
-    
+
     // System info
     cpu_cores: u32,
     numa_nodes: u32,
-    
+
     /// Check if result meets performance thresholds
     pub fn meetsThreshold(self: BenchmarkResult, thresholds: PerformanceThresholds) bool {
         const min_expected = switch (self.mode) {
@@ -102,7 +102,7 @@ pub const BenchmarkResult = struct {
             .sport => thresholds.sport_min_mbps,
             .turbo => thresholds.turbo_min_mbps,
         };
-        
+
         return self.avg_throughput_mbps >= min_expected * thresholds.regression_tolerance;
     }
 };
@@ -114,9 +114,9 @@ pub const BenchmarkSuite = struct {
     end_time: i64,
     system_info: SystemInfo,
     config: BenchmarkConfig,
-    
+
     allocator: std.mem.Allocator,
-    
+
     pub fn init(allocator: std.mem.Allocator, config: BenchmarkConfig) !BenchmarkSuite {
         return BenchmarkSuite{
             .results = std.ArrayList(BenchmarkResult).init(allocator),
@@ -127,22 +127,22 @@ pub const BenchmarkSuite = struct {
             .allocator = allocator,
         };
     }
-    
+
     pub fn deinit(self: *BenchmarkSuite) void {
         self.results.deinit();
         self.system_info.deinit();
     }
-    
+
     /// Add a benchmark result
     pub fn addResult(self: *BenchmarkSuite, result: BenchmarkResult) !void {
         try self.results.append(result);
     }
-    
+
     /// Finalize the benchmark suite
     pub fn finalize(self: *BenchmarkSuite) void {
         self.end_time = std.time.timestamp();
     }
-    
+
     /// Generate report in specified format
     pub fn generateReport(self: *BenchmarkSuite, writer: anytype) !void {
         switch (self.config.output_format) {
@@ -152,7 +152,7 @@ pub const BenchmarkSuite = struct {
             .human => try self.generateHumanReport(writer),
         }
     }
-    
+
     fn generateMarkdownReport(self: *BenchmarkSuite, writer: anytype) !void {
         try writer.print("# Zmin Performance Benchmark Report\n\n", .{});
         try writer.print("**Date**: {d}\n", .{self.start_time});
@@ -162,16 +162,16 @@ pub const BenchmarkSuite = struct {
             self.system_info.cpu_cores,
             self.system_info.numa_nodes,
         });
-        
+
         // Summary table
         try writer.print("## Performance Summary\n\n", .{});
         try writer.print("| Mode | Dataset | Size (MB) | Throughput (MB/s) | Compression | Status |\n", .{});
         try writer.print("|------|---------|-----------|-------------------|-------------|--------|\n", .{});
-        
+
         for (self.results.items) |result| {
             const status = if (result.meetsThreshold(self.config.thresholds)) "✅ PASS" else "❌ FAIL";
             const size_mb = @as(f64, @floatFromInt(result.input_bytes)) / (1024.0 * 1024.0);
-            
+
             try writer.print("| {s} | {s} | {d:.2} | {d:.2} | {d:.1}% | {s} |\n", .{
                 @tagName(result.mode),
                 @tagName(result.dataset_size),
@@ -181,7 +181,7 @@ pub const BenchmarkSuite = struct {
                 status,
             });
         }
-        
+
         // Detailed results
         try writer.print("\n## Detailed Results\n\n", .{});
         for (self.results.items) |result| {
@@ -208,10 +208,10 @@ pub const BenchmarkSuite = struct {
             });
         }
     }
-    
+
     fn generateJsonReport(self: *BenchmarkSuite, writer: anytype) !void {
         try writer.writeAll("{\n");
-        
+
         // Metadata
         try writer.print("  \"metadata\": {{\n", .{});
         try writer.print("    \"timestamp\": \"{}\",\n", .{self.start_time});
@@ -219,7 +219,7 @@ pub const BenchmarkSuite = struct {
         try writer.print("    \"zmin_version\": \"1.0.0\",\n", .{});
         try writer.print("    \"benchmark_version\": \"1.0.0\"\n", .{});
         try writer.print("  }},\n", .{});
-        
+
         // System information
         try writer.print("  \"system\": {{\n", .{});
         try writer.print("    \"os\": \"{s}\",\n", .{self.system_info.os_name});
@@ -229,7 +229,7 @@ pub const BenchmarkSuite = struct {
         try writer.print("    \"total_memory_gb\": {d:.2},\n", .{@as(f64, @floatFromInt(self.system_info.total_memory)) / (1024.0 * 1024.0 * 1024.0)});
         try writer.print("    \"zig_version\": \"{s}\"\n", .{self.system_info.zig_version});
         try writer.print("  }},\n", .{});
-        
+
         // Configuration
         try writer.print("  \"configuration\": {{\n", .{});
         try writer.print("    \"iterations\": {},\n", .{self.config.iterations});
@@ -247,7 +247,7 @@ pub const BenchmarkSuite = struct {
         }
         try writer.writeAll("]\n");
         try writer.print("  }},\n", .{});
-        
+
         // Results
         try writer.print("  \"results\": [\n", .{});
         for (self.results.items, 0..) |result, i| {
@@ -282,26 +282,26 @@ pub const BenchmarkSuite = struct {
             try writer.print("    }}", .{});
         }
         try writer.writeAll("\n  ],\n");
-        
+
         // Summary statistics
         try writer.print("  \"summary\": {{\n", .{});
         try writer.print("    \"total_results\": {},\n", .{self.results.items.len});
-        
+
         // Calculate overall statistics
         if (self.results.items.len > 0) {
             var total_throughput: f64 = 0;
             var total_input_bytes: u64 = 0;
             var total_output_bytes: u64 = 0;
-            
+
             for (self.results.items) |result| {
                 total_throughput += result.avg_throughput_mbps;
                 total_input_bytes += result.input_bytes;
                 total_output_bytes += result.output_bytes;
             }
-            
+
             const avg_throughput = total_throughput / @as(f64, @floatFromInt(self.results.items.len));
             const overall_compression = 1.0 - (@as(f64, @floatFromInt(total_output_bytes)) / @as(f64, @floatFromInt(total_input_bytes)));
-            
+
             try writer.print("    \"average_throughput_mbps\": {d:.2},\n", .{avg_throughput});
             try writer.print("    \"overall_compression_ratio\": {d:.4},\n", .{overall_compression});
             try writer.print("    \"total_input_bytes\": {},\n", .{total_input_bytes});
@@ -312,17 +312,17 @@ pub const BenchmarkSuite = struct {
             try writer.print("    \"total_input_bytes\": 0,\n", .{});
             try writer.print("    \"total_output_bytes\": 0\n", .{});
         }
-        
+
         try writer.print("  }}\n", .{});
         try writer.writeAll("}\n");
     }
-    
+
     fn generateCsvReport(self: *BenchmarkSuite, writer: anytype) !void {
         // CSV header
         try writer.print("mode,dataset_size,input_bytes,output_bytes,compression_ratio,", .{});
         try writer.print("avg_throughput_mbps,min_throughput_mbps,max_throughput_mbps,", .{});
         try writer.print("avg_time_us,stddev_time_us,peak_memory_bytes,status\n", .{});
-        
+
         // Data rows
         for (self.results.items) |result| {
             const status = if (result.meetsThreshold(self.config.thresholds)) "PASS" else "FAIL";
@@ -342,14 +342,14 @@ pub const BenchmarkSuite = struct {
             });
         }
     }
-    
+
     fn generateHumanReport(self: *BenchmarkSuite, writer: anytype) !void {
         try writer.print("\n🚀 Zmin Performance Benchmark Results\n", .{});
         try writer.print("{'='<|50}\n\n", .{});
-        
+
         var passed: u32 = 0;
         var failed: u32 = 0;
-        
+
         for (self.results.items) |result| {
             if (result.meetsThreshold(self.config.thresholds)) {
                 passed += 1;
@@ -357,26 +357,26 @@ pub const BenchmarkSuite = struct {
                 failed += 1;
             }
         }
-        
+
         try writer.print("✅ Passed: {d}/{d}\n", .{ passed, passed + failed });
         if (failed > 0) {
             try writer.print("❌ Failed: {d}/{d}\n", .{ failed, passed + failed });
         }
-        
+
         try writer.print("\nTop Performance:\n", .{});
-        
+
         // Find best results for each mode
         for (self.config.modes) |mode| {
             var best_throughput: f64 = 0;
             var best_dataset: ?DatasetSize = null;
-            
+
             for (self.results.items) |result| {
                 if (result.mode == mode and result.avg_throughput_mbps > best_throughput) {
                     best_throughput = result.avg_throughput_mbps;
                     best_dataset = result.dataset_size;
                 }
             }
-            
+
             if (best_dataset) |dataset| {
                 try writer.print("  {s}: {d:.2} MB/s on {s} dataset\n", .{
                     @tagName(mode),
@@ -396,14 +396,14 @@ pub const SystemInfo = struct {
     numa_nodes: u32,
     total_memory: u64,
     zig_version: []const u8,
-    
+
     allocator: std.mem.Allocator,
-    
+
     pub fn detect(allocator: std.mem.Allocator) !SystemInfo {
         const numa_detector = @import("../../src/performance/numa_detector.zig");
         const topology = try numa_detector.detect(allocator);
         defer topology.deinit();
-        
+
         return SystemInfo{
             .os_name = try std.fmt.allocPrint(allocator, "{s}", .{@tagName(std.builtin.os.tag)}),
             .cpu_model = try allocator.dupe(u8, "Unknown"), // TODO: Detect CPU model
@@ -414,7 +414,7 @@ pub const SystemInfo = struct {
             .allocator = allocator,
         };
     }
-    
+
     pub fn deinit(self: *SystemInfo) void {
         self.allocator.free(self.os_name);
         self.allocator.free(self.cpu_model);
@@ -425,31 +425,31 @@ pub const SystemInfo = struct {
 pub fn runBenchmarkSuite(allocator: std.mem.Allocator, config: BenchmarkConfig) !BenchmarkSuite {
     var suite = try BenchmarkSuite.init(allocator, config);
     errdefer suite.deinit();
-    
+
     std.debug.print("Starting comprehensive benchmark suite...\n", .{});
-    
+
     // Generate test datasets
     for (config.dataset_sizes) |size| {
         const dataset = try generateDataset(allocator, size);
         defer allocator.free(dataset);
-        
+
         std.debug.print("Testing {s} dataset ({d} bytes)...\n", .{
             size.getDescription(),
             dataset.len,
         });
-        
+
         // Test each mode
         for (config.modes) |mode| {
             const result = try benchmarkMode(allocator, mode, dataset, config);
             try suite.addResult(result);
-            
+
             std.debug.print("  {s} mode: {d:.2} MB/s\n", .{
                 @tagName(mode),
                 result.avg_throughput_mbps,
             });
         }
     }
-    
+
     suite.finalize();
     return suite;
 }
@@ -461,49 +461,49 @@ fn benchmarkMode(
     dataset: []const u8,
     config: BenchmarkConfig,
 ) !BenchmarkResult {
-    var times = try allocator.alloc(u64, config.iterations);
+    const times = try allocator.alloc(u64, config.iterations);
     defer allocator.free(times);
-    
+
     var peak_memory: u64 = 0;
     var output_size: u64 = 0;
-    
+
     // Warmup iterations
     for (0..config.warmup_iterations) |_| {
         const output = try zmin.minifyWithMode(allocator, dataset, mode);
         allocator.free(output);
     }
-    
+
     // Measurement iterations
     for (times, 0..) |*time, i| {
         const start = std.time.microTimestamp();
         const output = try zmin.minifyWithMode(allocator, dataset, mode);
         const end = std.time.microTimestamp();
-        
+
         time.* = @intCast(end - start);
-        
+
         if (i == 0) {
             output_size = output.len;
         }
-        
+
         // TODO: Track peak memory usage
         peak_memory = @max(peak_memory, dataset.len + output.len);
-        
+
         allocator.free(output);
     }
-    
+
     // Calculate statistics
     std.sort.heap(u64, times, {}, std.sort.asc(u64));
-    
+
     const min_time = times[0];
     const max_time = times[times.len - 1];
     const median_time = times[times.len / 2];
-    
+
     var sum: u64 = 0;
     for (times) |time| {
         sum += time;
     }
     const avg_time = sum / times.len;
-    
+
     // Calculate standard deviation
     var variance: f64 = 0;
     for (times) |time| {
@@ -511,17 +511,17 @@ fn benchmarkMode(
         variance += diff * diff;
     }
     const stddev = @sqrt(variance / @as(f64, @floatFromInt(times.len)));
-    
+
     // Calculate throughput
     const input_mb = @as(f64, @floatFromInt(dataset.len)) / (1024.0 * 1024.0);
     const min_throughput = input_mb / (@as(f64, @floatFromInt(max_time)) / 1_000_000.0);
     const max_throughput = input_mb / (@as(f64, @floatFromInt(min_time)) / 1_000_000.0);
     const avg_throughput = input_mb / (@as(f64, @floatFromInt(avg_time)) / 1_000_000.0);
-    
+
     const numa_detector = @import("../../src/performance/numa_detector.zig");
     const topology = try numa_detector.detect(allocator);
     defer topology.deinit();
-    
+
     return BenchmarkResult{
         .mode = mode,
         .dataset_size = categorizeDatasetSize(dataset.len),
@@ -546,11 +546,11 @@ fn benchmarkMode(
 /// Generate test dataset of specified size
 fn generateDataset(allocator: std.mem.Allocator, size: DatasetSize) ![]u8 {
     const target_size = size.getTargetSize();
-    
+
     // Generate realistic JSON data
     var json = std.ArrayList(u8).init(allocator);
     defer json.deinit();
-    
+
     try json.appendSlice("{\n");
     try json.appendSlice("  \"metadata\": {\n");
     try json.appendSlice("    \"version\": \"1.0\",\n");
@@ -560,11 +560,11 @@ fn generateDataset(allocator: std.mem.Allocator, size: DatasetSize) ![]u8 {
     try json.appendSlice("\"\n");
     try json.appendSlice("  },\n");
     try json.appendSlice("  \"items\": [\n");
-    
+
     var item_count: u32 = 0;
     while (json.items.len < target_size - 100) : (item_count += 1) {
         if (item_count > 0) try json.appendSlice(",\n");
-        
+
         try json.appendSlice("    {\n");
         try json.writer().print("      \"id\": {d},\n", .{item_count});
         try json.writer().print("      \"name\": \"Item {d}\",\n", .{item_count});
@@ -576,9 +576,9 @@ fn generateDataset(allocator: std.mem.Allocator, size: DatasetSize) ![]u8 {
         try json.appendSlice("      }\n");
         try json.appendSlice("    }");
     }
-    
+
     try json.appendSlice("\n  ]\n}\n");
-    
+
     return json.toOwnedSlice();
 }
 
