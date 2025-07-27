@@ -5,8 +5,7 @@ High-performance JSON minifier for Go, powered by Zig.
 ## Installation
 
 ```bash
-go get github.com/yourusername/zmin/go
-```
+go get github.com/hydepwns/zmin/go
 
 ## Prerequisites
 
@@ -144,7 +143,7 @@ package main
 import (
     "encoding/json"
     "testing"
-    "github.com/yourusername/zmin/go"
+    "github.com/hydepwns/zmin/go"
 )
 
 func BenchmarkStdJSON(b *testing.B) {
@@ -170,6 +169,7 @@ func BenchmarkZmin(b *testing.B) {
 ```
 
 Typical results:
+
 - Standard library: 50-100 MB/s
 - zmin ECO: 200-300 MB/s
 - zmin SPORT: 400-600 MB/s
@@ -190,35 +190,45 @@ const (
 ### Functions
 
 #### `Minify(input interface{}) (string, error)`
+
 Minifies JSON using default SPORT mode.
 
 #### `MinifyWithMode(input interface{}, mode ProcessingMode) (string, error)`
+
 Minifies JSON using specified mode.
 
 #### `Validate(input interface{}) bool`
+
 Validates JSON data.
 
 #### `MinifyBytes(input []byte, mode ProcessingMode) ([]byte, error)`
+
 Minifies JSON from bytes.
 
 #### `MinifyReader(r io.Reader, mode ProcessingMode) (string, error)`
+
 Minifies JSON from io.Reader.
 
 #### `MinifyFile(inputPath, outputPath string, mode ProcessingMode) error`
+
 Minifies a JSON file.
 
 #### `ValidateFile(filePath string) bool`
+
 Validates a JSON file.
 
 #### `Version() string`
+
 Returns zmin library version.
 
 ### Types
 
 #### `ProcessingMode`
+
 Processing mode for minification.
 
 #### `Minifier`
+
 Reusable minifier instance.
 
 ### Errors
@@ -275,6 +285,7 @@ if err != nil {
 ## Building the Shared Library
 
 ### Linux
+
 ```bash
 zig build-lib -dynamic -lc src/bindings/c_api.zig -femit-bin=libzmin.so
 sudo cp libzmin.so /usr/local/lib/
@@ -282,12 +293,14 @@ sudo ldconfig
 ```
 
 ### macOS
+
 ```bash
 zig build-lib -dynamic -lc src/bindings/c_api.zig -femit-bin=libzmin.dylib
 sudo cp libzmin.dylib /usr/local/lib/
 ```
 
 ### Windows
+
 ```bash
 zig build-lib -dynamic -lc src/bindings/c_api.zig -femit-bin=zmin.dll
 # Add to PATH or copy to executable directory
@@ -313,6 +326,7 @@ go test -race
 ## Examples
 
 See the [examples](examples/) directory for more usage examples:
+
 - `basic/` - Basic usage examples
 - `streaming/` - Processing large files
 - `server/` - HTTP server with JSON minification

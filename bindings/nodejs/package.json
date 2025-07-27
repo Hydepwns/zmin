@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/zmin.git"
+    "url": "https://github.com/hydepwns/zmin.git"
   },
   "keywords": [
     "json",
@@ -46,7 +46,7 @@
   "binary": {
     "module_name": "zmin",
     "module_path": "./build/Release/",
-    "host": "https://github.com/yourusername/zmin/releases/download/",
+    "host": "https://github.com/hydepwns/zmin/releases/download/",
     "remote_path": "{version}",
     "package_name": "{module_name}-v{version}-{node_abi}-{platform}-{arch}.tar.gz"
   }

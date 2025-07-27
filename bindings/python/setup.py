@@ -100,6 +100,7 @@ setup(
     entry_points={
         "console_scripts": [
             "zmin=zmin.cli:main",
+            "pyzmin=zmin.cli:main",
         ],
     },
     zip_safe=False,

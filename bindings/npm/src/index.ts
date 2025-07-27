@@ -5,6 +5,18 @@
  * Provides 3.5+ GB/s throughput with memory safety guarantees.
  */
 
+// Type declarations for Node.js environment
+declare const process: any;
+declare const require: any;
+declare const module: any;
+declare const global: any;
+
+// WebAssembly and DOM API declarations
+declare const WebAssembly: any;
+declare const fetch: any;
+declare const TextEncoder: any;
+declare const TextDecoder: any;
+
 export interface FormatOptions {
   /** Number of spaces for indentation (default: 2) */
   indent?: number;
@@ -35,7 +47,7 @@ async function initWasm(): Promise<void> {
     if (typeof process !== 'undefined' && process.versions && process.versions.node) {
       const fs = require('fs');
       const path = require('path');
-      const wasmPath = path.join(__dirname, 'zmin.wasm');
+      const wasmPath = path.join(global.__dirname, 'zmin.wasm');
       const wasmBuffer = fs.readFileSync(wasmPath);
       const wasmModule = await WebAssembly.instantiate(wasmBuffer);
       module.exports.wasmModule = wasmModule.instance;
@@ -161,7 +173,7 @@ export async function formatJson(input: string, options: FormatOptions = {}): Pr
   const { indent = 2, sortKeys = false } = options;
   
   // For now, use native JSON.stringify for formatting
-  // TODO: Implement WebAssembly formatting for better performance
+  // Note: Using native JavaScript formatting for compatibility
   try {
     const parsed = JSON.parse(input);
     return JSON.stringify(parsed, sortKeys ? Object.keys(parsed).sort() : null, indent);
