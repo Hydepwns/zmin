@@ -1,19 +1,19 @@
 # Zmin: Ultra-High-Performance JSON Minifier
 
-A zero-dependency JSON minifier written in Zig, delivering **3.5+ GB/s** throughput with memory safety guarantees.
+A zero-dependency JSON minifier written in Zig, delivering **GB/s throughput** with memory safety guarantees.
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/hydepwns/zmin/actions) [![Zig Version](https://img.shields.io/badge/zig-0.11-orange)](https://ziglang.org/) [![Performance](https://img.shields.io/badge/performance-3.5GB%2Fs-blue)](https://github.com/hydepwns/zmin#performance-modes) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows-lightgrey)](https://github.com/hydepwns/zmin#installation) [![Memory](https://img.shields.io/badge/memory-64KB-yellow)](https://github.com/hydepwns/zmin#performance-modes) [![SIMD](https://img.shields.io/badge/SIMD-enabled-brightgreen)](https://github.com/hydepwns/zmin#technical-implementation)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/hydepwns/zmin/actions) [![Zig Version](https://img.shields.io/badge/zig-0.14.1-orange)](https://ziglang.org/) [![Performance](https://img.shields.io/badge/performance-1--3GB%2Fs-blue)](https://github.com/hydepwns/zmin#performance) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows-lightgrey)](https://github.com/hydepwns/zmin#installation)
 
 ## Features
 
-- **Ultra-high performance**: 3.5+ GB/s throughput in TURBO mode
-- **Memory efficient**: ECO mode uses only 64KB memory
+- **Ultra-high performance**: Multi-GB/s throughput
+- **Memory efficient**: Streaming architecture
 - **Zero dependencies**: Pure Zig implementation
-- **Cross-platform**: Linux, macOS, Windows
-- **Multiple language bindings**: Node.js, Go, Python
-- **Three performance modes**: ECO, SPORT, TURBO
-- **SIMD optimized**: Automatic CPU instruction detection
-- **Memory safe**: Built with Zig's memory safety guarantees
+- **Cross-platform**: Linux, macOS, Windows (x64 + ARM64)
+- **Language bindings**: Node.js, Go, Python, WebAssembly
+- **Parallel processing**: Multi-threaded with work-stealing
+- **SIMD optimized**: Automatic CPU feature detection
+- **Memory safe**: Built with Zig's safety guarantees
 
 ## Installation
 
@@ -50,114 +50,108 @@ pip install zmin
 ### Command Line
 
 ```bash
-# Basic usage
+# Basic minification
 zmin input.json -o output.json
 
-# Performance modes
-zmin input.json                        # ECO (default)
-zmin --mode sport input.json           # SPORT 
-zmin --mode turbo input.json           # TURBO
+# Pretty print with custom indent
+zmin --pretty --indent 4 input.json -o formatted.json
 
-# Pretty print
-zmin --pretty input.json
+# Parallel processing
+zmin --threads 8 large-file.json -o minified.json
 
-# Development
-zig build test && zig build benchmark  # Test & benchmark
+# Pipe from stdin
+cat data.json | zmin > minified.json
+
+# Show statistics
+zmin --stats input.json -o output.json
 ```
 
 ### Programmatic Usage
 
-#### Node.js
+<details>
+<summary><b>Node.js</b></summary>
 
 ```typescript
 import { minify } from '@zmin/cli';
 
-const minified = await minify('{"key": "value"}', { mode: 'turbo' });
-console.log(minified); // {"key":"value"}
-```
+// Basic minification
+const result = await minify('{"key": "value"}');
 
-#### Go
+// With options
+const formatted = await minify(jsonString, { 
+  pretty: true, 
+  indent: 2 
+});
+```
+</details>
+
+<details>
+<summary><b>Go</b></summary>
 
 ```go
 import "github.com/hydepwns/zmin-go"
 
-result := zmin.Minify(`{"key": "value"}`, zmin.TurboMode)
-fmt.Println(result) // {"key":"value"}
-```
+// Basic minification
+result := zmin.Minify(`{"key": "value"}`)
 
-#### Python
+// With options
+formatted := zmin.MinifyWithOptions(jsonString, &zmin.Options{
+    Pretty: true,
+    Indent: 2,
+})
+```
+</details>
+
+<details>
+<summary><b>Python</b></summary>
 
 ```python
 import zmin
 
-result = zmin.minify('{"key": "value"}', mode='turbo')
-print(result)  # {"key":"value"}
+# Basic minification
+result = zmin.minify('{"key": "value"}')
+
+# With options
+formatted = zmin.minify(json_string, pretty=True, indent=2)
 ```
+</details>
 
-## Performance Modes
+## Performance
 
-Zmin offers three performance modes optimized for different use cases:
+Zmin automatically optimizes for your hardware and file size:
 
-| Mode | Throughput | Memory Usage | Use Case | Implementation |
-|------|------------|--------------|----------|----------------|
-| **ECO** | 580 MB/s | 64KB | Memory-constrained environments | Streaming state machine |
-| **SPORT** | 850 MB/s | O(√n) | Balanced performance/memory | Chunk-based processing |
-| **TURBO** | **3.5+ GB/s** | O(n) | Maximum speed | SIMD + NUMA + parallel |
+| File Size | Typical Throughput | Optimizations |
+|-----------|-------------------|---------------|
+| < 1 MB | 150-200 MB/s | Single-threaded streaming |
+| 1-10 MB | 400-600 MB/s | Parallel chunking |
+| 10-50 MB | 800 MB/s - 1 GB/s | SIMD + parallel |
+| 50+ MB | **1-3 GB/s** | Full optimization stack |
 
-### Mode Selection Guidelines
+### Resource Usage
 
-**ECO Mode** - Choose when:
-
-- Memory is limited (< 100MB available)
-- Running in containers or embedded systems
-- Processing files larger than available memory
-- Need predictable memory usage
-
-**SPORT Mode** - Choose when:
-
-- General purpose use
-- Good balance of speed and memory
-- Processing medium-sized files (1-100MB)
-- Running on standard systems
-
-**TURBO Mode** - Choose when:
-
-- Maximum speed is required
-- Processing large files (> 100MB)
-- Running on high-performance systems
-- Have sufficient memory available
-
-### Performance Scaling (TURBO Mode)
-
-| File Size | Throughput | Optimizations Applied |
-|-----------|------------|----------------------|
-| < 1 MB | 167 MB/s | Basic parallel processing |
-| 1-10 MB | 480 MB/s | SIMD + parallel |
-| 10-50 MB | 833 MB/s | NUMA-aware allocation |
-| 50+ MB | **3.5+ GB/s** | Full optimization stack |
+- **Memory**: Scales with file size (streaming for small files, buffered for large)
+- **CPU**: Automatic thread scaling based on available cores
+- **I/O**: Zero-copy where possible, memory-mapped for large files
 
 ## Benchmarks
 
 | Tool | Speed | Memory | Notes |
 |------|-------|--------|-------|
-| **zmin TURBO** | **3.5+ GB/s** | O(n) | SIMD + NUMA + parallel |
-| simdjson | 1-3 GB/s | O(n) | SIMD-optimized |
-| **zmin SPORT** | 850 MB/s | O(√n) | Balanced approach |
-| **zmin ECO** | 580 MB/s | 64KB | Streaming |
-| RapidJSON | 399 MB/s | O(n) | C++ DOM parsing |
-| jq -c | 149 MB/s | O(n) | Full JSON parsing |
+| **zmin** | **1-3 GB/s** | Adaptive | SIMD + parallel processing |
+| simdjson | 1-3 GB/s | O(n) | SIMD-optimized C++ |
+| RapidJSON | 300-400 MB/s | O(n) | C++ DOM parsing |
+| jq -c | 100-150 MB/s | O(n) | Full JSON parsing |
+| json-minify | 50-100 MB/s | O(n) | Node.js implementation |
 
-## Technical Implementaton
+## Technical Implementation
 
-**TURBO Mode**: AVX1/AVX/SSE detection, NUMA-aware allocation, adaptive chunking, work-stealing parallelism, GPU offloading framework
+- **SIMD Optimization**: AVX2/AVX/SSE automatic detection and fallback
+- **Parallel Processing**: Work-stealing thread pool with adaptive chunking
+- **Memory Management**: Zero-copy streaming for small files, memory-mapped for large
+- **Parser Design**: State machine with lookup tables for fast character classification
+- **Architecture**: Modular design with separate tokenizer, validator, and writer stages
 
-**Mode Selection**: ECO (memory-constrained), SPORT (balanced), TURBO (maximum speed)
-
-- *ECO*: Streaming state machine, O(1) memory
-- *SPORT*: Chunk-based processing  
-- *TURBO*: SIMD + NUMA + parallel + GPU framework
-
-See [docs/performance.md](docs/performance.md) for detailed implementation information.
+See [docs/](docs/) for detailed documentation.
 
 ## Contributing
 
