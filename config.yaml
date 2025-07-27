@@ -1,4 +1,4 @@
-baseURL: 'https://zmin.droo.foo/'
+baseURL: 'https://hydepwns.github.io/zmin/'
 languageCode: 'en-us'
 title: 'zmin'
 theme: 'github.com/panr/hugo-theme-terminal'
@@ -40,7 +40,7 @@ params:
       weight: 1
     - identifier: api
       name: API Reference
-      url: /docs/api-reference/
+      url: /api-reference-generated.html
       weight: 2
     - identifier: examples
       name: Examples
@@ -54,6 +54,18 @@ params:
   # Custom CSS
   customCSS: ["css/custom.css"]
 
+  # Terminal theme specific settings
+  showReadingTime: false
+  showToc: true
+  tocOpen: false
+  showShareButtons: false
+  showPostNavLinks: true
+  showBreadCrumbs: true
+  showCodeCopyButtons: true
+  showRssButtonInSectionTermList: false
+  showWordCount: false
+  showFullTextinRSS: false
+
 # Menu configuration
 menu:
   main:
@@ -63,7 +75,7 @@ menu:
       weight: 1
     - identifier: api
       name: API Reference
-      url: /docs/api-reference/
+      url: /api-reference-generated.html
       weight: 2
     - identifier: examples
       name: Examples
