@@ -12,7 +12,22 @@ env:
 
 jobs:
   versions:
-    uses: ./.github/workflows/read-versions.yml
+    runs-on: ubuntu-latest
+    outputs:
+      zig-version: ${{ steps.versions.outputs.zig }}
+      zmin-version: ${{ steps.versions.outputs.zmin }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/versions.json
+      
+      - name: Read versions
+        id: versions
+        run: |
+          echo "zig=$(jq -r '.zig' .github/versions.json)" >> $GITHUB_OUTPUT
+          echo "zmin=$(jq -r '.zmin' .github/versions.json)" >> $GITHUB_OUTPUT
 
   benchmark:
     name: Performance Benchmarks
