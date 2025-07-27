@@ -201,14 +201,7 @@ jobs:
     name: Deploy to GitHub Pages
     needs: [versions, generate-api-docs, build-hugo]
     runs-on: ubuntu-latest
-    if: |
-      github.ref == 'refs/heads/main' &&
-      (needs.generate-api-docs.outputs.docs-generated == 'true' ||
-       needs.build-hugo.outputs.hugo-built == 'true' ||
-       github.event.inputs.force_regenerate == 'true' ||
-       contains(github.event.head_commit.modified, 'docs/') ||
-       contains(github.event.head_commit.modified, 'content/') ||
-       contains(github.event.head_commit.modified, 'assets/'))
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
@@ -223,6 +216,12 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
+      - name: Debug - Show current directory
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+
       - name: Ensure content directory exists
         run: |
           # Create content directory if it doesn't exist
@@ -231,6 +230,8 @@ jobs:
           if [ -d "assets/content" ]; then
             cp -r assets/content/* content/ 2>/dev/null || true
           fi
+          echo "Content directory contents:"
+          ls -la content/
 
       - name: Build Hugo site
         run: |
@@ -240,6 +241,8 @@ jobs:
           fi
           hugo mod get github.com/panr/hugo-theme-terminal
           hugo --minify
+          echo "Hugo build completed. Public directory contents:"
+          ls -la public/
 
       - name: Copy generated API docs to Hugo static
         run: |
