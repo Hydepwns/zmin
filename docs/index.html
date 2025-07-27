@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>zmin - High-performance JSON minifier</title>
     <style>
-        /* Minimalist theme inspired by The Monospace Web */
-        :root {
+        /* Theme variables */
+        :root[data-theme="light"] {
             --bg-primary: #ffffff;
             --bg-secondary: #f8f8f8;
             --bg-tertiary: #f0f0f0;
@@ -18,6 +18,21 @@
             --border: #dddddd;
             --border-light: #eeeeee;
             --shadow: rgba(0, 0, 0, 0.1);
+            --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+        }
+
+        :root[data-theme="dark"] {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #606060;
+            --accent: #e0e0e0;
+            --accent-hover: #ffffff;
+            --border: #333333;
+            --border-light: #404040;
+            --shadow: rgba(0, 0, 0, 0.5);
             --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
         }
 
@@ -33,6 +48,7 @@
             font-family: var(--font-mono);
             line-height: 1.6;
             scroll-behavior: smooth;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         body {
@@ -40,6 +56,7 @@
             color: var(--text-primary);
             font-family: var(--font-mono);
             line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         /* Header */
@@ -48,6 +65,7 @@
             padding: 4rem 2rem;
             text-align: center;
             border-bottom: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .header h1 {
@@ -56,6 +74,7 @@
             color: var(--text-primary);
             margin-bottom: 1rem;
             letter-spacing: -0.02em;
+            transition: color 0.3s ease;
         }
 
         .header p {
@@ -63,12 +82,14 @@
             color: var(--text-secondary);
             max-width: 600px;
             margin: 0 auto;
+            transition: color 0.3s ease;
         }
 
         .header .subtitle {
             font-size: 1rem;
             color: var(--text-muted);
             margin-top: 1rem;
+            transition: color 0.3s ease;
         }
 
         /* Navigation */
@@ -79,26 +100,57 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         .nav ul {
             list-style: none;
             display: flex;
-            justify-content: center;
             gap: 2rem;
-            max-width: 1200px;
-            margin: 0 auto;
         }
 
         .nav a {
             color: var(--text-secondary);
             text-decoration: none;
             font-size: 0.9rem;
-            transition: color 0.2s ease;
+            transition: color 0.3s ease;
         }
 
         .nav a:hover {
             color: var(--text-primary);
+        }
+
+        /* Theme toggle */
+        .theme-toggle {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 0;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--text-primary);
+        }
+
+        .theme-toggle .icon {
+            font-size: 1rem;
         }
 
         /* Main content */
@@ -117,12 +169,14 @@
             color: var(--text-primary);
             margin-bottom: 1.5rem;
             font-weight: 400;
+            transition: color 0.3s ease;
         }
 
         .section p {
             color: var(--text-secondary);
             margin-bottom: 1rem;
             font-size: 1rem;
+            transition: color 0.3s ease;
         }
 
         /* Features grid */
@@ -138,7 +192,7 @@
             padding: 2rem;
             border-radius: 0;
             border: 1px solid var(--border);
-            transition: transform 0.2s ease, border-color 0.2s ease;
+            transition: all 0.3s ease;
         }
 
         .feature:hover {
@@ -151,11 +205,13 @@
             font-size: 1.2rem;
             margin-bottom: 1rem;
             font-weight: 400;
+            transition: color 0.3s ease;
         }
 
         .feature p {
             color: var(--text-secondary);
             font-size: 0.9rem;
+            transition: color 0.3s ease;
         }
 
         /* Code blocks */
@@ -166,6 +222,7 @@
             padding: 1.5rem;
             margin: 1.5rem 0;
             overflow-x: auto;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .code-block pre {
@@ -173,19 +230,23 @@
             font-family: var(--font-mono);
             font-size: 0.9rem;
             line-height: 1.5;
+            transition: color 0.3s ease;
         }
 
         .code-block .comment {
             color: var(--text-muted);
+            transition: color 0.3s ease;
         }
 
         .code-block .string {
             color: var(--text-primary);
+            transition: color 0.3s ease;
         }
 
         .code-block .keyword {
             color: var(--text-primary);
             font-weight: 600;
+            transition: color 0.3s ease;
         }
 
         /* Performance table */
@@ -197,6 +258,7 @@
             border-radius: 0;
             overflow: hidden;
             border: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .performance-table th,
@@ -204,16 +266,19 @@
             padding: 1rem;
             text-align: left;
             border-bottom: 1px solid var(--border);
+            transition: border-color 0.3s ease;
         }
 
         .performance-table th {
             background: var(--bg-tertiary);
             color: var(--text-primary);
             font-weight: 400;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .performance-table td {
             color: var(--text-secondary);
+            transition: color 0.3s ease;
         }
 
         .performance-table tr:last-child td {
@@ -230,7 +295,7 @@
             border-radius: 0;
             font-family: var(--font-mono);
             font-size: 0.9rem;
-            transition: background 0.2s ease;
+            transition: all 0.3s ease;
             border: 1px solid var(--text-primary);
             cursor: pointer;
         }
@@ -238,6 +303,7 @@
         .btn:hover {
             background: var(--text-secondary);
             border-color: var(--text-secondary);
+            color: var(--bg-primary);
         }
 
         .btn-secondary {
@@ -249,6 +315,7 @@
         .btn-secondary:hover {
             background: var(--bg-secondary);
             border-color: var(--text-primary);
+            color: var(--text-primary);
         }
 
         /* Quick start section */
@@ -258,12 +325,14 @@
             border-radius: 0;
             border: 1px solid var(--border);
             margin: 2rem 0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .quick-start h3 {
             color: var(--text-primary);
             margin-bottom: 1rem;
             font-weight: 400;
+            transition: color 0.3s ease;
         }
 
         /* Links */
@@ -278,6 +347,7 @@
             color: var(--text-primary);
             text-decoration: none;
             font-size: 0.9rem;
+            transition: color 0.3s ease;
         }
 
         .links a:hover {
@@ -292,12 +362,18 @@
             border-top: 1px solid var(--border);
             color: var(--text-muted);
             font-size: 0.9rem;
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
         }
 
         /* Responsive design */
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 2.5rem;
+            }
+
+            .nav-container {
+                flex-direction: column;
+                gap: 1rem;
             }
 
             .nav ul {
@@ -348,14 +424,20 @@
     </header>
 
     <nav class="nav">
-        <ul>
-            <li><a href="#features">Features</a></li>
-            <li><a href="#quick-start">Quick Start</a></li>
-            <li><a href="#performance">Performance</a></li>
-            <li><a href="api-docs-interactive.html">API Docs</a></li>
-            <li><a href="getting-started.md">Getting Started</a></li>
-            <li><a href="https://github.com/hydepwns/zmin">GitHub</a></li>
-        </ul>
+        <div class="nav-container">
+            <ul>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#quick-start">Quick Start</a></li>
+                <li><a href="#performance">Performance</a></li>
+                <li><a href="api-docs-interactive.html">API Docs</a></li>
+                <li><a href="getting-started.md">Getting Started</a></li>
+                <li><a href="https://github.com/hydepwns/zmin">GitHub</a></li>
+            </ul>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span class="icon" id="theme-icon">🌙</span>
+                <span id="theme-text">Dark</span>
+            </button>
+        </div>
     </nav>
 
     <main class="main">
@@ -496,5 +578,47 @@ zmin --validate --format-check input.json out.json</pre>
         <p>zmin - High-performance JSON minifier written in Zig</p>
         <p>MIT License • <a href="https://github.com/hydepwns/zmin" style="color: var(--text-primary);">GitHub</a></p>
     </footer>
+
+    <script>
+        // Theme management
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+
+            if (theme === 'dark') {
+                icon.textContent = '🌙';
+                text.textContent = 'Dark';
+            } else {
+                icon.textContent = '☀️';
+                text.textContent = 'Light';
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+        }
+
+        // Initialize theme
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            if (savedTheme) {
+                setTheme(savedTheme);
+            } else if (prefersDark) {
+                setTheme('dark');
+            } else {
+                setTheme('dark'); // Default to dark mode
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initTheme);
+    </script>
 </body>
 </html>

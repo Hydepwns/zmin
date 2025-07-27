@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.css" />
     <style>
-        /* Minimalist theme inspired by The Monospace Web */
-        :root {
+        /* Theme variables */
+        :root[data-theme="light"] {
             --bg-primary: #ffffff;
             --bg-secondary: #f8f8f8;
             --bg-tertiary: #f0f0f0;
@@ -23,12 +23,28 @@
             --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
         }
 
+        :root[data-theme="dark"] {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #606060;
+            --accent: #e0e0e0;
+            --accent-hover: #ffffff;
+            --border: #333333;
+            --border-light: #404040;
+            --shadow: rgba(0, 0, 0, 0.5);
+            --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+        }
+
         html {
             box-sizing: border-box;
             overflow: -moz-scrollbars-vertical;
             overflow-y: scroll;
             background: var(--bg-primary);
             color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         *, *:before, *:after {
@@ -41,6 +57,7 @@
             color: var(--text-primary);
             font-family: var(--font-mono);
             line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         /* Header */
@@ -50,6 +67,7 @@
             padding: 2rem;
             border-bottom: 1px solid var(--border);
             box-shadow: 0 2px 8px var(--shadow);
+            transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
         .header h1 {
             margin: 0;
@@ -57,11 +75,13 @@
             font-weight: 400;
             color: var(--text-primary);
             font-family: var(--font-mono);
+            transition: color 0.3s ease;
         }
         .header p {
             margin: 0.5rem 0 0 0;
             color: var(--text-secondary);
             font-size: 1rem;
+            transition: color 0.3s ease;
         }
 
         /* Navigation */
@@ -72,6 +92,7 @@
             margin: 0;
             display: flex;
             gap: 0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .nav-tab {
             background: none;
@@ -82,7 +103,7 @@
             font-weight: 400;
             color: var(--text-secondary);
             border-bottom: 2px solid transparent;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             font-family: var(--font-mono);
         }
         .nav-tab:hover {
@@ -99,15 +120,17 @@
         .content {
             display: none;
             background: var(--bg-primary);
+            transition: background-color 0.3s ease;
         }
         .content.active {
             display: block;
         }
 
-        /* Swagger UI minimalist theme customizations */
+        /* Swagger UI theme customizations */
         .swagger-ui {
             background: var(--bg-primary) !important;
             color: var(--text-primary) !important;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .swagger-ui .topbar {
             display: none !important;
@@ -118,14 +141,17 @@
             padding: 2rem;
             border-radius: 0;
             border: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .swagger-ui .info .title {
             color: var(--text-primary) !important;
             font-size: 1.8rem;
             font-family: var(--font-mono);
+            transition: color 0.3s ease;
         }
         .swagger-ui .info .description {
             color: var(--text-secondary) !important;
+            transition: color 0.3s ease;
         }
         .swagger-ui .scheme-container {
             background: var(--bg-tertiary) !important;
@@ -133,18 +159,22 @@
             padding: 20px;
             border-radius: 0;
             border: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .swagger-ui .scheme-container .schemes-title {
             color: var(--text-primary) !important;
+            transition: color 0.3s ease;
         }
         .swagger-ui .scheme-container .schemes {
             background: var(--bg-secondary) !important;
             border: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .swagger-ui .scheme-container .schemes .scheme {
             background: var(--bg-primary) !important;
             color: var(--text-primary) !important;
             border: 1px solid var(--border);
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
         .swagger-ui .scheme-container .schemes .scheme:hover {
             background: var(--bg-secondary) !important;
@@ -156,43 +186,53 @@
             border: 1px solid var(--border) !important;
             margin: 0 0 1rem 0;
             border-radius: 0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .swagger-ui .opblock .opblock-summary {
             background: var(--bg-tertiary) !important;
             border-bottom: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .swagger-ui .opblock .opblock-summary .opblock-summary-method {
             background: var(--text-primary) !important;
             color: var(--bg-primary) !important;
             font-family: var(--font-mono);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .swagger-ui .opblock .opblock-summary .opblock-summary-path {
             color: var(--text-primary) !important;
             font-family: var(--font-mono);
+            transition: color 0.3s ease;
         }
         .swagger-ui .opblock .opblock-summary .opblock-summary-description {
             color: var(--text-secondary) !important;
+            transition: color 0.3s ease;
         }
 
         /* Parameters and responses */
         .swagger-ui .opblock .opblock-body {
             background: var(--bg-secondary) !important;
+            transition: background-color 0.3s ease;
         }
         .swagger-ui .parameters-container {
             background: var(--bg-tertiary) !important;
             border: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .swagger-ui .parameters-container .parameters-container-title {
             color: var(--text-primary) !important;
             font-family: var(--font-mono);
+            transition: color 0.3s ease;
         }
         .swagger-ui .parameters-container .parameter__name {
             color: var(--text-primary) !important;
             font-family: var(--font-mono);
             font-weight: 600;
+            transition: color 0.3s ease;
         }
         .swagger-ui .parameters-container .parameter__type {
             color: var(--text-secondary) !important;
+            transition: color 0.3s ease;
         }
         .swagger-ui .parameters-container .parameter__deprecated {
             color: #dc3545 !important;
@@ -204,10 +244,12 @@
             color: var(--text-primary) !important;
             border: 1px solid var(--border);
             font-family: var(--font-mono);
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
         .swagger-ui .highlight-code .hljs {
             background: var(--bg-secondary) !important;
             color: var(--text-primary) !important;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         /* Buttons */
@@ -216,6 +258,7 @@
             color: var(--text-primary) !important;
             border: 1px solid var(--border) !important;
             font-family: var(--font-mono);
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
         .swagger-ui .btn:hover {
             background: var(--bg-secondary) !important;
@@ -234,29 +277,36 @@
         .swagger-ui .model {
             background: var(--bg-secondary) !important;
             color: var(--text-primary) !important;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .swagger-ui .model .model-title {
             color: var(--text-primary) !important;
             font-family: var(--font-mono);
+            transition: color 0.3s ease;
         }
         .swagger-ui .model .model-title .model-title__text {
             color: var(--text-primary) !important;
+            transition: color 0.3s ease;
         }
 
-        /* Redoc minimalist theme customizations */
+        /* Redoc theme customizations */
         .redoc-container {
             background: var(--bg-primary) !important;
             color: var(--text-primary) !important;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .redoc-container .redoc-wrap {
             background: var(--bg-primary) !important;
+            transition: background-color 0.3s ease;
         }
         .redoc-container .menu-content {
             background: var(--bg-secondary) !important;
             border-right: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .redoc-container .menu-content .menu-item {
             color: var(--text-secondary) !important;
+            transition: color 0.3s ease;
         }
         .redoc-container .menu-content .menu-item:hover {
             background: var(--bg-tertiary) !important;
@@ -270,34 +320,41 @@
         /* Content area */
         .redoc-container .api-content {
             background: var(--bg-primary) !important;
+            transition: background-color 0.3s ease;
         }
         .redoc-container .api-content h1,
         .redoc-container .api-content h2,
         .redoc-container .api-content h3 {
             color: var(--text-primary) !important;
             font-family: var(--font-mono);
+            transition: color 0.3s ease;
         }
         .redoc-container .api-content p {
             color: var(--text-secondary) !important;
+            transition: color 0.3s ease;
         }
 
         /* Code samples */
         .redoc-container .code-block {
             background: var(--bg-secondary) !important;
             border: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .redoc-container .code-block pre {
             background: var(--bg-secondary) !important;
             color: var(--text-primary) !important;
             font-family: var(--font-mono);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         /* Response examples */
         .redoc-container .response-col_status {
             color: var(--text-primary) !important;
+            transition: color 0.3s ease;
         }
         .redoc-container .response-col_description {
             color: var(--text-secondary) !important;
+            transition: color 0.3s ease;
         }
 
         /* Scrollbars */
@@ -347,6 +404,7 @@
             text-align: center;
             padding: 2rem;
             font-family: var(--font-mono);
+            transition: color 0.3s ease;
         }
     </style>
 </head>
@@ -423,6 +481,25 @@
     <script src="https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.js"></script>
 
     <script>
+        // Theme management
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            if (savedTheme) {
+                setTheme(savedTheme);
+            } else if (prefersDark) {
+                setTheme('dark');
+            } else {
+                setTheme('dark'); // Default to dark mode
+            }
+        }
+
         function showTab(tabName) {
             // Hide all content
             const contents = document.querySelectorAll('.content');
@@ -439,6 +516,8 @@
 
         // Initialize Swagger UI
         window.onload = function() {
+            initTheme();
+
             const ui = SwaggerUIBundle({
                 url: './api-reference.yaml',
                 dom_id: '#swagger-ui',
@@ -460,7 +539,7 @@
                 theme: {
                     colors: {
                         primary: {
-                            main: '#000000'
+                            main: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim()
                         }
                     },
                     typography: {
@@ -473,8 +552,8 @@
                         }
                     },
                     sidebar: {
-                        backgroundColor: '#f8f8f8',
-                        textColor: '#000000'
+                        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim(),
+                        textColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim()
                     }
                 }
             }, document.getElementById('redoc'));
