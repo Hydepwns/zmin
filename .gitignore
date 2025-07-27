@@ -46,3 +46,8 @@ Thumbs.db
 # Build directories
 dist/
 target/
+
+# Hugo build artifacts
+.hugo_build.lock
+public/
+build/
