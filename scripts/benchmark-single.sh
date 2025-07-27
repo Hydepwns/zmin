@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Benchmark a single minification operation
 # Usage: ./benchmark-single.sh <binary> <mode> <input_file>
 
@@ -26,8 +26,8 @@ fi
 
 # Run warmup
 for i in {1..2}; do
-    if ! $BINARY --mode $MODE $INPUT $OUTPUT >/dev/null 2>&1; then
-        echo "Error: Failed to run $BINARY with mode $MODE" >&2
+    if ! $BINARY $INPUT $OUTPUT >/dev/null 2>&1; then
+        echo "Error: Failed to run $BINARY" >&2
         exit 1
     fi
 done
@@ -36,8 +36,8 @@ done
 total_time=0
 for i in $(seq 1 $ITERATIONS); do
     start=$(date +%s%N)
-    if ! $BINARY --mode $MODE $INPUT $OUTPUT >/dev/null 2>&1; then
-        echo "Error: Failed to run $BINARY with mode $MODE" >&2
+    if ! $BINARY $INPUT $OUTPUT >/dev/null 2>&1; then
+        echo "Error: Failed to run $BINARY" >&2
         exit 1
     fi
     end=$(date +%s%N)
