@@ -28,22 +28,22 @@ const ValidationResult = struct {
     errors: std.ArrayList(ValidationError),
     warnings: std.ArrayList(ValidationError),
     info: std.ArrayList(ValidationError),
-    
+
     pub fn deinit(self: *ValidationResult) void {
         self.errors.deinit();
         self.warnings.deinit();
         self.info.deinit();
     }
-    
+
     pub fn addError(self: *ValidationResult, err: ValidationError) !void {
         try self.errors.append(err);
         self.valid = false;
     }
-    
+
     pub fn addWarning(self: *ValidationResult, warn: ValidationError) !void {
         try self.warnings.append(warn);
     }
-    
+
     pub fn addInfo(self: *ValidationResult, info: ValidationError) !void {
         try self.info.append(info);
     }
@@ -53,24 +53,24 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
-    
+
     if (args.len < 2) {
         try printUsage(args[0]);
         return;
     }
-    
+
     var options = ValidationOptions{};
     var files = std.ArrayList([]const u8).init(allocator);
     defer files.deinit();
-    
+
     // Parse arguments
     var i: usize = 1;
     while (i < args.len) : (i += 1) {
         const arg = args[i];
-        
+
         if (std.mem.eql(u8, arg, "--strict")) {
             options.strict = true;
         } else if (std.mem.eql(u8, arg, "--no-duplicates")) {
@@ -103,7 +103,7 @@ pub fn main() !void {
             return;
         }
     }
-    
+
     if (files.items.len == 0) {
         // Read from stdin
         try validateStdin(allocator, options);
@@ -152,12 +152,12 @@ fn validateStdin(allocator: std.mem.Allocator, options: ValidationOptions) !void
     const stdin = std.io.getStdIn().reader();
     const input = try stdin.readAllAlloc(allocator, 10 * 1024 * 1024);
     defer allocator.free(input);
-    
+
     var result = try performValidation(allocator, input, "<stdin>", options);
     defer result.deinit();
-    
+
     try printResult(&result, "<stdin>", options);
-    
+
     if (!result.valid) {
         std.process.exit(1);
     }
@@ -170,12 +170,12 @@ fn validateFile(allocator: std.mem.Allocator, path: []const u8, options: Validat
         std.process.exit(2);
     };
     defer allocator.free(input);
-    
+
     var result = try performValidation(allocator, input, path, options);
     defer result.deinit();
-    
+
     try printResult(&result, path, options);
-    
+
     return result.valid;
 }
 
@@ -186,14 +186,14 @@ fn performValidation(
     options: ValidationOptions,
 ) !ValidationResult {
     _ = filename;
-    
+
     var result = ValidationResult{
         .valid = true,
         .errors = std.ArrayList(ValidationError).init(allocator),
         .warnings = std.ArrayList(ValidationError).init(allocator),
         .info = std.ArrayList(ValidationError).init(allocator),
     };
-    
+
     // Basic JSON validation using standard library parser
     var parser = std.json.parseFromSlice(std.json.Value, allocator, input, .{}) catch |err| {
         try result.addError(.{
@@ -206,16 +206,16 @@ fn performValidation(
         return result;
     };
     defer parser.deinit();
-    
+
     // Additional validations
     var validator = DetailedValidator.init(allocator, input, options);
     try validator.validate(&result);
-    
+
     // Schema validation if provided
     if (options.schema_file) |schema_path| {
         try validateAgainstSchema(allocator, input, schema_path, &result);
     }
-    
+
     return result;
 }
 
@@ -227,7 +227,7 @@ const DetailedValidator = struct {
     line: u32 = 1,
     column: u32 = 1,
     depth: u32 = 0,
-    
+
     pub fn init(allocator: std.mem.Allocator, input: []const u8, options: ValidationOptions) DetailedValidator {
         return .{
             .allocator = allocator,
@@ -235,10 +235,10 @@ const DetailedValidator = struct {
             .options = options,
         };
     }
-    
+
     pub fn validate(self: *DetailedValidator, result: *ValidationResult) !void {
         try self.validateValue(result);
-        
+
         // Check for trailing content
         self.skipWhitespace();
         if (self.pos < self.input.len) {
@@ -251,10 +251,10 @@ const DetailedValidator = struct {
             });
         }
     }
-    
+
     fn validateValue(self: *DetailedValidator, result: *ValidationResult) !void {
         self.skipWhitespace();
-        
+
         if (self.pos >= self.input.len) {
             try result.addError(.{
                 .line = self.line,
@@ -265,7 +265,7 @@ const DetailedValidator = struct {
             });
             return;
         }
-        
+
         const c = self.input[self.pos];
         switch (c) {
             '{' => try self.validateObject(result),
@@ -286,11 +286,11 @@ const DetailedValidator = struct {
             },
         }
     }
-    
+
     fn validateObject(self: *DetailedValidator, result: *ValidationResult) !void {
         self.depth += 1;
         defer self.depth -= 1;
-        
+
         if (self.depth > self.options.max_depth) {
             try result.addError(.{
                 .line = self.line,
@@ -301,16 +301,16 @@ const DetailedValidator = struct {
             });
             return;
         }
-        
+
         self.advance(); // '{'
-        
+
         var keys = std.StringHashMap(void).init(self.allocator);
         defer keys.deinit();
-        
+
         var first = true;
         while (true) {
             self.skipWhitespace();
-            
+
             if (self.pos >= self.input.len) {
                 try result.addError(.{
                     .line = self.line,
@@ -321,12 +321,12 @@ const DetailedValidator = struct {
                 });
                 return;
             }
-            
+
             if (self.input[self.pos] == '}') {
                 self.advance();
                 break;
             }
-            
+
             if (!first) {
                 if (self.input[self.pos] != ',') {
                     try result.addError(.{
@@ -341,11 +341,11 @@ const DetailedValidator = struct {
                 self.advance();
                 self.skipWhitespace();
             }
-            
+
             // Key
             const key_start = self.pos;
             const key = try self.parseString(result);
-            
+
             // Check for duplicate keys
             if (self.options.check_duplicates) {
                 if (keys.contains(key)) {
@@ -361,9 +361,9 @@ const DetailedValidator = struct {
                     try keys.put(key, {});
                 }
             }
-            
+
             self.skipWhitespace();
-            
+
             if (self.pos >= self.input.len or self.input[self.pos] != ':') {
                 try result.addError(.{
                     .line = self.line,
@@ -374,20 +374,20 @@ const DetailedValidator = struct {
                 });
                 return;
             }
-            
+
             self.advance(); // ':'
-            
+
             // Value
             try self.validateValue(result);
-            
+
             first = false;
         }
     }
-    
+
     fn validateArray(self: *DetailedValidator, result: *ValidationResult) !void {
         self.depth += 1;
         defer self.depth -= 1;
-        
+
         if (self.depth > self.options.max_depth) {
             try result.addError(.{
                 .line = self.line,
@@ -398,15 +398,15 @@ const DetailedValidator = struct {
             });
             return;
         }
-        
+
         self.advance(); // '['
-        
+
         var first = true;
         var element_count: u32 = 0;
-        
+
         while (true) {
             self.skipWhitespace();
-            
+
             if (self.pos >= self.input.len) {
                 try result.addError(.{
                     .line = self.line,
@@ -417,12 +417,12 @@ const DetailedValidator = struct {
                 });
                 return;
             }
-            
+
             if (self.input[self.pos] == ']') {
                 self.advance();
                 break;
             }
-            
+
             if (!first) {
                 if (self.input[self.pos] != ',') {
                     try result.addError(.{
@@ -437,13 +437,13 @@ const DetailedValidator = struct {
                 self.advance();
                 self.skipWhitespace();
             }
-            
+
             try self.validateValue(result);
             element_count += 1;
-            
+
             first = false;
         }
-        
+
         // Check for very large arrays
         if (element_count > 10000 and self.options.verbose) {
             try result.addInfo(.{
@@ -456,21 +456,21 @@ const DetailedValidator = struct {
             });
         }
     }
-    
+
     fn validateString(self: *DetailedValidator, result: *ValidationResult) !void {
         _ = try self.parseString(result);
     }
-    
+
     fn parseString(self: *DetailedValidator, result: *ValidationResult) ![]const u8 {
         const start_line = self.line;
         const start_column = self.column;
-        
+
         self.advance(); // '"'
         const start = self.pos;
-        
+
         while (self.pos < self.input.len) {
             const c = self.input[self.pos];
-            
+
             if (c == '"') {
                 const str = self.input[start..self.pos];
                 self.advance();
@@ -487,7 +487,7 @@ const DetailedValidator = struct {
                     });
                     return "";
                 }
-                
+
                 const escape = self.input[self.pos];
                 switch (escape) {
                     '"', '\\', '/', 'b', 'f', 'n', 'r', 't' => self.advance(),
@@ -532,7 +532,7 @@ const DetailedValidator = struct {
                 self.advance();
             }
         }
-        
+
         try result.addError(.{
             .line = start_line,
             .column = start_column,
@@ -540,18 +540,18 @@ const DetailedValidator = struct {
             .message = "Unterminated string",
             .severity = .@"error",
         });
-        
+
         return "";
     }
-    
+
     fn validateNumber(self: *DetailedValidator, result: *ValidationResult) !void {
         const start = self.pos;
-        
+
         // Optional minus
         if (self.input[self.pos] == '-') {
             self.advance();
         }
-        
+
         // Integer part
         if (self.pos >= self.input.len) {
             try result.addError(.{
@@ -563,7 +563,7 @@ const DetailedValidator = struct {
             });
             return;
         }
-        
+
         if (self.input[self.pos] == '0') {
             self.advance();
         } else if (self.input[self.pos] >= '1' and self.input[self.pos] <= '9') {
@@ -580,17 +580,17 @@ const DetailedValidator = struct {
             });
             return;
         }
-        
+
         // Fractional part
         if (self.pos < self.input.len and self.input[self.pos] == '.') {
             self.advance();
-            
+
             var digit_count: u32 = 0;
             while (self.pos < self.input.len and std.ascii.isDigit(self.input[self.pos])) {
                 self.advance();
                 digit_count += 1;
             }
-            
+
             if (digit_count == 0) {
                 try result.addError(.{
                     .line = self.line,
@@ -601,21 +601,21 @@ const DetailedValidator = struct {
                 });
             }
         }
-        
+
         // Exponent part
         if (self.pos < self.input.len and (self.input[self.pos] == 'e' or self.input[self.pos] == 'E')) {
             self.advance();
-            
+
             if (self.pos < self.input.len and (self.input[self.pos] == '+' or self.input[self.pos] == '-')) {
                 self.advance();
             }
-            
+
             var digit_count: u32 = 0;
             while (self.pos < self.input.len and std.ascii.isDigit(self.input[self.pos])) {
                 self.advance();
                 digit_count += 1;
             }
-            
+
             if (digit_count == 0) {
                 try result.addError(.{
                     .line = self.line,
@@ -626,7 +626,7 @@ const DetailedValidator = struct {
                 });
             }
         }
-        
+
         // Check for very large numbers
         const number_str = self.input[start..self.pos];
         if (number_str.len > 100 and self.options.verbose) {
@@ -640,7 +640,7 @@ const DetailedValidator = struct {
             });
         }
     }
-    
+
     fn validateBoolean(self: *DetailedValidator, result: *ValidationResult) !void {
         if (std.mem.startsWith(u8, self.input[self.pos..], "true")) {
             self.pos += 4;
@@ -658,7 +658,7 @@ const DetailedValidator = struct {
             });
         }
     }
-    
+
     fn validateNull(self: *DetailedValidator, result: *ValidationResult) !void {
         if (std.mem.startsWith(u8, self.input[self.pos..], "null")) {
             self.pos += 4;
@@ -673,7 +673,7 @@ const DetailedValidator = struct {
             });
         }
     }
-    
+
     fn skipWhitespace(self: *DetailedValidator) void {
         while (self.pos < self.input.len) {
             const c = self.input[self.pos];
@@ -691,7 +691,7 @@ const DetailedValidator = struct {
             }
         }
     }
-    
+
     fn advance(self: *DetailedValidator) void {
         if (self.pos < self.input.len) {
             if (self.input[self.pos] == '\n') {
@@ -703,12 +703,12 @@ const DetailedValidator = struct {
             self.pos += 1;
         }
     }
-    
+
     fn getContext(self: *DetailedValidator) ?[]const u8 {
         const context_size = 20;
         const start = if (self.pos > context_size) self.pos - context_size else 0;
         const end = @min(self.pos + context_size, self.input.len);
-        
+
         return self.input[start..end];
     }
 };
@@ -719,28 +719,173 @@ fn validateAgainstSchema(
     schema_path: []const u8,
     result: *ValidationResult,
 ) !void {
-    _ = allocator;
-    _ = input;
-    _ = schema_path;
-    
-    // TODO: Implement JSON Schema validation
+    // Read the schema file
+    const schema_content = std.fs.cwd().readFileAlloc(allocator, schema_path, 1024 * 1024) catch |err| {
+        try result.addError(.{
+            .line = 0,
+            .column = 0,
+            .offset = 0,
+            .message = try std.fmt.allocPrint(allocator, "Failed to read schema file '{s}': {}", .{ schema_path, err }),
+            .severity = .@"error",
+        });
+        return;
+    };
+    defer allocator.free(schema_content);
+
+    // Parse the schema JSON
+    var schema_parsed = std.json.parseFromSlice(std.json.Value, allocator, schema_content, .{}) catch |err| {
+        try result.addError(.{
+            .line = 0,
+            .column = 0,
+            .offset = 0,
+            .message = try std.fmt.allocPrint(allocator, "Invalid JSON schema: {}", .{err}),
+            .severity = .@"error",
+        });
+        return;
+    };
+    defer schema_parsed.deinit();
+
+    // Parse the input JSON
+    var input_parsed = std.json.parseFromSlice(std.json.Value, allocator, input, .{}) catch |err| {
+        try result.addError(.{
+            .line = 0,
+            .column = 0,
+            .offset = 0,
+            .message = try std.fmt.allocPrint(allocator, "Invalid input JSON for schema validation: {}", .{err}),
+            .severity = .@"error",
+        });
+        return;
+    };
+    defer input_parsed.deinit();
+
+    // Perform basic schema validation
+    try validateJsonValue(allocator, &input_parsed.value, &schema_parsed.value, "", result);
+
     try result.addInfo(.{
         .line = 0,
         .column = 0,
         .offset = 0,
-        .message = "JSON Schema validation not yet implemented",
+        .message = "JSON Schema validation completed",
         .severity = .info,
     });
+}
+
+/// Validate a JSON value against a schema (simplified implementation)
+fn validateJsonValue(
+    allocator: std.mem.Allocator,
+    value: *const std.json.Value,
+    schema: *const std.json.Value,
+    path: []const u8,
+    result: *ValidationResult,
+) !void {
+    // Check type constraints
+    if (schema.object.get("type")) |type_value| {
+        if (type_value == .string) {
+            const expected_type = type_value.string;
+            const actual_type = getJsonValueType(value);
+            
+            if (!std.mem.eql(u8, expected_type, actual_type)) {
+                try result.addError(.{
+                    .line = 0,
+                    .column = 0,
+                    .offset = 0,
+                    .message = try std.fmt.allocPrint(allocator, "Type mismatch at '{s}': expected {s}, got {s}", .{ path, expected_type, actual_type }),
+                    .severity = .@"error",
+                });
+                return;
+            }
+        }
+    }
+
+    // Validate object properties
+    if (value == .object and schema.object.get("properties")) |props_schema| {
+        if (props_schema == .object) {
+            // Check required properties
+            if (schema.object.get("required")) |required_value| {
+                if (required_value == .array) {
+                    for (required_value.array.items) |req_prop| {
+                        if (req_prop == .string) {
+                            const prop_name = req_prop.string;
+                            if (!value.object.contains(prop_name)) {
+                                try result.addError(.{
+                                    .line = 0,
+                                    .column = 0,
+                                    .offset = 0,
+                                    .message = try std.fmt.allocPrint(allocator, "Missing required property '{s}' at '{s}'", .{ prop_name, path }),
+                                    .severity = .@"error",
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Validate each property
+            var prop_iter = props_schema.object.iterator();
+            while (prop_iter.next()) |entry| {
+                const prop_name = entry.key_ptr.*;
+                const prop_schema = entry.value_ptr.*;
+                
+                if (value.object.get(prop_name)) |prop_value| {
+                    const new_path = if (path.len == 0)
+                        try std.fmt.allocPrint(allocator, "{s}", .{prop_name})
+                    else
+                        try std.fmt.allocPrint(allocator, "{s}.{s}", .{ path, prop_name });
+                    defer allocator.free(new_path);
+                    
+                    try validateJsonValue(allocator, prop_value, prop_schema, new_path, result);
+                }
+            }
+        }
+    }
+
+    // Validate array items
+    if (value == .array and schema.object.get("items")) |items_schema| {
+        for (value.array.items, 0..) |item, i| {
+            const new_path = try std.fmt.allocPrint(allocator, "{s}[{}]", .{ path, i });
+            defer allocator.free(new_path);
+            
+            try validateJsonValue(allocator, item, items_schema, new_path, result);
+        }
+    }
+
+    // Check string length constraints
+    if (value == .string and schema.object.get("minLength")) |min_len_value| {
+        if (min_len_value == .integer) {
+            const min_len = @as(usize, @intCast(min_len_value.integer));
+            if (value.string.len < min_len) {
+                try result.addError(.{
+                    .line = 0,
+                    .column = 0,
+                    .offset = 0,
+                    .message = try std.fmt.allocPrint(allocator, "String too short at '{s}': minimum length {}, got {}", .{ path, min_len, value.string.len }),
+                    .severity = .@"error",
+                });
+            }
+        }
+    }
+}
+
+/// Get the JSON Schema type name for a JSON value
+fn getJsonValueType(value: *const std.json.Value) []const u8 {
+    return switch (value.*) {
+        .null => "null",
+        .bool => "boolean",
+        .integer, .float => "number",
+        .string => "string",
+        .array => "array",
+        .object => "object",
+    };
 }
 
 fn printResult(result: *ValidationResult, filename: []const u8, options: ValidationOptions) !void {
     const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
-    
+
     if (result.valid) {
         if (!options.quiet) {
             try stdout.print("✅ {s}: Valid JSON\n", .{filename});
-            
+
             if (options.verbose) {
                 if (result.warnings.items.len > 0) {
                     try stdout.print("   Warnings: {d}\n", .{result.warnings.items.len});
@@ -753,7 +898,7 @@ fn printResult(result: *ValidationResult, filename: []const u8, options: Validat
     } else {
         try stderr.print("❌ {s}: Invalid JSON\n", .{filename});
     }
-    
+
     // Print errors
     for (result.errors.items) |err| {
         try stderr.print("   ERROR at {d}:{d}: {s}\n", .{ err.line, err.column, err.message });
@@ -761,7 +906,7 @@ fn printResult(result: *ValidationResult, filename: []const u8, options: Validat
             try stderr.print("     Context: {s}\n", .{ctx});
         }
     }
-    
+
     // Print warnings if verbose
     if (options.verbose or !result.valid) {
         for (result.warnings.items) |warn| {
@@ -771,7 +916,7 @@ fn printResult(result: *ValidationResult, filename: []const u8, options: Validat
             }
         }
     }
-    
+
     // Print info if verbose
     if (options.verbose) {
         for (result.info.items) |info| {

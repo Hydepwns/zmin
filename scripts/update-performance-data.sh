@@ -26,7 +26,7 @@ FILES=(
     "PERFORMANCE_MODES.md"
     "QUICK_REFERENCE.md"
     "docs/performance-data.md"
-    ".github/workflows/ci.yml"
+    ".github/workflows/ci-consolidated.yml"
     ".github/workflows/release.yml"
     ".github/ISSUE_TEMPLATE/performance_issue.yml"
 )

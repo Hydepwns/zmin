@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
     // Create a run step
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
-    
+
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const run_comprehensive_test = b.addRunArtifact(comprehensive_test);
-    
+
     const test_step = b.step("test", "Run comprehensive tests");
     test_step.dependOn(&run_comprehensive_test.step);
 }

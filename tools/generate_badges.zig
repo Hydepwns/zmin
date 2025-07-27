@@ -101,12 +101,12 @@ fn urlEncode(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
 fn downloadFile(url: []const u8, filename: []const u8) !void {
     // Skip HTTP download for now and generate simple SVG badges
     _ = url;
-    
+
     const file = try fs.cwd().createFile(filename, .{});
     defer file.close();
-    
+
     // Create a simple SVG badge
-    const svg_content = 
+    const svg_content =
         \\<svg xmlns="http://www.w3.org/2000/svg" width="104" height="20">
         \\  <linearGradient id="b" x2="0" y2="100%">
         \\    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -128,7 +128,7 @@ fn downloadFile(url: []const u8, filename: []const u8) !void {
         \\  </g>
         \\</svg>
     ;
-    
+
     try file.writeAll(svg_content);
     std.debug.print("Generated simple badge: {s}\n", .{filename});
 }
