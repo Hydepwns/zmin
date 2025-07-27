@@ -28,7 +28,7 @@ jobs:
     - name: Run basic performance test
       run: |
         echo '{"test": "data"}' > test.json
-        ./zig-out/bin/zmin test.json output.json
+        ./zig-out/bin/zmin test.json -o output.json
         echo "Basic performance test completed"
 
     - name: Upload results

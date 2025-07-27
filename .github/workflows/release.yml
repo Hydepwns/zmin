@@ -86,10 +86,12 @@ jobs:
         # Copy main binaries
         if [ "${{ matrix.target }}" = "x86_64-windows-gnu" ]; then
           cp zig-out/bin/zmin.exe artifacts/
-          cp zig-out/bin/zmin-cli.exe artifacts/ 2>/dev/null || true
+          # zmin-cli not yet available
+          # cp zig-out/bin/zmin-cli.exe artifacts/ 2>/dev/null || true
         else
           cp zig-out/bin/zmin artifacts/
-          cp zig-out/bin/zmin-cli artifacts/ 2>/dev/null || true
+          # zmin-cli not yet available
+          # cp zig-out/bin/zmin-cli artifacts/ 2>/dev/null || true
         fi
         
         # Copy tools
@@ -149,8 +151,7 @@ jobs:
 
     - name: Run benchmarks
       run: |
-        zig build benchmark:sport
-        zig build benchmark:turbo
+        zig build test:fast
 
   # Create GitHub Release
   release:
@@ -212,10 +213,11 @@ jobs:
           
           Ultra-high-performance JSON minifier with **3.5+ GB/s** throughput.
           
-          ## 🚀 Performance Modes
-          - **ECO**: 580 MB/s, 64KB memory - Perfect for memory-constrained environments
-          - **SPORT**: 850 MB/s, O(√n) memory - Balanced performance and memory usage
-          - **TURBO**: 3.5+ GB/s, O(n) memory - Maximum speed with SIMD + NUMA optimization
+          ## 🚀 Performance
+          - **3.5+ GB/s** throughput on modern hardware
+          - **Zero-copy** streaming for large files
+          - **Multi-threaded** parallel processing
+          - **Memory-efficient** with configurable limits
           
           ## 📊 Key Features
           - **Zero Dependencies**: Pure Zig implementation
@@ -254,14 +256,14 @@ jobs:
           ## 🔧 Usage Examples
           
           ```bash
-          # Basic minification (ECO mode)
-          zmin input.json output.json
+          # Basic minification
+          zmin input.json -o output.json
           
-          # Maximum performance (TURBO mode)
-          zmin --mode turbo large_file.json minified.json
+          # Pretty print output
+          zmin --pretty input.json -o formatted.json
           
-          # Interactive CLI with auto-completion
-          zmin-cli
+          # Parallel processing with multiple threads
+          zmin --threads 8 large_file.json -o minified.json
           
           # Validation with detailed errors
           zmin-validate suspicious.json

@@ -60,30 +60,28 @@ jobs:
         echo "**Commit**: ${{ github.sha }}" >> performance-report.md
         echo "" >> performance-report.md
         
-        # Run benchmarks for each mode and dataset
-        for mode in eco sport turbo; do
-          for dataset in small medium large; do
-            echo "Testing $mode mode with $dataset dataset..."
-            
-            # Baseline performance
-            baseline_time=$(./scripts/benchmark-single.sh ./zmin-baseline $mode benchmarks/datasets/$dataset.json)
-            
-            # Current performance
-            current_time=$(./scripts/benchmark-single.sh ./zmin-current $mode benchmarks/datasets/$dataset.json)
-            
-            # Calculate change
-            change=$(echo "scale=2; (($current_time - $baseline_time) / $baseline_time) * 100" | bc)
-            
-            # Format result
-            if (( $(echo "$change < -5" | bc -l) )); then
-              echo "✅ **$mode/$dataset**: ${change}% (improvement)" >> performance-report.md
-            elif (( $(echo "$change > 5" | bc -l) )); then
-              echo "❌ **$mode/$dataset**: +${change}% (regression)" >> performance-report.md
-              echo "::warning::Performance regression detected in $mode mode with $dataset dataset: +${change}%"
-            else
-              echo "➖ **$mode/$dataset**: ${change}% (no significant change)" >> performance-report.md
-            fi
-          done
+        # Run benchmarks for each dataset
+        for dataset in small medium large; do
+          echo "Testing with $dataset dataset..."
+          
+          # Baseline performance (removed mode parameter)
+          baseline_time=$(./scripts/benchmark-single.sh ./zmin-baseline standard benchmarks/datasets/$dataset.json)
+          
+          # Current performance (removed mode parameter)
+          current_time=$(./scripts/benchmark-single.sh ./zmin-current standard benchmarks/datasets/$dataset.json)
+          
+          # Calculate change
+          change=$(echo "scale=2; (($current_time - $baseline_time) / $baseline_time) * 100" | bc)
+          
+          # Format result
+          if (( $(echo "$change < -5" | bc -l) )); then
+            echo "✅ **$dataset**: ${change}% (improvement)" >> performance-report.md
+          elif (( $(echo "$change > 5" | bc -l) )); then
+            echo "❌ **$dataset**: +${change}% (regression)" >> performance-report.md
+            echo "::warning::Performance regression detected with $dataset dataset: +${change}%"
+          else
+            echo "➖ **$dataset**: ${change}% (no significant change)" >> performance-report.md
+          fi
         done
 
     - name: Comment PR with results

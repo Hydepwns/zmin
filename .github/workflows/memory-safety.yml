@@ -166,20 +166,20 @@ jobs:
         # Generate test data
         python3 scripts/generate_test_data.py
         
-        # Profile ECO mode
-        echo "ECO mode (64KB limit):"
-        /usr/bin/time -v ./zig-out/bin/zmin --mode eco benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        # Profile standard mode
+        echo "Standard mode:"
+        /usr/bin/time -v ./zig-out/bin/zmin benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
         
-        # Profile SPORT mode
-        echo -e "\nSPORT mode (balanced):"
-        /usr/bin/time -v ./zig-out/bin/zmin --mode sport benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        # Profile with pretty printing
+        echo -e "\nPretty print mode:"
+        /usr/bin/time -v ./zig-out/bin/zmin --pretty benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
         
-        # Profile TURBO mode
-        echo -e "\nTURBO mode (maximum speed):"
-        /usr/bin/time -v ./zig-out/bin/zmin --mode turbo benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        # Profile parallel processing
+        echo -e "\nParallel processing (default):"
+        /usr/bin/time -v ./zig-out/bin/zmin --threads 4 benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
         
         # Detailed profiling with Valgrind Massif
-        valgrind --tool=massif --massif-out-file=massif.out ./zig-out/bin/zmin --mode turbo benchmarks/datasets/large.json /dev/null
+        valgrind --tool=massif --massif-out-file=massif.out ./zig-out/bin/zmin benchmarks/datasets/large.json /dev/null
         
         # Generate summary
         ms_print massif.out > massif_report.txt
