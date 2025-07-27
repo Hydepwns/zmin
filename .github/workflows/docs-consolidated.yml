@@ -1,0 +1,262 @@
+name: Documentation Generation & Deployment
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.zig'
+      - 'docs/api-reference.yaml'
+      - 'scripts/generate-api-docs.zig'
+      - 'docs/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.zig'
+      - 'docs/api-reference.yaml'
+  schedule:
+    # Run daily at 2 AM UTC to catch any missed updates
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_regenerate:
+        description: 'Force regenerate all documentation'
+        required: false
+        default: false
+        type: boolean
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  DOCS_DIR: docs
+  SCRIPTS_DIR: scripts
+  GENERATED_SPEC: docs/api-reference-generated.json
+  GENERATED_HTML: docs/api-reference-generated.html
+
+jobs:
+  # Use the reusable version reading workflow
+  versions:
+    uses: .github/workflows/read-versions.yml
+
+  # Generate documentation
+  generate-docs:
+    runs-on: ubuntu-latest
+    needs: versions
+    outputs:
+      docs-generated: ${{ steps.check-changes.outputs.has-changes }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ needs.versions.outputs.zig-version }}
+
+      - name: Cache Zig artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/zig
+            zig-cache
+          key: ${{ runner.os }}-zig-docs-${{ hashFiles('scripts/generate-api-docs.zig') }}
+          restore-keys: |
+            ${{ runner.os }}-zig-docs-
+
+      - name: Build documentation generator
+        run: |
+          echo "Building API documentation generator..."
+          zig build-exe scripts/generate-api-docs.zig -O ReleaseFast
+
+      - name: Generate API documentation from source
+        run: |
+          echo "Generating API documentation from Zig source files..."
+          ./generate-api-docs src ${{ env.GENERATED_SPEC }}
+
+          if [ ! -f "${{ env.GENERATED_SPEC }}" ]; then
+            echo "Error: Generated API spec not found!"
+            exit 1
+          fi
+
+          echo "Generated API spec size: $(stat -c%s ${{ env.GENERATED_SPEC }}) bytes"
+
+      - name: Validate generated OpenAPI spec
+        run: |
+          echo "Validating generated OpenAPI specification..."
+
+          # Install OpenAPI validator
+          npm install -g @apidevtools/swagger-cli
+
+          # Validate the generated spec
+          swagger-cli validate ${{ env.GENERATED_SPEC }}
+
+          echo "✅ OpenAPI specification is valid"
+
+      - name: Check for documentation changes
+        id: check-changes
+        run: |
+          # Check if there are any changes to commit
+          if git diff --quiet; then
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+            echo "No documentation changes detected"
+          else
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "Documentation changes detected"
+          fi
+
+      - name: Commit documentation changes
+        if: steps.check-changes.outputs.has-changes == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add ${{ env.GENERATED_SPEC }}
+          git commit -m "docs: auto-generate API documentation [skip ci]"
+          git push
+
+  # Deploy to GitHub Pages
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: [versions, generate-docs]
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (needs.generate-docs.outputs.docs-generated == 'true' ||
+       github.event.inputs.force_regenerate == 'true' ||
+       contains(github.event.head_commit.modified, 'docs/'))
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Prepare documentation site
+        run: |
+          echo "Preparing documentation site structure..."
+
+          # Create a proper index page
+          cat > docs/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>zmin Documentation Hub</title>
+              <style>
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                      line-height: 1.6;
+                      color: #333;
+                      max-width: 1200px;
+                      margin: 0 auto;
+                      padding: 2rem;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      min-height: 100vh;
+                  }
+                  .container {
+                      background: white;
+                      border-radius: 12px;
+                      padding: 3rem;
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                  }
+                  h1 {
+                      color: #2d3748;
+                      margin-bottom: 0.5rem;
+                      font-size: 2.5rem;
+                      font-weight: 300;
+                  }
+                  .subtitle {
+                      color: #718096;
+                      font-size: 1.2rem;
+                      margin-bottom: 2rem;
+                  }
+                  .docs-grid {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                      gap: 2rem;
+                      margin-top: 2rem;
+                  }
+                  .doc-card {
+                      border: 1px solid #e2e8f0;
+                      border-radius: 8px;
+                      padding: 1.5rem;
+                      transition: all 0.3s ease;
+                      text-decoration: none;
+                      color: inherit;
+                      display: block;
+                  }
+                  .doc-card:hover {
+                      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+                      transform: translateY(-2px);
+                      border-color: #667eea;
+                  }
+                  .doc-card h3 {
+                      margin: 0 0 1rem 0;
+                      color: #2d3748;
+                      display: flex;
+                      align-items: center;
+                      gap: 0.5rem;
+                  }
+                  .doc-card p {
+                      color: #718096;
+                      margin: 0;
+                  }
+                  .icon {
+                      width: 24px;
+                      height: 24px;
+                      fill: #667eea;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>zmin Documentation</h1>
+                  <p class="subtitle">Complete documentation for the zmin JSON processing library</p>
+
+                  <div class="docs-grid">
+                      <a href="api-reference-generated.html" class="doc-card">
+                          <h3>
+                              <svg class="icon" viewBox="0 0 24 24">
+                                  <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                              </svg>
+                              API Reference
+                          </h3>
+                          <p>Complete API documentation with examples and usage patterns</p>
+                      </a>
+
+                      <a href="api-reference-generated.json" class="doc-card">
+                          <h3>
+                              <svg class="icon" viewBox="0 0 24 24">
+                                  <path d="M5,3H7V5H5V10A2,2 0 0,1 3,12A2,2 0 0,1 5,14V19H7V21H5C3.93,20.73 3,20.1 3,19V15A2,2 0 0,0 1,13H0V11H1A2,2 0 0,0 3,9V5A2,2 0 0,1 5,3M19,3A2,2 0 0,1 21,5V9A2,2 0 0,0 23,11H24V13H23A2,2 0 0,0 21,15V19A2,2 0 0,1 19,21H17V19H19V14A2,2 0 0,1 21,12A2,2 0 0,1 19,10V5H17V3H19Z"/>
+                              </svg>
+                              OpenAPI Spec
+                          </h3>
+                          <p>Machine-readable OpenAPI specification for integration</p>
+                      </a>
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

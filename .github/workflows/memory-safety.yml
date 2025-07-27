@@ -16,27 +16,12 @@ env:
 
 jobs:
   versions:
-    runs-on: ubuntu-latest
-    outputs:
-      zig-version: ${{ steps.versions.outputs.zig }}
-      zmin-version: ${{ steps.versions.outputs.zmin }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/versions.json
-      
-      - name: Read versions
-        id: versions
-        run: |
-          echo "zig=$(jq -r '.zig' .github/versions.json)" >> $GITHUB_OUTPUT
-          echo "zmin=$(jq -r '.zmin' .github/versions.json)" >> $GITHUB_OUTPUT
+    uses: .github/workflows/read-versions.yml
   valgrind:
     name: Valgrind Memory Check
     needs: versions
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -54,14 +39,14 @@ jobs:
     - name: Build with debug symbols
       run: |
         zig build
-        
+
     - name: Run Valgrind memory check
       run: |
         echo "Running Valgrind memory leak detection..."
-        
+
         # Create test input
         echo '{"test": "data", "array": [1, 2, 3], "nested": {"key": "value"}}' > test.json
-        
+
         # Run with Valgrind
         valgrind \
           --leak-check=full \
@@ -71,7 +56,7 @@ jobs:
           --error-exitcode=1 \
           --suppressions=tests/valgrind.supp \
           ./zig-out/bin/zmin test.json output.json 2>&1 | tee valgrind.log
-        
+
         # Check for errors
         if grep -q "ERROR SUMMARY: 0 errors" valgrind.log; then
           source ${{ env.SCRIPTS_DIR }}/common.sh && print_success "No memory errors detected"
@@ -91,7 +76,7 @@ jobs:
     name: AddressSanitizer Check
     needs: versions
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -110,13 +95,13 @@ jobs:
     - name: Run tests with AddressSanitizer
       run: |
         echo "Running tests with AddressSanitizer..."
-        
+
         # Set ASAN options
         export ASAN_OPTIONS=detect_leaks=1:halt_on_error=0:print_stats=1:check_initialization_order=1
-        
+
         # Run test suite
         zig build test:fast 2>&1 | tee asan.log
-        
+
         # Check for ASAN errors
         if grep -q "AddressSanitizer" asan.log; then
           source ${{ env.SCRIPTS_DIR }}/common.sh && print_error "AddressSanitizer found issues!"
@@ -136,7 +121,7 @@ jobs:
     name: ThreadSanitizer Check
     needs: versions
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -154,17 +139,17 @@ jobs:
     - name: Run parallel tests
       run: |
         echo "Running parallel tests for race condition detection..."
-        
+
         # Run parallel-specific tests
         zig build test:parallel || echo "Parallel tests completed"
-        
+
         source ${{ env.SCRIPTS_DIR }}/common.sh && print_success "Thread safety check completed"
 
   memory-profiling:
     name: Memory Usage Profiling
     needs: versions
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -185,25 +170,25 @@ jobs:
     - name: Profile memory usage
       run: |
         echo "Profiling memory usage for different modes..."
-        
+
         # Generate test data
         source ${{ env.SCRIPTS_DIR }}/common.sh && setup_benchmark_datasets
-        
+
         # Profile standard mode
         echo "Standard mode:"
         /usr/bin/time -v ./zig-out/bin/zmin benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
-        
+
         # Profile with pretty printing
         echo -e "\nPretty print mode:"
         /usr/bin/time -v ./zig-out/bin/zmin --pretty benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
-        
+
         # Profile parallel processing
         echo -e "\nParallel processing (default):"
         /usr/bin/time -v ./zig-out/bin/zmin --threads 4 benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
-        
+
         # Detailed profiling with Valgrind Massif
         valgrind --tool=massif --massif-out-file=massif.out ./zig-out/bin/zmin benchmarks/datasets/large.json -o /dev/null
-        
+
         # Generate summary
         ms_print massif.out > massif_report.txt
         echo -e "\nMemory allocation summary:"
@@ -221,7 +206,7 @@ jobs:
     name: Memory Leak Detection
     needs: versions
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -242,48 +227,48 @@ jobs:
     - name: Run leak detection tests
       run: |
         echo "Running comprehensive leak detection..."
-        
+
         # Create leak detection script
         cat > leak_test.sh << 'EOF'
         #!/bin/bash
         set -e
-        
+
         # Test repeated allocations
         echo "Testing repeated minification (1000 iterations)..."
         for i in {1..1000}; do
           echo '{"iteration": '$i'}' | ./zig-out/bin/zmin > /dev/null
         done
-        
+
         # Test with large file
         echo "Testing large file processing..."
         dd if=/dev/urandom bs=1M count=10 2>/dev/null | base64 | sed 's/.*/"data": "&"/' | sed '1s/^/{/; $s/$/}/' > large_test.json
         ./zig-out/bin/zmin large_test.json -o /dev/null
         rm large_test.json
-        
+
         # Test error conditions
         echo "Testing error handling paths..."
         echo '{"invalid": ' | ./zig-out/bin/zmin 2>/dev/null || true
         echo '{"truncated":' | ./zig-out/bin/zmin 2>/dev/null || true
-        
+
         echo "Leak detection tests completed"
         EOF
-        
+
         chmod +x leak_test.sh
-        
+
         # Run with Valgrind
         valgrind \
           --leak-check=full \
           --show-leak-kinds=all \
           --error-exitcode=1 \
           ./leak_test.sh 2>&1 | tee leak_detection.log
-        
+
         # Check results
         # Look for the leak summary and check if there are any actual leaks
         # Extract leak summary lines and check for non-zero values
         DEFINITELY_LOST=$(grep "definitely lost:" leak_detection.log | tail -1 | grep -o "[0-9]* bytes" | awk '{print $1}')
         INDIRECTLY_LOST=$(grep "indirectly lost:" leak_detection.log | tail -1 | grep -o "[0-9]* bytes" | awk '{print $1}')
         POSSIBLY_LOST=$(grep "possibly lost:" leak_detection.log | tail -1 | grep -o "[0-9]* bytes" | awk '{print $1}')
-        
+
         if [ "$DEFINITELY_LOST" = "0" ] && [ "$INDIRECTLY_LOST" = "0" ] && [ "$POSSIBLY_LOST" = "0" ]; then
           source ${{ env.SCRIPTS_DIR }}/common.sh && print_success "No memory leaks detected"
         else

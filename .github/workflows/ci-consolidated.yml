@@ -1,0 +1,211 @@
+name: CI & Testing
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Nightly benchmarks at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      run_benchmarks:
+        description: 'Run performance benchmarks'
+        required: false
+        default: false
+        type: boolean
+      run_memory_tests:
+        description: 'Run memory safety tests'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  BENCHMARKS_DIR: benchmarks/datasets
+  SCRIPTS_DIR: scripts
+  ZIG_OUT_DIR: zig-out/bin
+
+jobs:
+  # Use the reusable version reading workflow
+  versions:
+    uses: .github/workflows/read-versions.yml
+
+  # Basic build and test
+  test:
+    name: Build & Test
+    needs: versions
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Cache Zig artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/zig
+          zig-cache
+        key: ${{ runner.os }}-zig-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        restore-keys: |
+          ${{ runner.os }}-zig-
+
+    - name: Build project
+      run: zig build
+
+    - name: Run tests
+      run: zig build test:fast
+
+  # Performance benchmarks (runs on schedule, PRs, or manual trigger)
+  benchmark:
+    name: Performance Benchmarks
+    needs: versions
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      github.event.inputs.run_benchmarks == true ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance'))
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Cache Zig artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/zig
+          zig-cache
+        key: ${{ runner.os }}-zig-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        restore-keys: |
+          ${{ runner.os }}-zig-
+
+    - name: Build optimized release
+      run: zig build --release=fast
+
+    - name: Cache benchmark datasets
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.BENCHMARKS_DIR }}
+        key: benchmark-datasets-v1
+
+    - name: Run basic performance test
+      run: |
+        echo '{"test": "data"}' > test.json
+        ./zig-out/bin/zmin test.json -o output.json
+        echo "Basic performance test completed"
+
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ github.run_id }}
+        path: output.json
+        retention-days: 7
+
+  # Memory safety validation
+  memory-safety:
+    name: Memory Safety Tests
+    needs: versions
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      github.event.inputs.run_memory_tests == true ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'memory-safety'))
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Install Valgrind
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind
+
+    - name: Build with debug symbols
+      run: zig build
+
+    - name: Run Valgrind memory check
+      run: |
+        echo "Running Valgrind memory leak detection..."
+
+        # Create test input
+        echo '{"test": "data", "array": [1, 2, 3], "nested": {"key": "value"}}' > test.json
+
+        # Run with Valgrind
+        valgrind \
+          --leak-check=full \
+          --show-leak-kinds=all \
+          --track-origins=yes \
+          --verbose \
+          --error-exitcode=1 \
+          --suppressions=tests/valgrind.supp \
+          ./zig-out/bin/zmin test.json output.json 2>&1 | tee valgrind.log
+
+        # Check for errors
+        if grep -q "ERROR SUMMARY: 0 errors" valgrind.log; then
+          echo "✅ No memory errors detected"
+        else
+          echo "❌ Memory errors found!"
+          exit 1
+        fi
+
+    - name: Upload Valgrind logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: valgrind-logs-${{ github.run_id }}
+        path: valgrind.log
+        retention-days: 7
+
+  # AddressSanitizer check
+  address-sanitizer:
+    name: AddressSanitizer Check
+    needs: versions
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      github.event.inputs.run_memory_tests == true ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'memory-safety'))
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Build with AddressSanitizer
+      run: |
+        zig build -Doptimize=Debug -fsanitize=address
+
+    - name: Run AddressSanitizer tests
+      env:
+        ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+      run: |
+        echo "Running AddressSanitizer tests..."
+
+        # Create test input
+        echo '{"test": "data"}' > test.json
+
+        # Run tests
+        ./zig-out/bin/zmin test.json output.json
+
+        echo "✅ AddressSanitizer tests passed"
