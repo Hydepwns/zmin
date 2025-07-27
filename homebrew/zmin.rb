@@ -1,8 +1,8 @@
 class Zmin < Formula
   desc "Ultra-high-performance JSON minifier with 3.5+ GB/s throughput"
   homepage "https://github.com/hydepwns/zmin"
-  url "https://github.com/hydepwns/zmin/archive/v0.1.0.tar.gz"
-  sha256 "REPLACE_WITH_ACTUAL_SHA256"
+  url "https://github.com/hydepwns/zmin/archive/v1.0.0.tar.gz"
+  sha256 "d5558cd419c8d46bdc958064cb97f963d1ea793866414c025906ec15033512ed"
   license "MIT"
   head "https://github.com/hydepwns/zmin.git", branch: "main"
 
@@ -12,17 +12,18 @@ class Zmin < Formula
     # Build the project using Zig
     system "zig", "build", "-Doptimize=ReleaseFast"
     
-    # Install binaries
+    # Install main executable
     bin.install "zig-out/bin/zmin"
-    bin.install "zig-out/bin/zmin-cli"
     
-    # Install additional tools if they exist
+    # Install additional tools
     bin.install "zig-out/bin/zmin-format" if File.exist?("zig-out/bin/zmin-format")
     bin.install "zig-out/bin/zmin-validate" if File.exist?("zig-out/bin/zmin-validate")
     
+    # Install performance demo tool
+    bin.install "zig-out/bin/performance_demo" if File.exist?("zig-out/bin/performance_demo")
+    
     # Install documentation
     doc.install "README.md"
-    doc.install "QUICK_REFERENCE.md" if File.exist?("QUICK_REFERENCE.md")
     doc.install "docs" if Dir.exist?("docs")
     
     # Install examples
@@ -55,15 +56,21 @@ class Zmin < Formula
       assert_equal expected, result
     end
     
-    # Test CLI tool if it exists
-    if File.exist?("#{bin}/zmin-cli")
-      system "#{bin}/zmin-cli", "--help"
-      assert_equal 0, $CHILD_STATUS.exitstatus
-    end
-    
     # Test validation tool if it exists
     if File.exist?("#{bin}/zmin-validate")
       system "#{bin}/zmin-validate", "-", input: test_json
+      assert_equal 0, $CHILD_STATUS.exitstatus
+    end
+    
+    # Test format tool if it exists
+    if File.exist?("#{bin}/zmin-format")
+      formatted = pipe_output("#{bin}/zmin-format", test_json)
+      assert formatted.include?("  ")
+    end
+    
+    # Test performance demo if it exists
+    if File.exist?("#{bin}/performance_demo")
+      system "#{bin}/performance_demo", "--help"
       assert_equal 0, $CHILD_STATUS.exitstatus
     end
   end
