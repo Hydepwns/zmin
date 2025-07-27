@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from . import minify, validate, format_json, ZminError
+from ..zmin import minify, validate, format_json, ZminError
 
 
 def create_parser() -> argparse.ArgumentParser:

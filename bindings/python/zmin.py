@@ -5,10 +5,13 @@ This module provides Python bindings for the zmin high-performance JSON minifier
 using ctypes to interface with the compiled shared library.
 """
 
+import argparse
 import ctypes
 import json
 import os
 import platform
+import sys
+import time
 from enum import IntEnum
 from typing import Optional, Union
 
@@ -23,6 +26,16 @@ class ProcessingMode(IntEnum):
 class ZminError(Exception):
     """Base exception for zmin errors"""
     pass
+
+
+# C API structures
+class ZminResult(ctypes.Structure):
+    """Result structure for C API calls."""
+    _fields_ = [
+        ("data", ctypes.c_char_p),
+        ("size", ctypes.c_size_t),
+        ("error_code", ctypes.c_int),
+    ]
 
 
 class Zmin:
@@ -68,16 +81,6 @@ class Zmin:
     
     def _setup_functions(self):
         """Setup ctypes function signatures"""
-        # Result structure
-        class ZminResult(ctypes.Structure):
-            _fields_ = [
-                ("data", ctypes.POINTER(ctypes.c_char)),
-                ("size", ctypes.c_size_t),
-                ("error_code", ctypes.c_int)
-            ]
-        
-        self.ZminResult = ZminResult
-        
         # zmin_init
         self._lib.zmin_init.argtypes = []
         self._lib.zmin_init.restype = None
@@ -105,6 +108,10 @@ class Zmin:
         # zmin_get_error_message
         self._lib.zmin_get_error_message.argtypes = [ctypes.c_int]
         self._lib.zmin_get_error_message.restype = ctypes.c_char_p
+        
+        # zmin_estimate_output_size
+        self._lib.zmin_estimate_output_size.argtypes = [ctypes.c_size_t]
+        self._lib.zmin_estimate_output_size.restype = ctypes.c_size_t
     
     def minify(self, input_json: Union[str, dict, list], mode: ProcessingMode = ProcessingMode.SPORT) -> str:
         """
@@ -135,12 +142,16 @@ class Zmin:
         try:
             # Check for errors
             if result.error_code != 0:
-                error_msg = self._lib.zmin_get_error_message(result.error_code).decode('utf-8')
-                raise ZminError(f"Minification failed: {error_msg}")
+                error_msg = self._lib.zmin_get_error_message(result.error_code)
+                error_str = error_msg.decode('utf-8') if error_msg else "Unknown error"
+                raise ZminError(f"Minification failed: {error_str}")
             
             # Extract output
-            output = ctypes.string_at(result.data, result.size).decode('utf-8')
-            return output
+            if result.data:
+                output = result.data[:result.size].decode('utf-8')
+                return output
+            else:
+                raise ZminError("Minification returned null data")
         finally:
             # Free the result
             self._lib.zmin_free_result(ctypes.byref(result))
@@ -171,7 +182,12 @@ class Zmin:
     
     def get_version(self) -> str:
         """Get zmin version string"""
-        return self._lib.zmin_get_version().decode('utf-8')
+        version = self._lib.zmin_get_version()
+        return version.decode('utf-8') if version else "unknown"
+    
+    def estimate_output_size(self, input_size: int) -> int:
+        """Estimate output size for given input size"""
+        return self._lib.zmin_estimate_output_size(input_size)
     
     def minify_file(self, input_path: str, output_path: str, mode: ProcessingMode = ProcessingMode.SPORT):
         """
@@ -204,18 +220,32 @@ class Zmin:
             input_json = f.read()
         
         return self.validate(input_json)
+    
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        pass
+
+
+# Global library instance
+_lib_instance: Optional[Zmin] = None
+
+
+def _get_lib() -> Zmin:
+    """Get the global library instance."""
+    global _lib_instance
+    if _lib_instance is None:
+        _lib_instance = Zmin()
+    return _lib_instance
 
 
 # Convenience functions
-_default_instance = None
-
-
 def get_default_instance() -> Zmin:
     """Get or create default zmin instance"""
-    global _default_instance
-    if _default_instance is None:
-        _default_instance = Zmin()
-    return _default_instance
+    return _get_lib()
 
 
 def minify(input_json: Union[str, dict, list], mode: ProcessingMode = ProcessingMode.SPORT) -> str:
@@ -229,7 +259,7 @@ def minify(input_json: Union[str, dict, list], mode: ProcessingMode = Processing
     Returns:
         Minified JSON string
     """
-    return get_default_instance().minify(input_json, mode)
+    return _get_lib().minify(input_json, mode)
 
 
 def validate(input_json: Union[str, dict, list]) -> bool:
@@ -242,26 +272,83 @@ def validate(input_json: Union[str, dict, list]) -> bool:
     Returns:
         True if valid JSON, False otherwise
     """
-    return get_default_instance().validate(input_json)
+    return _get_lib().validate(input_json)
 
 
 def minify_file(input_path: str, output_path: str, mode: ProcessingMode = ProcessingMode.SPORT):
     """Minify a JSON file using default instance"""
-    get_default_instance().minify_file(input_path, output_path, mode)
+    _get_lib().minify_file(input_path, output_path, mode)
 
 
 def validate_file(file_path: str) -> bool:
     """Validate a JSON file using default instance"""
-    return get_default_instance().validate_file(file_path)
+    return _get_lib().validate_file(file_path)
+
+
+def get_version() -> str:
+    """Get the zmin library version."""
+    return _get_lib().get_version()
+
+
+# Convenience functions for each mode
+def eco(input_json: Union[str, dict, list]) -> str:
+    """Minify using ECO mode."""
+    return minify(input_json, ProcessingMode.ECO)
+
+
+def sport(input_json: Union[str, dict, list]) -> str:
+    """Minify using SPORT mode."""
+    return minify(input_json, ProcessingMode.SPORT)
+
+
+def turbo(input_json: Union[str, dict, list]) -> str:
+    """Minify using TURBO mode."""
+    return minify(input_json, ProcessingMode.TURBO)
+
+
+# Async versions (for compatibility with Node.js bindings)
+async def minify_async(input_json: Union[str, dict, list], mode: ProcessingMode = ProcessingMode.SPORT) -> str:
+    """Minify JSON data asynchronously."""
+    # For now, just call the sync version
+    # In a real implementation, this would use asyncio to run in a thread pool
+    return minify(input_json, mode)
+
+
+async def validate_async(input_json: Union[str, dict, list]) -> bool:
+    """Validate JSON data asynchronously."""
+    # For now, just call the sync version
+    return validate(input_json)
+
+
+async def eco_async(input_json: Union[str, dict, list]) -> str:
+    """Minify using ECO mode asynchronously."""
+    return await minify_async(input_json, ProcessingMode.ECO)
+
+
+async def sport_async(input_json: Union[str, dict, list]) -> str:
+    """Minify using SPORT mode asynchronously."""
+    return await minify_async(input_json, ProcessingMode.SPORT)
+
+
+async def turbo_async(input_json: Union[str, dict, list]) -> str:
+    """Minify using TURBO mode asynchronously."""
+    return await minify_async(input_json, ProcessingMode.TURBO)
+
+
+def format_json(input_json: Union[str, dict, list], indent: int = 2, sort_keys: bool = False) -> str:
+    """Format JSON with pretty printing."""
+    if isinstance(input_json, str):
+        # Parse the JSON string first
+        parsed = json.loads(input_json)
+    else:
+        parsed = input_json
+    
+    return json.dumps(parsed, indent=indent, sort_keys=sort_keys, separators=(',', ': ') if indent else (',', ':'))
 
 
 # CLI interface
 def main():
     """Command-line interface"""
-    import argparse
-    import sys
-    import time
-    
     parser = argparse.ArgumentParser(description='zmin JSON minifier')
     parser.add_argument('input', nargs='?', help='Input JSON file (default: stdin)')
     parser.add_argument('output', nargs='?', help='Output file (default: stdout)')
