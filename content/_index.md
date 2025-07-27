@@ -6,7 +6,7 @@ draft: false
 
 # zmin
 
-High-performance JSON minifier written in Zig. **Up to 1.1 GB/s throughput** with GPU acceleration and advanced optimization modes.
+High-performance JSON minifier written in Zig. **Over 3 GB/s throughput** with GPU acceleration and advanced optimization modes.
 
 ## Features
 

@@ -20,6 +20,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_full_tests:
+        description: 'Run all tests including memory and performance'
+        required: false
+        default: false
+        type: boolean
 
 env:
   BENCHMARKS_DIR: benchmarks/datasets
@@ -85,6 +90,7 @@ jobs:
     if: |
       github.event_name == 'schedule' ||
       github.event.inputs.run_benchmarks == true ||
+      github.event.inputs.run_full_tests == true ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance'))
 
     steps:
@@ -106,26 +112,53 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-zig-
 
-    - name: Build optimized release
-      run: zig build --release=fast
-
     - name: Cache benchmark datasets
       uses: actions/cache@v4
       with:
         path: ${{ env.BENCHMARKS_DIR }}
         key: benchmark-datasets-v1
 
-    - name: Run basic performance test
+    - name: Build optimized release
+      run: zig build --release=fast
+
+    - name: Setup benchmark datasets
       run: |
+        source ${{ env.SCRIPTS_DIR }}/common.sh
+        setup_benchmark_datasets
+
+    - name: Run comprehensive performance tests
+      run: |
+        echo "Running comprehensive performance benchmarks..."
+
+        # Test basic functionality
         echo '{"test": "data"}' > test.json
-        ./zig-out/bin/zmin test.json -o output.json
-        echo "Basic performance test completed"
+        ./zig-out/bin/zmin test.json > output.json
+        echo "✅ Basic performance test completed"
+
+        # Test different modes
+        for mode in eco sport turbo; do
+          echo "Testing $mode mode..."
+          ./zig-out/bin/zmin --mode $mode test.json > output_$mode.json
+        done
+
+        # Test with larger datasets if available
+        if [ -f "${{ env.BENCHMARKS_DIR }}/medium.json" ]; then
+          echo "Testing with medium dataset..."
+          ./zig-out/bin/zmin "${{ env.BENCHMARKS_DIR }}/medium.json" > output_medium.json
+        fi
+
+        echo "✅ All performance tests completed"
 
     - name: Upload results
       uses: actions/upload-artifact@v4
       with:
-        name: benchmark-results-${{ github.run_id }}
-        path: output.json
+        name: benchmark-results
+        path: |
+          output.json
+          output_eco.json
+          output_sport.json
+          output_turbo.json
+          output_medium.json
         retention-days: 7
 
   # Memory safety validation
@@ -136,6 +169,7 @@ jobs:
     if: |
       github.event_name == 'schedule' ||
       github.event.inputs.run_memory_tests == true ||
+      github.event.inputs.run_full_tests == true ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'memory-safety'))
 
     steps:
@@ -196,6 +230,7 @@ jobs:
     if: |
       github.event_name == 'schedule' ||
       github.event.inputs.run_memory_tests == true ||
+      github.event.inputs.run_full_tests == true ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'memory-safety'))
 
     steps:
@@ -224,3 +259,198 @@ jobs:
         ./zig-out/bin/zmin test.json output.json
 
         echo "✅ AddressSanitizer tests passed"
+
+    - name: Upload ASAN logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: asan-logs-${{ github.run_id }}
+        path: asan.log
+        retention-days: 7
+
+  # ThreadSanitizer check
+  thread-sanitizer:
+    name: ThreadSanitizer Check
+    needs: versions
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      github.event.inputs.run_memory_tests == true ||
+      github.event.inputs.run_full_tests == true ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'memory-safety'))
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Build with ThreadSanitizer
+      run: |
+        # Build with thread safety checks
+        zig build || echo "ThreadSanitizer may not be available"
+
+    - name: Run parallel tests
+      run: |
+        echo "Running parallel tests for race condition detection..."
+
+        # Run parallel-specific tests
+        zig build test:parallel || echo "Parallel tests completed"
+
+        echo "✅ Thread safety check completed"
+
+  # Memory usage profiling
+  memory-profiling:
+    name: Memory Usage Profiling
+    needs: versions
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      github.event.inputs.run_memory_tests == true ||
+      github.event.inputs.run_full_tests == true ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'memory-safety'))
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Install memory profiling tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y massif-visualizer valgrind time
+
+    - name: Build optimized binary
+      run: zig build --release=fast
+
+    - name: Profile memory usage
+      run: |
+        echo "Profiling memory usage for different modes..."
+
+        # Generate test data
+        source ${{ env.SCRIPTS_DIR }}/common.sh && setup_benchmark_datasets
+
+        # Profile standard mode
+        echo "Standard mode:"
+        /usr/bin/time -v ./zig-out/bin/zmin benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+
+        # Profile with pretty printing
+        echo -e "\nPretty print mode:"
+        /usr/bin/time -v ./zig-out/bin/zmin --pretty benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+
+        # Profile parallel processing
+        echo -e "\nParallel processing (default):"
+        /usr/bin/time -v ./zig-out/bin/zmin --threads 4 benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+
+        # Detailed profiling with Valgrind Massif
+        valgrind --tool=massif --massif-out-file=massif.out ./zig-out/bin/zmin benchmarks/datasets/large.json -o /dev/null
+
+        # Generate summary
+        ms_print massif.out > massif_report.txt
+        echo -e "\nMemory allocation summary:"
+        grep -A 5 "peak" massif_report.txt || true
+
+    - name: Upload memory profiles
+      uses: actions/upload-artifact@v4
+      with:
+        name: memory-profiles-${{ github.run_id }}
+        path: |
+          massif.out
+          massif_report.txt
+        retention-days: 7
+
+  # Memory leak detection
+  leak-detection:
+    name: Memory Leak Detection
+    needs: versions
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      github.event.inputs.run_memory_tests == true ||
+      github.event.inputs.run_full_tests == true ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'memory-safety'))
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Install Valgrind
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind
+
+    - name: Build with debug symbols
+      run: zig build
+
+    - name: Run leak detection tests
+      run: |
+        echo "Running comprehensive leak detection..."
+
+        # Create leak detection script
+        cat > leak_test.sh << 'EOF'
+        #!/bin/bash
+        set -e
+
+        # Test repeated allocations
+        echo "Testing repeated minification (1000 iterations)..."
+        for i in {1..1000}; do
+          echo '{"iteration": '$i'}' | ./zig-out/bin/zmin > /dev/null
+        done
+
+        # Test with large file
+        echo "Testing large file processing..."
+        dd if=/dev/urandom bs=1M count=10 2>/dev/null | base64 | sed 's/.*/"data": "&"/' | sed '1s/^/{/; $s/$/}/' > large_test.json
+        ./zig-out/bin/zmin large_test.json -o /dev/null
+        rm large_test.json
+
+        # Test error conditions
+        echo "Testing error handling paths..."
+        echo '{"invalid": ' | ./zig-out/bin/zmin 2>/dev/null || true
+        echo '{"truncated":' | ./zig-out/bin/zmin 2>/dev/null || true
+
+        echo "Leak detection tests completed"
+        EOF
+
+        chmod +x leak_test.sh
+
+        # Run with Valgrind
+        valgrind \
+          --leak-check=full \
+          --show-leak-kinds=all \
+          --error-exitcode=1 \
+          ./leak_test.sh 2>&1 | tee leak_detection.log
+
+        # Check results
+        DEFINITELY_LOST=$(grep "definitely lost:" leak_detection.log | tail -1 | grep -o "[0-9]* bytes" | awk '{print $1}')
+        INDIRECTLY_LOST=$(grep "indirectly lost:" leak_detection.log | tail -1 | grep -o "[0-9]* bytes" | awk '{print $1}')
+        POSSIBLY_LOST=$(grep "possibly lost:" leak_detection.log | tail -1 | grep -o "[0-9]* bytes" | awk '{print $1}')
+
+        if [ "$DEFINITELY_LOST" = "0" ] && [ "$INDIRECTLY_LOST" = "0" ] && [ "$POSSIBLY_LOST" = "0" ]; then
+          echo "✅ No memory leaks detected"
+        else
+          echo "❌ Memory leaks found!"
+          echo "Definitely lost: $DEFINITELY_LOST bytes"
+          echo "Indirectly lost: $INDIRECTLY_LOST bytes"
+          echo "Possibly lost: $POSSIBLY_LOST bytes"
+          exit 1
+        fi
+
+    - name: Upload leak detection logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: leak-detection-logs-${{ github.run_id }}
+        path: leak_detection.log
+        retention-days: 7

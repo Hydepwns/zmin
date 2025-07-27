@@ -5,36 +5,40 @@ on:
     branches: [ main ]
     paths:
       - 'src/**/*.zig'
-      - 'docs/api-reference.yaml'
-      - 'scripts/generate-api-docs.zig'
       - 'docs/**'
-      - 'assets/**'
       - 'content/**'
       - 'config.yaml'
-      - 'layouts/**'
       - 'static/**'
+      - 'layouts/**'
+      - 'assets/**'
       - 'go.mod'
       - 'go.sum'
-      - 'build/**'
-      - '.gitignore'
-      - '.github/workflows/**'
+      - '.github/workflows/docs-consolidated.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'src/**/*.zig'
-      - 'docs/api-reference.yaml'
-      - 'assets/**'
+      - 'docs/**'
       - 'content/**'
       - 'config.yaml'
-      - 'build/**'
-      - '.github/workflows/**'
+      - 'static/**'
+      - 'layouts/**'
+      - 'assets/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/docs-consolidated.yml'
   schedule:
-    # Run daily at 2 AM UTC to catch any missed updates
-    - cron: '0 2 * * *'
+    # Weekly documentation update at 3 AM UTC on Sundays
+    - cron: '0 3 * * 0'
   workflow_dispatch:
     inputs:
       force_regenerate:
         description: 'Force regenerate all documentation'
+        required: false
+        default: false
+        type: boolean
+      deploy_only:
+        description: 'Deploy existing documentation without regeneration'
         required: false
         default: false
         type: boolean
@@ -52,8 +56,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DOCS_DIR: docs
-  SCRIPTS_DIR: scripts
   GENERATED_SPEC: docs/api-reference-generated.json
   GENERATED_HTML: docs/api-reference-generated.html
 
@@ -79,81 +81,63 @@ jobs:
 
   # Generate API documentation
   generate-api-docs:
-    runs-on: ubuntu-latest
+    name: Generate API Documentation
     needs: versions
-    outputs:
-      docs-generated: ${{ steps.check-changes.outputs.has-changes }}
+    runs-on: ubuntu-latest
+    if: |
+      github.event.inputs.deploy_only != true &&
+      (github.event.inputs.force_regenerate == true ||
+       contains(github.event.head_commit.modified, 'src/') ||
+       contains(github.event.head_commit.added, 'src/') ||
+       contains(github.event.head_commit.removed, 'src/') ||
+       github.event_name == 'schedule')
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: ${{ needs.versions.outputs.zig-version }}
 
-      - name: Cache Zig artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/zig
-            zig-cache
-          key: ${{ runner.os }}-zig-docs-${{ hashFiles('scripts/generate-api-docs.zig') }}
-          restore-keys: |
-            ${{ runner.os }}-zig-docs-
-
-      - name: Build documentation generator
+      - name: Install swagger-cli
         run: |
-          echo "Building API documentation generator..."
-          zig build-exe scripts/generate-api-docs.zig -O ReleaseFast
+          npm install -g @apidevtools/swagger-cli
 
-      - name: Generate API documentation from source
+      - name: Generate OpenAPI specification
         run: |
-          echo "Generating API documentation from Zig source files..."
-          ./generate-api-docs src ${{ env.GENERATED_SPEC }}
+          echo "Generating OpenAPI specification..."
 
-          if [ ! -f "${{ env.GENERATED_SPEC }}" ]; then
-            echo "Error: Generated API spec not found!"
+          # Create docs directory if it doesn't exist
+          mkdir -p docs
+
+          # Generate the OpenAPI spec using Zig
+          zig build generate-api-spec
+
+          # Validate the generated spec
+          if [ -f "api-reference.yaml" ]; then
+            swagger-cli validate api-reference.yaml
+            mv api-reference.yaml ${{ env.GENERATED_SPEC }}
+            echo "✅ OpenAPI specification generated and validated"
+          else
+            echo "❌ Failed to generate OpenAPI specification"
             exit 1
           fi
 
-          echo "Generated API spec size: $(stat -c%s ${{ env.GENERATED_SPEC }}) bytes"
-
-      - name: Validate generated OpenAPI spec
+      - name: Generate HTML documentation
         run: |
-          echo "Validating generated OpenAPI specification..."
+          echo "Generating HTML documentation..."
 
-          # Install OpenAPI validator
-          npm install -g @apidevtools/swagger-cli
+          # Use swagger-cli to generate HTML
+          swagger-cli bundle ${{ env.GENERATED_SPEC }} --type html --outfile ${{ env.GENERATED_HTML }}
 
-          # Validate the generated spec
-          swagger-cli validate ${{ env.GENERATED_SPEC }}
-
-          echo "✅ OpenAPI specification is valid"
-
-      - name: Check for documentation changes
-        id: check-changes
-        run: |
-          # Check if there are any changes to commit
-          if git diff --quiet; then
-            echo "has-changes=false" >> $GITHUB_OUTPUT
-            echo "No documentation changes detected"
+          if [ -f "${{ env.GENERATED_HTML }}" ]; then
+            echo "✅ HTML documentation generated"
           else
-            echo "has-changes=true" >> $GITHUB_OUTPUT
-            echo "Documentation changes detected"
+            echo "❌ Failed to generate HTML documentation"
+            exit 1
           fi
-
-      - name: Commit documentation changes
-        if: steps.check-changes.outputs.has-changes == 'true'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add ${{ env.GENERATED_SPEC }}
-          git commit -m "docs: auto-generate API documentation [skip ci]"
-          git push
 
       - name: Upload generated API docs as artifacts
         uses: actions/upload-artifact@v4
@@ -166,17 +150,16 @@ jobs:
 
   # Build Hugo site
   build-hugo:
-    runs-on: ubuntu-latest
+    name: Build Hugo Site
     needs: [versions, generate-api-docs]
-    outputs:
-      hugo-built: ${{ steps.build-check.outputs.has-changes }}
+    runs-on: ubuntu-latest
+    if: |
+      github.event.inputs.deploy_only != true ||
+      always()
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: true
-          fetch-depth: 0
 
       - name: Download generated API docs
         uses: actions/download-artifact@v4
@@ -190,16 +173,7 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      - name: Ensure content directory exists
-        run: |
-          # Create content directory if it doesn't exist
-          mkdir -p content
-          # Copy content from assets if it exists
-          if [ -d "assets/content" ]; then
-            cp -r assets/content/* content/ 2>/dev/null || true
-          fi
-
-      - name: Build Hugo site
+      - name: Build site
         run: |
           # Don't try to initialize modules if go.mod already exists
           if [ ! -f "go.mod" ]; then
@@ -208,44 +182,35 @@ jobs:
           hugo mod get github.com/panr/hugo-theme-terminal
           hugo --minify
 
-      - name: Copy generated API docs to Hugo static
-        run: |
-          # Copy generated API docs to Hugo static directory if they exist
-          mkdir -p static/api
-          if [ -f "${{ env.GENERATED_SPEC }}" ]; then
-            cp ${{ env.GENERATED_SPEC }} static/api/
-            echo "✅ Copied API spec to static/api/"
-          else
-            echo "⚠️  API spec not found, skipping copy"
-          fi
-          if [ -f "${{ env.GENERATED_HTML }}" ]; then
-            cp ${{ env.GENERATED_HTML }} static/api/
-            echo "✅ Copied API HTML to static/api/"
-          else
-            echo "⚠️  API HTML not found, skipping copy"
-          fi
-
-      - name: Check Hugo build output
-        id: build-check
-        run: |
-          if [ -d "public" ] && [ "$(ls -A public)" ]; then
-            echo "has-changes=true" >> $GITHUB_OUTPUT
-            echo "Hugo site built successfully"
-          else
-            echo "has-changes=false" >> $GITHUB_OUTPUT
-            echo "Hugo build failed or empty"
-          fi
+      - name: Upload Hugo site as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hugo-site
+          path: public/
+          retention-days: 1
 
   # Deploy to GitHub Pages
   deploy:
     name: Deploy to GitHub Pages
-    needs: [versions, generate-api-docs, build-hugo]
+    needs: [versions, build-hugo]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Download Hugo site
+        uses: actions/download-artifact@v4
+        with:
+          name: hugo-site
+          path: public/
 
       - name: Download generated API docs
         uses: actions/download-artifact@v4
@@ -253,64 +218,37 @@ jobs:
           name: generated-api-docs
           path: docs/
 
+      - name: Copy generated API docs to static directory
+        run: |
+          # Debug: List contents
+          echo "Contents of docs/ directory:"
+          ls -la docs/ || true
+
+          echo "Contents of public/ directory:"
+          ls -la public/ || true
+
+          # Copy generated files if they exist
+          if [ -f "${{ env.GENERATED_SPEC }}" ]; then
+            cp "${{ env.GENERATED_SPEC }}" public/
+            echo "✅ Copied ${{ env.GENERATED_SPEC }} to public/"
+          else
+            echo "⚠️ ${{ env.GENERATED_SPEC }} not found"
+          fi
+
+          if [ -f "${{ env.GENERATED_HTML }}" ]; then
+            cp "${{ env.GENERATED_HTML }}" public/
+            echo "✅ Copied ${{ env.GENERATED_HTML }} to public/"
+          else
+            echo "⚠️ ${{ env.GENERATED_HTML }} not found"
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Setup Hugo
-        uses: peaceiris/actions-hugo@v2
-        with:
-          hugo-version: 'latest'
-          extended: true
-
-      - name: Debug - Show current directory
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Directory contents:"
-          ls -la
-
-      - name: Ensure content directory exists
-        run: |
-          # Create content directory if it doesn't exist
-          mkdir -p content
-          # Copy content from assets if it exists
-          if [ -d "assets/content" ]; then
-            cp -r assets/content/* content/ 2>/dev/null || true
-          fi
-          echo "Content directory contents:"
-          ls -la content/
-
-      - name: Build Hugo site
-        run: |
-          # Don't try to initialize modules if go.mod already exists
-          if [ ! -f "go.mod" ]; then
-            hugo mod init zmin-docs
-          fi
-          hugo mod get github.com/panr/hugo-theme-terminal
-          hugo --minify
-          echo "Hugo build completed. Public directory contents:"
-          ls -la public/
-
-      - name: Copy generated API docs to Hugo static
-        run: |
-          # Copy generated API docs to Hugo static directory if they exist
-          mkdir -p static/api
-          if [ -f "${{ env.GENERATED_SPEC }}" ]; then
-            cp ${{ env.GENERATED_SPEC }} static/api/
-            echo "✅ Copied API spec to static/api/"
-          else
-            echo "⚠️  API spec not found, skipping copy"
-          fi
-          if [ -f "${{ env.GENERATED_HTML }}" ]; then
-            cp ${{ env.GENERATED_HTML }} static/api/
-            echo "✅ Copied API HTML to static/api/"
-          else
-            echo "⚠️  API HTML not found, skipping copy"
-          fi
-
-      - name: Upload artifact
+      - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: public
+          path: public/
 
       - name: Deploy to GitHub Pages
         id: deployment

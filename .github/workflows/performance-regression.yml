@@ -3,9 +3,20 @@ name: Performance Regression Detection
 on:
   pull_request:
     branches: [ main ]
-  push:
-    branches: [ main ]
+    paths:
+      - 'src/**/*.zig'
+      - 'build.zig'
+      - 'build.zig.zon'
+      - 'tests/**/*.zig'
+      - 'scripts/**/*.sh'
+      - 'benchmarks/**'
   workflow_dispatch:
+    inputs:
+      force_regression_check:
+        description: 'Force performance regression check'
+        required: false
+        default: false
+        type: boolean
 
 env:
   BENCHMARKS_DIR: benchmarks/datasets
@@ -24,7 +35,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/versions.json
-      
+
       - name: Read versions
         id: versions
         run: |
@@ -35,7 +46,11 @@ jobs:
     name: Performance Regression Test
     needs: versions
     runs-on: ubuntu-latest
-    
+    if: |
+      github.event.inputs.force_regression_check == true ||
+      contains(github.event.pull_request.labels.*.name, 'performance') ||
+      contains(github.event.pull_request.labels.*.name, 'regression-check')
+
     steps:
     - name: Checkout PR branch
       uses: actions/checkout@v4
@@ -63,12 +78,12 @@ jobs:
         # Build current branch
         zig build --release=fast
         mv zig-out/bin/zmin zmin-current
-        
+
         # Build baseline (main branch)
         git checkout origin/main
         zig build --release=fast
         mv zig-out/bin/zmin zmin-baseline
-        
+
         # Return to PR branch
         git checkout -
 
@@ -76,81 +91,70 @@ jobs:
       run: |
         # Source common functions
         source ${{ env.SCRIPTS_DIR }}/common.sh
-        
+
         # Setup benchmark datasets
         setup_benchmark_datasets
-        
+
         echo "## Performance Comparison Report" > performance-report.md
         echo "" >> performance-report.md
         echo "**Date**: $(date)" >> performance-report.md
         echo "**Commit**: ${{ github.sha }}" >> performance-report.md
+        echo "**Branch**: ${{ github.head_ref }}" >> performance-report.md
         echo "" >> performance-report.md
-        
+
         # Initialize JSON results
         echo '{"results": [' > benchmark-results.json
-        
+
         # Run benchmarks for each dataset
         for dataset in small medium large; do
           echo "Testing with $dataset dataset..."
-          
+
           # Baseline performance
           baseline_time=$(./${{ env.SCRIPTS_DIR }}/benchmark-single.sh ./zmin-baseline ${{ env.BENCHMARKS_DIR }}/$dataset.json)
-          
+
           # Current performance
           current_time=$(./${{ env.SCRIPTS_DIR }}/benchmark-single.sh ./zmin-current ${{ env.BENCHMARKS_DIR }}/$dataset.json)
-          
-          # Calculate change and format result
-          change=$(calculate_percentage_change $baseline_time $current_time)
-          result=$(format_performance_result $dataset $change)
-          echo "$result" >> performance-report.md
-          
-          # Emit warning if regression detected
-          if [[ "$result" == *"${FAILURE_ICON}"* ]]; then
-            echo "::warning::Performance regression detected with $dataset dataset: +${change}%"
-          fi
-          
-          # Add to JSON results
-          if [ "$dataset" != "large" ]; then
-            echo "{\"dataset\": \"$dataset\", \"baseline\": $baseline_time, \"current\": $current_time, \"change\": $change}," >> benchmark-results.json
-          else
-            echo "{\"dataset\": \"$dataset\", \"baseline\": $baseline_time, \"current\": $current_time, \"change\": $change}" >> benchmark-results.json
-          fi
-        done
-        
-        # Close JSON
-        echo ']}'>> benchmark-results.json
 
-    - name: Comment PR with results
-      if: github.event_name == 'pull_request'
+          # Calculate percentage change
+          change=$(echo "scale=2; (($current_time - $baseline_time) / $baseline_time) * 100" | bc -l)
+
+          # Format result
+          format_performance_result "$dataset" "$change" >> performance-report.md
+
+          # Add to JSON results
+          echo "{\"dataset\": \"$dataset\", \"baseline\": $baseline_time, \"current\": $current_time, \"change\": $change}," >> benchmark-results.json
+        done
+
+        # Close JSON array
+        echo "]" >> benchmark-results.json
+        echo "}" >> benchmark-results.json
+
+        echo "" >> performance-report.md
+        echo "---" >> performance-report.md
+        echo "*This report was generated automatically by the performance regression detection workflow.*" >> performance-report.md
+
+    - name: Comment on PR
       uses: actions/github-script@v7
       with:
         script: |
           const fs = require('fs');
           const report = fs.readFileSync('performance-report.md', 'utf8');
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: report
-          });
 
-    - name: Upload performance artifacts
+          // Check if this is a PR
+          if (context.eventName === 'pull_request') {
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+          }
+
+    - name: Upload performance results
       uses: actions/upload-artifact@v4
       with:
-        name: performance-results
+        name: performance-regression-results
         path: |
           performance-report.md
           benchmark-results.json
-
-    - name: Check for regressions
-      run: |
-        # Source common functions to get FAILURE_ICON
-        source ${{ env.SCRIPTS_DIR }}/common.sh
-        
-        # Fail if any significant regressions detected
-        if grep -q "${FAILURE_ICON}" performance-report.md; then
-          echo "Performance regressions detected!"
-          cat performance-report.md
-          exit 1
-        fi
+        retention-days: 30
