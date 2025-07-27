@@ -83,6 +83,7 @@ const formatted = await minify(jsonString, {
   indent: 2 
 });
 ```
+
 </details>
 
 <details>
@@ -100,6 +101,7 @@ formatted := zmin.MinifyWithOptions(jsonString, &zmin.Options{
     Indent: 2,
 })
 ```
+
 </details>
 
 <details>
@@ -114,6 +116,7 @@ result = zmin.minify('{"key": "value"}')
 # With options
 formatted = zmin.minify(json_string, pretty=True, indent=2)
 ```
+
 </details>
 
 ## Performance
