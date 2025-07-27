@@ -51,77 +51,78 @@ pub const CudaMinifier = struct {
     config: CudaConfig,
     device: GpuDevice,
     initialized: bool = false,
-    
+
     // CUDA resources (opaque pointers in Zig)
     context: ?*anyopaque = null,
     streams: []?*anyopaque = &.{},
     device_buffers: []?*anyopaque = &.{},
-    
+
     pub fn init(allocator: std.mem.Allocator, config: CudaConfig) !CudaMinifier {
         // Check if CUDA is available
         if (!isCudaAvailable()) {
             return CudaError.CudaNotAvailable;
         }
-        
+
         // Get device information
         const device = try selectDevice(config.device_id);
-        
+
         // Check compute capability (require at least 3.5)
-        if (device.compute_capability.major < 3 or 
-            (device.compute_capability.major == 3 and device.compute_capability.minor < 5)) {
+        if (device.compute_capability.major < 3 or
+            (device.compute_capability.major == 3 and device.compute_capability.minor < 5))
+        {
             return CudaError.InvalidConfiguration;
         }
-        
+
         var minifier = CudaMinifier{
             .allocator = allocator,
             .config = config,
             .device = device,
         };
-        
+
         // Initialize CUDA context
         try minifier.initializeCuda();
-        
+
         return minifier;
     }
-    
+
     pub fn deinit(self: *CudaMinifier) void {
         if (self.initialized) {
             self.cleanupCuda();
         }
     }
-    
+
     /// Minify JSON using GPU acceleration
     pub fn minify(self: *CudaMinifier, input: []const u8) ![]u8 {
         // For small inputs, fall back to CPU
         if (input.len < 1024 * 1024) { // < 1MB
             return zmin.minifyWithMode(self.allocator, input, .turbo);
         }
-        
+
         // Allocate output buffer (conservative estimate)
         const output_size = input.len + 1024;
         const output = try self.allocator.alloc(u8, output_size);
         errdefer self.allocator.free(output);
-        
+
         // Process in chunks if needed
         if (input.len > self.config.chunk_size) {
             return self.minifyChunked(input, output);
         }
-        
+
         // Single chunk processing
         const actual_size = try self.processChunk(input, output);
-        
+
         // Resize output to actual size
         if (actual_size < output.len) {
             return self.allocator.realloc(output, actual_size);
         }
-        
+
         return output;
     }
-    
+
     fn minifyChunked(self: *CudaMinifier, input: []const u8, output: []u8) ![]u8 {
         var output_pos: usize = 0;
         var input_pos: usize = 0;
-        
+
         // Process chunks
         while (input_pos < input.len) {
             // Find chunk boundary (don't split in middle of JSON token)
@@ -129,48 +130,48 @@ pub const CudaMinifier = struct {
             if (chunk_end < input.len) {
                 chunk_end = findChunkBoundary(input, chunk_end);
             }
-            
+
             const chunk = input[input_pos..chunk_end];
             const chunk_output = output[output_pos..];
-            
+
             const chunk_size = try self.processChunk(chunk, chunk_output);
             output_pos += chunk_size;
             input_pos = chunk_end;
         }
-        
+
         // Resize to actual size
         return self.allocator.realloc(output, output_pos);
     }
-    
+
     fn processChunk(self: *CudaMinifier, input: []const u8, output: []u8) !usize {
         // This would call actual CUDA kernels
         // For now, simulate with CPU fallback
         const result = try zmin.minifyWithMode(self.allocator, input, .turbo);
         defer self.allocator.free(result);
-        
+
         if (result.len > output.len) {
             return error.BufferTooSmall;
         }
-        
+
         @memcpy(output[0..result.len], result);
         return result.len;
     }
-    
+
     fn initializeCuda(self: *CudaMinifier) !void {
         // In real implementation, this would:
         // 1. Create CUDA context
         // 2. Allocate device memory
         // 3. Create CUDA streams
         // 4. Load and compile kernels
-        
+
         self.initialized = true;
     }
-    
+
     fn cleanupCuda(self: *CudaMinifier) void {
         // Clean up CUDA resources
         self.initialized = false;
     }
-    
+
     fn findChunkBoundary(input: []const u8, pos: usize) usize {
         // Find a safe place to split (after whitespace or structural character)
         var i = pos;
@@ -211,7 +212,7 @@ fn selectDevice(device_id: i32) !GpuDevice {
 // Parallel whitespace detection kernel
 // __global__ void detectWhitespace(const char* input, bool* isWhitespace, size_t length);
 
-// Parallel string boundary detection kernel  
+// Parallel string boundary detection kernel
 // __global__ void detectStrings(const char* input, int* stringBounds, size_t length);
 
 // Parallel JSON token classification kernel
@@ -225,20 +226,20 @@ pub fn shouldUseGpu(input_size: usize, gpu_device: GpuDevice) bool {
     // Simple heuristic based on input size and GPU capabilities
     const min_size = 1024 * 1024; // 1MB minimum
     const overhead_factor = 0.1; // 10% overhead for GPU transfer
-    
+
     if (input_size < min_size) return false;
-    
+
     // Estimate GPU throughput based on device
-    const gpu_throughput = @as(f64, @floatFromInt(gpu_device.multiprocessor_count)) * 
-                          @as(f64, @floatFromInt(gpu_device.max_threads_per_block)) * 
-                          1e9; // Rough estimate
-    
+    const gpu_throughput = @as(f64, @floatFromInt(gpu_device.multiprocessor_count)) *
+        @as(f64, @floatFromInt(gpu_device.max_threads_per_block)) *
+        1e9; // Rough estimate
+
     const transfer_time = @as(f64, @floatFromInt(input_size)) / (16e9); // PCIe Gen3 bandwidth
     const process_time = @as(f64, @floatFromInt(input_size)) / gpu_throughput;
-    
+
     const gpu_time = transfer_time * 2 + process_time; // Upload + download + process
     const cpu_time = @as(f64, @floatFromInt(input_size)) / (1e9); // 1GB/s CPU estimate
-    
+
     return gpu_time < cpu_time * (1 - overhead_factor);
 }
 

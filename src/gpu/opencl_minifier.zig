@@ -36,7 +36,7 @@ pub const CLDevice = struct {
     global_memory_size: usize,
     local_memory_size: usize,
     max_work_item_dimensions: u32,
-    
+
     pub const DeviceType = enum {
         cpu,
         gpu,
@@ -66,42 +66,42 @@ pub const OpenCLMinifier = struct {
     platform: CLPlatform,
     device: CLDevice,
     initialized: bool = false,
-    
+
     // OpenCL resources (opaque pointers)
     context: ?*anyopaque = null,
     queue: ?*anyopaque = null,
     program: ?*anyopaque = null,
     kernels: std.StringHashMap(*anyopaque),
-    
+
     pub fn init(allocator: std.mem.Allocator, config: OpenCLConfig) !OpenCLMinifier {
         // Get available platforms
         const platforms = try getPlatforms(allocator);
         defer allocator.free(platforms);
-        
+
         if (platforms.len == 0) {
             return OpenCLError.PlatformNotFound;
         }
-        
+
         // Select platform
         const platform = if (config.platform_index >= 0)
             platforms[@intCast(config.platform_index)]
         else
             selectBestPlatform(platforms);
-        
+
         // Get devices for platform
         const devices = try getDevices(allocator, platform);
         defer allocator.free(devices);
-        
+
         if (devices.len == 0) {
             return OpenCLError.DeviceNotFound;
         }
-        
+
         // Select device
         const device = if (config.device_index >= 0)
             devices[@intCast(config.device_index)]
         else
             try selectBestDevice(devices, config.preferred_device_type);
-        
+
         var minifier = OpenCLMinifier{
             .allocator = allocator,
             .config = config,
@@ -109,52 +109,52 @@ pub const OpenCLMinifier = struct {
             .device = device,
             .kernels = std.StringHashMap(*anyopaque).init(allocator),
         };
-        
+
         // Initialize OpenCL
         try minifier.initializeOpenCL();
-        
+
         return minifier;
     }
-    
+
     pub fn deinit(self: *OpenCLMinifier) void {
         if (self.initialized) {
             self.cleanupOpenCL();
         }
         self.kernels.deinit();
     }
-    
+
     /// Minify JSON using GPU acceleration
     pub fn minify(self: *OpenCLMinifier, input: []const u8) ![]u8 {
         // For small inputs, use CPU
         if (input.len < 512 * 1024) { // < 512KB
             return zmin.minifyWithMode(self.allocator, input, .turbo);
         }
-        
+
         // Check if GPU is beneficial
         if (!self.shouldUseGpu(input.len)) {
             return zmin.minifyWithMode(self.allocator, input, .turbo);
         }
-        
+
         return self.minifyGpu(input);
     }
-    
+
     fn minifyGpu(self: *OpenCLMinifier, input: []const u8) ![]u8 {
         // Allocate output buffer
         const output_size = input.len;
         const output = try self.allocator.alloc(u8, output_size);
         errdefer self.allocator.free(output);
-        
+
         // Process on GPU
         const actual_size = try self.processOnGpu(input, output);
-        
+
         // Resize to actual size
         if (actual_size < output.len) {
             return self.allocator.realloc(output, actual_size);
         }
-        
+
         return output;
     }
-    
+
     fn processOnGpu(self: *OpenCLMinifier, input: []const u8, output: []u8) !usize {
         _ = self;
         // In real implementation, this would:
@@ -162,42 +162,42 @@ pub const OpenCLMinifier = struct {
         // 2. Copy input to device
         // 3. Execute kernels
         // 4. Copy output from device
-        
+
         // For now, CPU fallback
         const result = try zmin.minifyWithMode(std.heap.page_allocator, input, .turbo);
         defer std.heap.page_allocator.free(result);
-        
+
         @memcpy(output[0..result.len], result);
         return result.len;
     }
-    
+
     fn initializeOpenCL(self: *OpenCLMinifier) !void {
         // In real implementation:
         // 1. Create context
         // 2. Create command queue
         // 3. Build program from kernels
         // 4. Create kernel objects
-        
+
         self.initialized = true;
     }
-    
+
     fn cleanupOpenCL(self: *OpenCLMinifier) void {
         // Clean up OpenCL resources
         self.initialized = false;
     }
-    
+
     fn shouldUseGpu(self: *OpenCLMinifier, input_size: usize) bool {
         // Heuristic based on device capabilities
         const min_size = 512 * 1024; // 512KB minimum
-        
+
         if (input_size < min_size) return false;
-        
+
         // Estimate based on device type and compute units
         const compute_power = @as(f64, @floatFromInt(self.device.compute_units)) *
-                             @as(f64, @floatFromInt(self.device.max_work_group_size));
-        
+            @as(f64, @floatFromInt(self.device.max_work_group_size));
+
         const gpu_benefit = compute_power / @as(f64, @floatFromInt(input_size));
-        
+
         return gpu_benefit > 0.001; // Threshold for GPU benefit
     }
 };
@@ -235,20 +235,20 @@ fn selectBestDevice(devices: []CLDevice, preferred_type: CLDevice.DeviceType) !C
     for (devices) |device| {
         if (device.type == preferred_type) return device;
     }
-    
+
     // Fall back to any GPU
     for (devices) |device| {
         if (device.type == .gpu) return device;
     }
-    
+
     // Fall back to first device
     if (devices.len > 0) return devices[0];
-    
+
     return OpenCLError.DeviceNotFound;
 }
 
 /// OpenCL kernel source code
-const opencl_kernels = 
+const opencl_kernels =
     \\// Parallel whitespace detection
     \\__kernel void detect_whitespace(__global const char* input,
     \\                               __global char* is_whitespace,
