@@ -1,0 +1,358 @@
+name: Documentation Update
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.zig'
+      - 'docs/api-reference.yaml'
+      - 'scripts/generate-api-docs.zig'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.zig'
+      - 'docs/api-reference.yaml'
+  schedule:
+    # Run daily at 2 AM UTC to catch any missed updates
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_regenerate:
+        description: 'Force regenerate all documentation'
+        required: false
+        default: 'false'
+
+env:
+  DOCS_DIR: docs
+  SCRIPTS_DIR: scripts
+  GENERATED_SPEC: docs/api-reference-generated.json
+  GENERATED_HTML: docs/api-reference-generated.html
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      zig-version: ${{ steps.versions.outputs.zig }}
+      zmin-version: ${{ steps.versions.outputs.zmin }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/versions.json
+      
+      - name: Read versions
+        id: versions
+        run: |
+          echo "zig=$(jq -r '.zig' .github/versions.json)" >> $GITHUB_OUTPUT
+          echo "zmin=$(jq -r '.zmin' .github/versions.json)" >> $GITHUB_OUTPUT
+
+  generate-docs:
+    runs-on: ubuntu-latest
+    needs: versions
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ needs.versions.outputs.zig-version }}
+
+      - name: Cache Zig artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/zig
+            zig-cache
+          key: ${{ runner.os }}-zig-docs-${{ hashFiles('scripts/generate-api-docs.zig') }}
+          restore-keys: |
+            ${{ runner.os }}-zig-docs-
+
+      - name: Build documentation generator
+        run: |
+          echo "Building API documentation generator..."
+          zig build-exe scripts/generate-api-docs.zig -O ReleaseFast
+          
+      - name: Generate API documentation from source
+        run: |
+          echo "Generating API documentation from Zig source files..."
+          ./generate-api-docs src ${{ env.GENERATED_SPEC }}
+          
+          if [ ! -f "${{ env.GENERATED_SPEC }}" ]; then
+            echo "Error: Generated API spec not found!"
+            exit 1
+          fi
+          
+          echo "Generated API spec size: $(stat -c%s ${{ env.GENERATED_SPEC }}) bytes"
+          
+      - name: Validate generated OpenAPI spec
+        run: |
+          echo "Validating generated OpenAPI specification..."
+          
+          # Install OpenAPI validator
+          npm install -g @apidevtools/swagger-cli
+          
+          # Validate the generated spec
+          swagger-cli validate ${{ env.GENERATED_SPEC }} || {
+            echo "Generated OpenAPI spec validation failed!"
+            echo "Generated spec content:"
+            cat ${{ env.GENERATED_SPEC }}
+            exit 1
+          }
+          
+          echo "✅ Generated OpenAPI spec is valid"
+
+      - name: Generate enhanced HTML documentation
+        run: |
+          echo "Creating enhanced HTML documentation..."
+          
+          # Create version with generated spec
+          sed 's|api-reference\.yaml|api-reference-generated.json|g' docs/api-docs-interactive.html > ${{ env.GENERATED_HTML }}
+          
+          # Update title and metadata
+          sed -i 's|zmin API Documentation|zmin API Documentation (Auto-Generated)|g' ${{ env.GENERATED_HTML }}
+          sed -i 's|Interactive API Reference|Auto-Generated from Source Code|g' ${{ env.GENERATED_HTML }}
+          
+          echo "✅ Enhanced HTML documentation created"
+
+      - name: Compare with existing documentation
+        id: compare-docs
+        run: |
+          echo "Comparing generated documentation with existing..."
+          
+          CHANGES_DETECTED=false
+          
+          if [ ! -f "docs/api-reference-generated.json.bak" ]; then
+            echo "No previous generated spec found - treating as new"
+            CHANGES_DETECTED=true
+          elif ! cmp -s "${{ env.GENERATED_SPEC }}" "docs/api-reference-generated.json.bak"; then
+            echo "Generated API spec has changed"
+            CHANGES_DETECTED=true
+          fi
+          
+          echo "changes_detected=$CHANGES_DETECTED" >> $GITHUB_OUTPUT
+          
+          if [ "$CHANGES_DETECTED" = "true" ]; then
+            echo "📝 Documentation changes detected"
+            
+            # Show diff if previous version exists
+            if [ -f "docs/api-reference-generated.json.bak" ]; then
+              echo "Changes in generated API spec:"
+              diff -u "docs/api-reference-generated.json.bak" "${{ env.GENERATED_SPEC }}" || true
+            fi
+          else
+            echo "📋 No changes in generated documentation"
+          fi
+
+      - name: Generate documentation metrics
+        run: |
+          echo "Generating documentation metrics..."
+          
+          # Count functions and types in generated spec
+          FUNCTIONS_COUNT=$(jq '.paths | length' ${{ env.GENERATED_SPEC }})
+          SCHEMAS_COUNT=$(jq '.components.schemas | length' ${{ env.GENERATED_SPEC }})
+          SPEC_SIZE=$(stat -c%s ${{ env.GENERATED_SPEC }})
+          
+          # Create metrics file
+          cat > docs/api-metrics.json << EOF
+          {
+            "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "source_commit": "${{ github.sha }}",
+            "zig_version": "${{ needs.versions.outputs.zig-version }}",
+            "zmin_version": "${{ needs.versions.outputs.zmin-version }}",
+            "functions_count": $FUNCTIONS_COUNT,
+            "schemas_count": $SCHEMAS_COUNT,
+            "spec_size_bytes": $SPEC_SIZE,
+            "workflow_run": "${{ github.run_number }}"
+          }
+          EOF
+          
+          echo "📊 Documentation metrics:"
+          cat docs/api-metrics.json
+
+      - name: Generate changelog
+        if: steps.compare-docs.outputs.changes_detected == 'true'
+        run: |
+          echo "Generating documentation changelog..."
+          
+          CHANGELOG_FILE="docs/CHANGELOG-API.md"
+          
+          # Create changelog entry
+          cat > temp_changelog.md << EOF
+          ## [$(date +%Y-%m-%d)] - Auto-generated from commit ${{ github.sha }}
+          
+          ### Changes
+          - API documentation regenerated from source code
+          - Functions discovered: $(jq '.paths | length' ${{ env.GENERATED_SPEC }})
+          - Type schemas: $(jq '.components.schemas | length' ${{ env.GENERATED_SPEC }})
+          - Generated by workflow run #${{ github.run_number }}
+          
+          ### Source Information
+          - Zig version: ${{ needs.versions.outputs.zig-version }}
+          - zmin version: ${{ needs.versions.outputs.zmin-version }}
+          - Commit: ${{ github.sha }}
+          
+          EOF
+          
+          # Prepend to existing changelog or create new one
+          if [ -f "$CHANGELOG_FILE" ]; then
+            cat temp_changelog.md "$CHANGELOG_FILE" > temp_combined.md
+            mv temp_combined.md "$CHANGELOG_FILE"
+          else
+            cat > "$CHANGELOG_FILE" << EOF
+          # API Documentation Changelog
+          
+          This file tracks changes to the auto-generated API documentation.
+          
+          EOF
+            cat temp_changelog.md >> "$CHANGELOG_FILE"
+          fi
+          
+          rm temp_changelog.md
+          echo "📝 Changelog updated"
+
+      - name: Update documentation files
+        if: steps.compare-docs.outputs.changes_detected == 'true' || github.event.inputs.force_regenerate == 'true'
+        run: |
+          echo "Updating documentation files..."
+          
+          # Backup current generated spec
+          if [ -f "${{ env.GENERATED_SPEC }}" ]; then
+            cp "${{ env.GENERATED_SPEC }}" "${{ env.GENERATED_SPEC }}.bak"
+          fi
+          
+          # Update the interactive documentation with latest timestamp
+          sed -i "s|Documentation Status: Live|Documentation Status: Updated $(date)|g" docs/api-docs-interactive.html
+          
+          echo "✅ Documentation files updated"
+
+      - name: Setup Node.js for additional validation
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package.json
+        if: hashFiles('package.json') != ''
+
+      - name: Additional validation and processing
+        run: |
+          echo "Running additional validation..."
+          
+          # Check if we have Node.js dependencies for additional processing
+          if [ -f "package.json" ]; then
+            npm install
+            
+            # Run any additional validation scripts if they exist
+            if npm run | grep -q "validate-docs"; then
+              npm run validate-docs
+            fi
+          fi
+          
+          # Validate HTML files
+          echo "Validating HTML documentation..."
+          
+          # Basic HTML validation (check for required elements)
+          for html_file in docs/*.html; do
+            if [ -f "$html_file" ]; then
+              if ! grep -q "<title>" "$html_file"; then
+                echo "Warning: $html_file missing title tag"
+              fi
+              if ! grep -q "swagger-ui" "$html_file"; then
+                echo "Warning: $html_file might not be a proper API documentation file"
+              fi
+            fi
+          done
+          
+          echo "✅ Additional validation completed"
+
+      - name: Commit documentation updates
+        if: steps.compare-docs.outputs.changes_detected == 'true' || github.event.inputs.force_regenerate == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Add all documentation files
+          git add docs/api-reference-generated.json
+          git add docs/api-reference-generated.html
+          git add docs/api-metrics.json
+          git add docs/CHANGELOG-API.md
+          git add docs/api-docs-interactive.html
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "📚 Auto-update API documentation from source code
+
+            - Regenerated OpenAPI spec from Zig source files
+            - Updated interactive documentation
+            - Functions: $(jq '.paths | length' ${{ env.GENERATED_SPEC }})
+            - Schemas: $(jq '.components.schemas | length' ${{ env.GENERATED_SPEC }})
+            
+            🤖 Generated with Claude Code
+            
+            Co-Authored-By: Claude <noreply@anthropic.com>"
+            
+            echo "✅ Documentation changes committed"
+          fi
+
+      - name: Setup GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Create summary
+        run: |
+          echo "# 📚 Documentation Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.compare-docs.outputs.changes_detected }}" = "true" ]; then
+            echo "✅ **Documentation Updated Successfully**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "📋 **No Documentation Changes Detected**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- **Functions**: $(jq '.paths | length' ${{ env.GENERATED_SPEC }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Type Schemas**: $(jq '.components.schemas | length' ${{ env.GENERATED_SPEC }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Spec Size**: $(stat -c%s ${{ env.GENERATED_SPEC }}) bytes" >> $GITHUB_STEP_SUMMARY
+          echo "- **Zig Version**: ${{ needs.versions.outputs.zig-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "## 🌐 Deployed Documentation" >> $GITHUB_STEP_SUMMARY
+            echo "- [Interactive API Docs](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/api-docs-interactive.html)" >> $GITHUB_STEP_SUMMARY
+            echo "- [Generated API Spec](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/api-reference-generated.json)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  notify-docs-update:
+    runs-on: ubuntu-latest
+    needs: [generate-docs]
+    if: needs.generate-docs.result == 'success' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Create release comment
+        if: github.event_name == 'push'
+        run: |
+          echo "📚 API documentation has been automatically updated and deployed!"
+          echo "View the latest interactive documentation at:"
+          echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/api-docs-interactive.html"
