@@ -1,4 +1,4 @@
-baseURL: 'https://hydepwns.github.io/zmin/'
+baseURL: 'https://zmin.droo.foo/'
 languageCode: 'en-us'
 title: 'zmin'
 theme: 'github.com/panr/hugo-theme-terminal'
