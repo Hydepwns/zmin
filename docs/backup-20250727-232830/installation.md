@@ -19,9 +19,9 @@ tar -xf zig-linux-x86_64-0.14.1.tar.xz
 export PATH=$PATH:$(pwd)/zig-linux-x86_64-0.14.1
 
 # Clone and build zmin
-git clone https://github.com/yourusername/zmin.git
+git clone https://github.com/hydepwns/zmin.git
 cd zmin
-zig build --release=fast
+zig build --release=fast --release=fast
 
 # Install system-wide (optional)
 sudo cp zig-out/bin/zmin /usr/local/bin/
@@ -34,9 +34,9 @@ sudo cp zig-out/bin/zmin /usr/local/bin/
 brew install zig
 
 # Clone and build zmin
-git clone https://github.com/yourusername/zmin.git
+git clone https://github.com/hydepwns/zmin.git
 cd zmin
-zig build --release=fast
+zig build --release=fast --release=fast
 
 # Install to /usr/local/bin (optional)
 sudo cp zig-out/bin/zmin /usr/local/bin/
@@ -49,9 +49,9 @@ sudo cp zig-out/bin/zmin /usr/local/bin/
 # Extract and add to PATH
 
 # Clone and build zmin
-git clone https://github.com/yourusername/zmin.git
+git clone https://github.com/hydepwns/zmin.git
 cd zmin
-zig build --release=fast
+zig build --release=fast --release=fast
 
 # The executable will be at zig-out\bin\zmin.exe
 ```
@@ -62,7 +62,7 @@ zig build --release=fast
 
 ```bash
 # Coming soon
-brew tap yourusername/zmin
+brew tap hydepwns/zmin
 brew install zmin
 ```
 
@@ -70,7 +70,7 @@ brew install zmin
 
 ```bash
 # Coming soon
-sudo add-apt-repository ppa:yourusername/zmin
+sudo add-apt-repository ppa:hydepwns/zmin
 sudo apt update
 sudo apt install zmin
 ```
@@ -90,10 +90,10 @@ paru -S zmin
 
 ```bash
 # Pull the image
-docker pull yourusername/zmin:latest
+docker pull hydepwns/zmin:latest
 
 # Run zmin in container
-docker run -v $(pwd):/data yourusername/zmin /data/input.json /data/output.json
+docker run -v $(pwd):/data hydepwns/zmin /data/input.json /data/output.json
 ```
 
 ### Building Docker Image
@@ -113,7 +113,7 @@ ENV PATH="/usr/local/zig:${PATH}"
 # Build zmin
 WORKDIR /build
 COPY . .
-RUN zig build --release=fast
+RUN zig build --release=fast --release=fast
 
 # Runtime image
 FROM alpine:latest
@@ -158,42 +158,42 @@ sha256sum -c checksums.txt
 
 ```bash
 # Debug build (with assertions and debug info)
-zig build
-
-# Release-Safe (optimized with safety checks)
-zig build --release=safe
-
-# Release-Fast (maximum performance)
 zig build --release=fast
 
+# Release-Safe (optimized with safety checks)
+zig build --release=fast --release=safe
+
+# Release-Fast (maximum performance)
+zig build --release=fast --release=fast
+
 # Release-Small (minimum binary size)
-zig build --release=small
+zig build --release=fast --release=small
 ```
 
 ### Feature Flags
 
 ```bash
 # Disable SIMD optimizations
-zig build --release=fast -Dsimd=false
+zig build --release=fast --release=fast -Dsimd=false
 
 # Enable telemetry (opt-in)
-zig build --release=fast -Dtelemetry=true
+zig build --release=fast --release=fast -Dtelemetry=true
 
 # Custom allocator backend
-zig build --release=fast -Dallocator=jemalloc
+zig build --release=fast --release=fast -Dallocator=jemalloc
 ```
 
 ### Cross-Compilation
 
 ```bash
 # Linux ARM64
-zig build --release=fast -Dtarget=aarch64-linux-gnu
+zig build --release=fast --release=fast -Dtarget=aarch64-linux-gnu
 
 # macOS ARM64
-zig build --release=fast -Dtarget=aarch64-macos
+zig build --release=fast --release=fast -Dtarget=aarch64-macos
 
 # Windows x64
-zig build --release=fast -Dtarget=x86_64-windows-gnu
+zig build --release=fast --release=fast -Dtarget=x86_64-windows-gnu
 ```
 
 ## Verification
@@ -246,7 +246,7 @@ sudo ln -s /path/to/zig/zig /usr/local/bin/zig
 rm -rf zig-cache zig-out
 
 # Try debug build first
-zig build
+zig build --release=fast
 
 # Check Zig version
 zig version
@@ -284,11 +284,12 @@ brew uninstall zmin
 sudo apt remove zmin
 
 # Docker
-docker rmi yourusername/zmin
+docker rmi hydepwns/zmin
 ```
 
 ## Next Steps
 
-- Read [Getting Started](getting-started.md) for basic usage
-- Check [Usage Guide](usage.md) for advanced features
-- See [Performance Guide](performance.md) for optimization tips
+- Visit [zmin.droo.foo](https://zmin.droo.foo) for interactive documentation
+- Read [Getting Started](https://zmin.droo.foo/getting-started) for basic usage
+- Check [Usage Guide](https://zmin.droo.foo/usage) for advanced features
+- See [Performance Guide](https://zmin.droo.foo/performance) for optimization tips

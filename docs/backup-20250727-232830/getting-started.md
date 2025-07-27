@@ -143,10 +143,10 @@ pub fn main() !void {
 
 ## Next Steps
 
-- Read the [Usage Guide](usage.md) for advanced features
-- Check the [Performance Guide](performance.md) for optimization tips
-- Try the [Interactive API Docs](https://zmin.droo.foo/) for live examples
-- Learn about the [Architecture](performance.md#technical-implementation) for technical details
+- Visit [zmin.droo.foo](https://zmin.droo.foo) for interactive documentation
+- Read the [Usage Guide](https://zmin.droo.foo/usage) for advanced features
+- Check the [Performance Guide](https://zmin.droo.foo/performance) for optimization tips
+- Try the [Interactive API Docs](https://zmin.droo.foo/api-reference) for live examples
 
 ## Getting Help
 
