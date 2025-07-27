@@ -1,0 +1,101 @@
+baseURL: 'https://zmin.droo.foo/'
+languageCode: 'en-us'
+title: 'zmin'
+theme: 'github.com/panr/hugo-theme-terminal'
+
+# Terminal theme configuration
+params:
+  # Main info
+  mainSections: ["docs"]
+  description: "High-performance JSON minifier written in Zig. Up to 1.1 GB/s throughput with GPU acceleration."
+
+  # Theme colors - black and white with dark default
+  colorTheme: "dark"
+  fontTheme: "monospace"
+
+  # Header
+  header:
+    title: "zmin"
+    subtitle: "High-performance JSON minifier"
+    logo: ""
+    logoWidth: 50
+
+  # Footer
+  footer:
+    powered: false
+    theme: false
+
+  # Social icons
+  socialIcons:
+    - name: github
+      url: "https://github.com/hydepwns/zmin"
+    - name: twitter
+      url: "https://twitter.com/MF_DROO"
+
+  # Navigation
+  mainMenu:
+    - identifier: docs
+      name: Documentation
+      url: /docs/
+      weight: 1
+    - identifier: api
+      name: API Reference
+      url: /docs/api-reference/
+      weight: 2
+    - identifier: examples
+      name: Examples
+      url: /docs/examples/
+      weight: 3
+    - identifier: performance
+      name: Performance
+      url: /docs/performance/
+      weight: 4
+
+# Menu configuration
+menu:
+  main:
+    - identifier: docs
+      name: Documentation
+      url: /docs/
+      weight: 1
+    - identifier: api
+      name: API Reference
+      url: /docs/api-reference/
+      weight: 2
+    - identifier: examples
+      name: Examples
+      url: /docs/examples/
+      weight: 3
+    - identifier: performance
+      name: Performance
+      url: /docs/performance/
+      weight: 4
+
+# Markdown configuration
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    style: "monokai"
+    lineNos: true
+    lineNumbersInTable: true
+
+# Build settings
+buildDrafts: false
+buildFuture: false
+buildExpired: false
+
+# Disable default taxonomies
+disableKinds: ["taxonomy", "term"]
+
+# Enable emoji
+enableEmoji: true
+
+# Enable syntax highlighting
+pygmentsUseClasses: true
+pygmentsCodeFences: true
+
+# Custom CSS
+params:
+  customCSS: ["css/custom.css"]

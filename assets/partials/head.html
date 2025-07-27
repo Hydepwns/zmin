@@ -1,0 +1,31 @@
+{{ $favicon := "favicon.png" }}
+{{ $ogImage := "og-image.png" }}
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="{{ $favicon | absURL }}">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:title" content="{{ .Title }}">
+<meta property="og:description" content="{{ .Description }}">
+<meta property="og:image" content="{{ $ogImage | absURL }}">
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image">
+<meta property="twitter:url" content="{{ .Permalink }}">
+<meta property="twitter:title" content="{{ .Title }}">
+<meta property="twitter:description" content="{{ .Description }}">
+<meta property="twitter:image" content="{{ $ogImage | absURL }}">
+
+<!-- Additional meta tags -->
+<meta name="description" content="{{ .Description }}">
+<meta name="keywords" content="zmin, json, minifier, zig, performance, gpu">
+<meta name="author" content="zmin team">
+
+<!-- Theme toggle script -->
+<script>
+  // Check for saved theme preference or default to dark mode
+  const theme = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+</script>
