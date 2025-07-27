@@ -1,12 +1,12 @@
 # zmin
 
-High-performance JSON minifier written in Zig. **1-3 GB/s throughput** with GPU acceleration and advanced optimization modes.
+High-performance JSON minifier written in Zig. **Up to 1.1 GB/s throughput** with GPU acceleration and advanced optimization modes.
 
-[![Docs](https://img.shields.io/badge/docs-interactive-purple)](https://hydepwns.github.io/zmin/) [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/hydepwns/zmin/actions) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-interactive-purple)](https://zmin.droo.foo/) [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/hydepwns/zmin/actions) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ## Features
 
-- **Ultra-Fast**: 1-3 GB/s throughput with SIMD + GPU acceleration
+- **Ultra-Fast**: Up to 1.1 GB/s throughput with SIMD + GPU acceleration
 - **Multiple Modes**: Eco, Sport, and Turbo modes for different use cases
 - **GPU Acceleration**: CUDA and OpenCL support for massive datasets
 - **Plugin System**: Extensible architecture with custom minification plugins
@@ -22,7 +22,7 @@ High-performance JSON minifier written in Zig. **1-3 GB/s throughput** with GPU 
 ```bash
 # Build from source
 git clone https://github.com/hydepwns/zmin
-cd zmin && zig build
+cd zmin && zig build --release=fast
 
 # Basic usage
 ./zig-out/bin/zmin input.json output.json
@@ -37,9 +37,9 @@ cd zmin && zig build
 ./zig-out/bin/zmin --gpu opencl large.json out.json
 
 # Language bindings
-npm install @zmin/cli              # Node.js
-go get github.com/hydepwns/zmin-go # Go
-pip install zmin                   # Python
+npm install @zmin/cli                    # Node.js
+go get github.com/hydepwns/zmin/go       # Go
+pip install zmin                         # Python
 ```
 
 ## Usage
@@ -69,8 +69,8 @@ echo '{"a": 1}' | zmin                    # Pipe support
 
 ```javascript
 // Node.js
-import { minify } from '@zmin/cli';
-const result = await minify('{"key": "value"}', { mode: 'turbo' });
+const { minify } = require('@zmin/cli');
+const result = minify('{"key": "value"}');
 ```
 
 ```python
@@ -89,9 +89,11 @@ const result = try zmin.minify(input, .{ .mode = .turbo });
 
 | Mode | Use Case | Throughput | Memory Usage |
 |------|----------|------------|--------------|
-| **Eco** | Small files, low memory | 100-200 MB/s | Minimal |
-| **Sport** | Balanced performance | 400-800 MB/s | Moderate |
-| **Turbo** | Large files, max speed | **1-3 GB/s** | Higher |
+| **Eco** | Small files, low memory | ~312 MB/s | Minimal |
+| **Sport** | Balanced performance | ~555 MB/s | Moderate |
+| **Turbo** | Large files, max speed | **~1.1 GB/s** | Higher |
+
+**Not sure which mode to use?** Check our [interactive mode selector](https://zmin.droo.foo/mode-selection)!
 
 ### GPU Acceleration
 
@@ -102,6 +104,7 @@ const result = try zmin.minify(input, .{ .mode = .turbo });
 ## Advanced Features
 
 ### Plugin System
+
 ```zig
 // Custom minification plugin
 pub const MyPlugin = struct {
@@ -113,12 +116,14 @@ pub const MyPlugin = struct {
 ```
 
 ### Development Tools
+
 - **Hot Reloading**: Live code updates during development
 - **Debugger**: Advanced debugging with breakpoints and inspection
 - **Profiler**: Performance profiling and bottleneck detection
 - **Validator**: JSON validation and format checking
 
 ### Parallel Processing
+
 - **NUMA-aware**: Optimized for multi-socket systems
 - **Work-stealing**: Dynamic load balancing
 - **Adaptive chunking**: Optimal chunk sizes for different data
@@ -128,16 +133,17 @@ pub const MyPlugin = struct {
 
 | File Size | Throughput | Mode | Hardware |
 |-----------|------------|------|----------|
-| < 1 MB | 150-200 MB/s | Eco | Single-threaded |
-| 1-50 MB | 400-800 MB/s | Sport | Parallel |
-| 50+ MB | **1-3 GB/s** | Turbo | SIMD + parallel |
-| 100+ MB | **2-5 GB/s** | GPU | CUDA/OpenCL |
+| < 1 MB | ~312 MB/s | Eco | Single-threaded |
+| 1-50 MB | ~555 MB/s | Sport | Parallel |
+| 50+ MB | **~1.1 GB/s** | Turbo | SIMD + parallel |
+| 100+ MB | **~2.0 GB/s** | GPU | CUDA/OpenCL |
 
 **vs other tools**: 2-10x faster than jq, json-minify, RapidJSON
 
 ## Development
 
 ### Building
+
 ```bash
 # Standard build
 zig build
@@ -154,6 +160,7 @@ zig build -Dtarget=x86_64-windows-gnu
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 zig build test
@@ -168,6 +175,7 @@ zig build benchmark
 ```
 
 ### Development Tools
+
 ```bash
 # Start development server
 zig build dev-server
@@ -181,11 +189,19 @@ zig build profile
 
 ## Documentation
 
-- **[Interactive API Docs](https://hydepwns.github.io/zmin/)** - Live testing + examples
-- **[Getting Started](docs/getting-started.md)** - Installation guide
-- **[Performance Guide](docs/performance.md)** - Benchmarks & optimization
-- **[Plugin Development](docs/plugins.md)** - Creating custom plugins
-- **[GPU Acceleration](docs/gpu.md)** - CUDA and OpenCL usage
+- **[Interactive API Docs](https://zmin.droo.foo/)** - Live testing + examples
+- **[Getting Started](https://zmin.droo.foo/getting-started)** - Installation guide
+- **[Performance Guide](https://zmin.droo.foo/performance)** - Benchmarks & optimization
+- **[Usage Guide](https://zmin.droo.foo/usage)** - Advanced features and CLI options
+- **[API Reference](https://zmin.droo.foo/api-reference)** - Complete API documentation
+
+### Advanced Topics
+- **[Mode Selection](https://zmin.droo.foo/mode-selection)** - Interactive guide to choose the right mode
+- **[Plugin Development](https://zmin.droo.foo/plugins)** - Creating custom plugins
+- **[GPU Acceleration](https://zmin.droo.foo/gpu)** - CUDA and OpenCL usage
+- **[Integrations](https://zmin.droo.foo/integrations)** - Real-world examples
+- **[Tool Comparisons](https://zmin.droo.foo/comparisons)** - vs jq, json-minify, etc.
+- **[Troubleshooting](https://zmin.droo.foo/troubleshooting)** - Common issues & solutions
 
 ## Contributing
 

@@ -44,6 +44,5 @@ Thumbs.db
 .claude/
 
 # Build directories
-build/
 dist/
 target/
