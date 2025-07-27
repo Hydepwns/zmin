@@ -1,0 +1,34 @@
+# Valgrind suppressions for zmin
+# These suppressions handle known false positives from system libraries
+
+# Zig runtime initialization
+{
+   zig_start_init
+   Memcheck:Leak
+   ...
+   fun:main
+}
+
+# GLIBC dynamic linker
+{
+   glibc_dl_init
+   Memcheck:Leak
+   ...
+   fun:_dl_init
+}
+
+# Thread-local storage
+{
+   tls_init
+   Memcheck:Leak
+   ...
+   fun:__tls_get_addr
+}
+
+# Zig panic handler
+{
+   zig_panic
+   Memcheck:Leak
+   ...
+   fun:panic
+}

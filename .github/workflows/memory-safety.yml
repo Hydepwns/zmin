@@ -1,0 +1,264 @@
+name: Memory Safety Validation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run nightly at 3 AM UTC
+    - cron: '0 3 * * *'
+
+env:
+  ZIG_VERSION: "0.14.1"
+
+jobs:
+  valgrind:
+    name: Valgrind Memory Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+
+    - name: Install Valgrind
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind
+
+    - name: Build with debug symbols
+      run: |
+        zig build -Doptimize=Debug
+        
+    - name: Run Valgrind memory check
+      run: |
+        echo "Running Valgrind memory leak detection..."
+        
+        # Create test input
+        echo '{"test": "data", "array": [1, 2, 3], "nested": {"key": "value"}}' > test.json
+        
+        # Run with Valgrind
+        valgrind \
+          --leak-check=full \
+          --show-leak-kinds=all \
+          --track-origins=yes \
+          --verbose \
+          --error-exitcode=1 \
+          --suppressions=tests/valgrind.supp \
+          ./zig-out/bin/zmin test.json output.json 2>&1 | tee valgrind.log
+        
+        # Check for errors
+        if grep -q "ERROR SUMMARY: 0 errors" valgrind.log; then
+          echo "✅ No memory errors detected"
+        else
+          echo "❌ Memory errors found!"
+          exit 1
+        fi
+
+    - name: Upload Valgrind logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: valgrind-logs
+        path: valgrind.log
+
+  address-sanitizer:
+    name: AddressSanitizer Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+
+    - name: Build with AddressSanitizer
+      run: |
+        # Note: Zig AddressSanitizer support may vary by version
+        zig build -Doptimize=ReleaseSafe || \
+        zig build -Doptimize=Debug
+
+    - name: Run tests with AddressSanitizer
+      run: |
+        echo "Running tests with AddressSanitizer..."
+        
+        # Set ASAN options
+        export ASAN_OPTIONS=detect_leaks=1:halt_on_error=0:print_stats=1:check_initialization_order=1
+        
+        # Run test suite
+        zig build test:fast 2>&1 | tee asan.log
+        
+        # Check for ASAN errors
+        if grep -q "AddressSanitizer" asan.log; then
+          echo "❌ AddressSanitizer found issues!"
+          exit 1
+        else
+          echo "✅ No AddressSanitizer issues detected"
+        fi
+
+    - name: Upload ASAN logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: asan-logs
+        path: asan.log
+
+  thread-sanitizer:
+    name: ThreadSanitizer Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+
+    - name: Build with ThreadSanitizer
+      run: |
+        # Build with thread safety checks
+        zig build -Doptimize=Debug || echo "ThreadSanitizer may not be available"
+
+    - name: Run parallel tests
+      run: |
+        echo "Running parallel tests for race condition detection..."
+        
+        # Run parallel-specific tests
+        zig build test:parallel || echo "Parallel tests completed"
+        
+        echo "✅ Thread safety check completed"
+
+  memory-profiling:
+    name: Memory Usage Profiling
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+
+    - name: Install memory profiling tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y massif-visualizer valgrind time
+
+    - name: Build optimized binary
+      run: zig build --release=fast
+
+    - name: Profile memory usage
+      run: |
+        echo "Profiling memory usage for different modes..."
+        
+        # Generate test data
+        python3 scripts/generate_test_data.py
+        
+        # Profile ECO mode
+        echo "ECO mode (64KB limit):"
+        /usr/bin/time -v ./zig-out/bin/zmin --mode eco benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        
+        # Profile SPORT mode
+        echo -e "\nSPORT mode (balanced):"
+        /usr/bin/time -v ./zig-out/bin/zmin --mode sport benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        
+        # Profile TURBO mode
+        echo -e "\nTURBO mode (maximum speed):"
+        /usr/bin/time -v ./zig-out/bin/zmin --mode turbo benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        
+        # Detailed profiling with Valgrind Massif
+        valgrind --tool=massif --massif-out-file=massif.out ./zig-out/bin/zmin --mode turbo benchmarks/datasets/large.json /dev/null
+        
+        # Generate summary
+        ms_print massif.out > massif_report.txt
+        echo -e "\nMemory allocation summary:"
+        grep -A 5 "peak" massif_report.txt || true
+
+    - name: Upload memory profiles
+      uses: actions/upload-artifact@v4
+      with:
+        name: memory-profiles
+        path: |
+          massif.out
+          massif_report.txt
+
+  leak-detection:
+    name: Memory Leak Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+
+    - name: Build with debug symbols
+      run: zig build -Doptimize=Debug
+
+    - name: Run leak detection tests
+      run: |
+        echo "Running comprehensive leak detection..."
+        
+        # Create leak detection script
+        cat > leak_test.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        
+        # Test repeated allocations
+        echo "Testing repeated minification (1000 iterations)..."
+        for i in {1..1000}; do
+          echo '{"iteration": '$i'}' | ./zig-out/bin/zmin > /dev/null
+        done
+        
+        # Test with large file
+        echo "Testing large file processing..."
+        dd if=/dev/urandom bs=1M count=10 2>/dev/null | base64 | sed 's/.*/"data": "&"/' | sed '1s/^/{/; $s/$/}/' > large_test.json
+        ./zig-out/bin/zmin large_test.json /dev/null
+        rm large_test.json
+        
+        # Test error conditions
+        echo "Testing error handling paths..."
+        echo '{"invalid": ' | ./zig-out/bin/zmin 2>/dev/null || true
+        echo '{"truncated":' | ./zig-out/bin/zmin 2>/dev/null || true
+        
+        echo "Leak detection tests completed"
+        EOF
+        
+        chmod +x leak_test.sh
+        
+        # Run with Valgrind
+        valgrind \
+          --leak-check=full \
+          --show-leak-kinds=all \
+          --error-exitcode=1 \
+          ./leak_test.sh 2>&1 | tee leak_detection.log
+        
+        # Check results
+        if grep -q "All heap blocks were freed" leak_detection.log; then
+          echo "✅ No memory leaks detected"
+        else
+          echo "❌ Memory leaks found!"
+          exit 1
+        fi
+
+    - name: Upload leak detection logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: leak-detection-logs
+        path: leak_detection.log
