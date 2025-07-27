@@ -1,6 +1,9 @@
 const std = @import("std");
 const zmin = @import("zmin_lib");
 const builtin = @import("builtin");
+const errors = @import("common/errors.zig");
+const DevToolError = errors.DevToolError;
+const ErrorReporter = errors.ErrorReporter;
 
 // System information structure
 const SystemInfo = struct {
@@ -88,6 +91,9 @@ const Debugger = struct {
     enable_profiling: bool,
     enable_memory_tracking: bool,
     enable_stack_traces: bool,
+    reporter: ErrorReporter,
+    file_ops: errors.FileOps,
+    process_ops: errors.ProcessOps,
 
     const DebugLevel = enum {
         none,
@@ -153,7 +159,16 @@ const Debugger = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, level: DebugLevel) !Debugger {
-        const system_info = try detectSystemInfo(allocator);
+        const system_info = detectSystemInfo(allocator) catch |err| {
+            // Create a basic reporter for error handling during init
+            var init_reporter = ErrorReporter.init(allocator, "debugger");
+            init_reporter.report(err, errors.context("debugger", "detecting system information"));
+            return DevToolError.InternalError;
+        };
+        
+        var reporter = ErrorReporter.init(allocator, "debugger");
+        const file_ops = errors.FileOps{ .reporter = &reporter };
+        const process_ops = errors.ProcessOps{ .reporter = &reporter };
         
         return Debugger{
             .allocator = allocator,
@@ -165,6 +180,9 @@ const Debugger = struct {
             .enable_profiling = true,
             .enable_memory_tracking = true,
             .enable_stack_traces = true,
+            .reporter = reporter,
+            .file_ops = file_ops,
+            .process_ops = process_ops,
         };
     }
 
@@ -180,7 +198,10 @@ const Debugger = struct {
         if (self.log_file) |file| {
             file.close();
         }
-        self.log_file = try std.fs.cwd().createFile(path, .{});
+        self.log_file = self.file_ops.createFile(path) catch |err| {
+            self.reporter.report(err, errors.contextWithFile("debugger", "creating log file", path));
+            return DevToolError.FileWriteError;
+        };
     }
 
     pub fn enableProfiling(self: *Debugger, enable: bool) void {
@@ -223,7 +244,12 @@ const Debugger = struct {
         // Track memory before
         const mem_before = self.memory_tracker.total_allocated;
 
-        const result = try zmin.minify(self.allocator, input, mode);
+        const result = zmin.minify(self.allocator, input, mode) catch |err| {
+            self.reporter.report(err, errors.contextWithDetails(
+                "debugger", "minifying JSON", "debug minification failed"
+            ));
+            return DevToolError.InternalError;
+        };
 
         // Track memory after
         const mem_after = self.memory_tracker.total_allocated;
@@ -260,9 +286,17 @@ const Debugger = struct {
             self.log(.verbose, "Testing mode: {s}", .{@tagName(mode)});
 
             const mem_before = self.memory_tracker.total_allocated;
-            const timer = try std.time.Timer.start();
+            var timer = std.time.Timer.start() catch |err| {
+                self.reporter.report(err, errors.context("debugger", "starting performance timer"));
+                return DevToolError.InternalError;
+            };
 
-            const result = try zmin.minify(self.allocator, input, mode);
+            const result = zmin.minify(self.allocator, input, mode) catch |err| {
+                self.reporter.report(err, errors.contextWithDetails(
+                    "debugger", "performance analysis", "minification failed"
+                ));
+                return DevToolError.InternalError;
+            };
 
             const elapsed = timer.read();
             const mem_after = self.memory_tracker.total_allocated;
@@ -321,11 +355,17 @@ const Debugger = struct {
             return @call(.auto, func, args);
         }
 
-        const timer = try std.time.Timer.start();
+        var timer = std.time.Timer.start() catch |err| {
+            self.reporter.report(err, errors.context("debugger", "starting profile timer"));
+            return @call(.auto, func, args); // Continue without profiling
+        };
         const result = @call(.auto, func, args);
         const elapsed = timer.read();
 
-        try self.profiler.recordSample(function_name, elapsed);
+        self.profiler.recordSample(function_name, elapsed) catch |err| {
+            self.reporter.report(err, errors.context("debugger", "recording profiling sample"));
+            // Continue without recording this sample
+        };
         
         self.log(.trace, "⏱️  {s}: {d:.3}ms", .{function_name, @as(f64, @floatFromInt(elapsed)) / 1_000_000.0});
         
@@ -346,15 +386,23 @@ const Debugger = struct {
             
             var total_time: u64 = 0;
             var total_memory: usize = 0;
-            var min_time = std.math.maxInt(u64);
+            var min_time: u64 = std.math.maxInt(u64);
             var max_time: u64 = 0;
             var results_size: usize = 0;
 
             for (0..iterations) |i| {
                 const mem_before = if (self.enable_memory_tracking) self.memory_tracker.total_allocated else 0;
                 
-                const timer = try std.time.Timer.start();
-                const result = try zmin.minify(self.allocator, input, mode);
+                var timer = std.time.Timer.start() catch |err| {
+                    self.reporter.report(err, errors.context("debugger", "starting benchmark timer"));
+                    return DevToolError.InternalError;
+                };
+                const result = zmin.minify(self.allocator, input, mode) catch |err| {
+                    self.reporter.report(err, errors.contextWithDetails(
+                        "debugger", "benchmark minification", "minification failed"
+                    ));
+                    return DevToolError.InternalError;
+                };
                 const elapsed = timer.read();
                 
                 const mem_after = if (self.enable_memory_tracking) self.memory_tracker.total_allocated else 0;
@@ -367,7 +415,10 @@ const Debugger = struct {
                 results_size = result.len;
 
                 if (self.enable_profiling) {
-                    try self.profiler.recordSample(@tagName(mode), elapsed);
+                    self.profiler.recordSample(@tagName(mode), elapsed) catch |err| {
+                        self.reporter.report(err, errors.context("debugger", "recording benchmark sample"));
+                        // Continue without recording this sample
+                    };
                 }
 
                 self.allocator.free(result);
@@ -410,9 +461,17 @@ const Debugger = struct {
             self.log(.verbose, "Testing with {d} bytes of data", .{test_data.len});
             
             const mem_before = self.memory_tracker.total_allocated;
-            const timer = try std.time.Timer.start();
+            var timer = std.time.Timer.start() catch |err| {
+                self.reporter.report(err, errors.context("debugger", "starting stress test timer"));
+                return DevToolError.InternalError;
+            };
             
-            const result = try zmin.minify(arena.allocator(), test_data, .sport);
+            const result = zmin.minify(arena.allocator(), test_data, .sport) catch |err| {
+                self.reporter.report(err, errors.contextWithDetails(
+                    "debugger", "memory stress test", "minification failed"
+                ));
+                return DevToolError.InternalError;
+            };
             
             const elapsed = timer.read();
             const mem_after = self.memory_tracker.total_allocated;
@@ -461,7 +520,7 @@ fn detectCpuModel(allocator: std.mem.Allocator) ![]const u8 {
     const cpuinfo = std.fs.cwd().readFileAlloc(allocator, "/proc/cpuinfo", 4096) catch return try allocator.dupe(u8, "Unknown CPU");
     defer allocator.free(cpuinfo);
 
-    var lines = std.mem.split(u8, cpuinfo, "\n");
+    var lines = std.mem.splitSequence(u8, cpuinfo, "\n");
     while (lines.next()) |line| {
         if (std.mem.startsWith(u8, line, "model name")) {
             if (std.mem.indexOf(u8, line, ":")) |colon_pos| {
@@ -544,10 +603,10 @@ fn getTotalMemory() usize {
     const meminfo = std.fs.cwd().readFileAlloc(std.heap.page_allocator, "/proc/meminfo", 4096) catch return 8 * 1024 * 1024 * 1024; // 8GB default
     defer std.heap.page_allocator.free(meminfo);
 
-    var lines = std.mem.split(u8, meminfo, "\n");
+    var lines = std.mem.splitSequence(u8, meminfo, "\n");
     while (lines.next()) |line| {
         if (std.mem.startsWith(u8, line, "MemTotal:")) {
-            var parts = std.mem.split(u8, line, " ");
+            var parts = std.mem.splitSequence(u8, line, " ");
             _ = parts.next(); // Skip "MemTotal:"
             var kb_str: ?[]const u8 = null;
             while (parts.next()) |part| {
@@ -570,10 +629,10 @@ fn getAvailableMemory() usize {
     const meminfo = std.fs.cwd().readFileAlloc(std.heap.page_allocator, "/proc/meminfo", 4096) catch return 4 * 1024 * 1024 * 1024; // 4GB default
     defer std.heap.page_allocator.free(meminfo);
 
-    var lines = std.mem.split(u8, meminfo, "\n");
+    var lines = std.mem.splitSequence(u8, meminfo, "\n");
     while (lines.next()) |line| {
         if (std.mem.startsWith(u8, line, "MemAvailable:")) {
-            var parts = std.mem.split(u8, line, " ");
+            var parts = std.mem.splitSequence(u8, line, " ");
             _ = parts.next(); // Skip "MemAvailable:"
             var kb_str: ?[]const u8 = null;
             while (parts.next()) |part| {
@@ -601,10 +660,10 @@ fn getCurrentMemoryUsage() usize {
     const status = std.fs.cwd().readFileAlloc(std.heap.page_allocator, "/proc/self/status", 4096) catch return 0;
     defer std.heap.page_allocator.free(status);
 
-    var lines = std.mem.split(u8, status, "\n");
+    var lines = std.mem.splitSequence(u8, status, "\n");
     while (lines.next()) |line| {
         if (std.mem.startsWith(u8, line, "VmRSS:")) {
-            var parts = std.mem.split(u8, line, " ");
+            var parts = std.mem.splitSequence(u8, line, " ");
             _ = parts.next(); // Skip "VmRSS:"
             var kb_str: ?[]const u8 = null;
             while (parts.next()) |part| {
@@ -676,21 +735,21 @@ pub fn main() !void {
         } else if (std.mem.eql(u8, arg, "--log") or std.mem.eql(u8, arg, "-l")) {
             if (i + 1 >= args.len) {
                 std.log.err("Missing log file path", .{});
-                return error.InvalidArguments;
+                return DevToolError.MissingArgument;
             }
             log_file = args[i + 1];
             i += 1;
         } else if (std.mem.eql(u8, arg, "--input") or std.mem.eql(u8, arg, "-i")) {
             if (i + 1 >= args.len) {
                 std.log.err("Missing input file path", .{});
-                return error.InvalidArguments;
+                return DevToolError.MissingArgument;
             }
             input_file = args[i + 1];
             i += 1;
         } else if (std.mem.eql(u8, arg, "--mode") or std.mem.eql(u8, arg, "-m")) {
             if (i + 1 >= args.len) {
                 std.log.err("Missing mode", .{});
-                return error.InvalidArguments;
+                return DevToolError.MissingArgument;
             }
             const mode_str = args[i + 1];
             mode = if (std.mem.eql(u8, mode_str, "eco"))
@@ -701,17 +760,17 @@ pub fn main() !void {
                 zmin.ProcessingMode.turbo
             else {
                 std.log.err("Invalid mode: {s}", .{mode_str});
-                return error.InvalidArguments;
+                return DevToolError.InvalidArguments;
             };
             i += 1;
         } else if (std.mem.eql(u8, arg, "--benchmark") or std.mem.eql(u8, arg, "-b")) {
             if (i + 1 >= args.len) {
                 std.log.err("Missing benchmark iterations", .{});
-                return error.InvalidArguments;
+                return DevToolError.MissingArgument;
             }
             benchmark_iterations = std.fmt.parseInt(u32, args[i + 1], 10) catch {
                 std.log.err("Invalid benchmark iterations: {s}", .{args[i + 1]});
-                return error.InvalidArguments;
+                return DevToolError.InvalidArguments;
             };
             i += 1;
         } else if (std.mem.eql(u8, arg, "--no-profiling")) {
@@ -723,21 +782,21 @@ pub fn main() !void {
         } else if (std.mem.eql(u8, arg, "--stress-size")) {
             if (i + 1 >= args.len) {
                 std.log.err("Missing stress test base size", .{});
-                return error.InvalidArguments;
+                return DevToolError.MissingArgument;
             }
             stress_test_base_size = std.fmt.parseInt(usize, args[i + 1], 10) catch {
                 std.log.err("Invalid stress test base size: {s}", .{args[i + 1]});
-                return error.InvalidArguments;
+                return DevToolError.InvalidArguments;
             };
             i += 1;
         } else if (std.mem.eql(u8, arg, "--stress-multiplier")) {
             if (i + 1 >= args.len) {
                 std.log.err("Missing stress test multiplier", .{});
-                return error.InvalidArguments;
+                return DevToolError.MissingArgument;
             }
             stress_test_multiplier = std.fmt.parseInt(u32, args[i + 1], 10) catch {
                 std.log.err("Invalid stress test multiplier: {s}", .{args[i + 1]});
-                return error.InvalidArguments;
+                return DevToolError.InvalidArguments;
             };
             i += 1;
         } else if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
@@ -746,7 +805,7 @@ pub fn main() !void {
         } else {
             std.log.err("Unknown option: {s}", .{arg});
             printUsage();
-            return error.InvalidArguments;
+            return DevToolError.UnknownCommand;
         }
     }
 
@@ -768,9 +827,11 @@ pub fn main() !void {
 
     // Read input
     const input = if (input_file) |file_path| blk: {
-        const file = try std.fs.cwd().openFile(file_path, .{});
-        defer file.close();
-        break :blk try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+        const file_content = debugger.file_ops.readFile(allocator, file_path) catch |err| {
+            debugger.reporter.report(err, errors.contextWithFile("debugger", "reading input file", file_path));
+            return DevToolError.FileReadError;
+        };
+        break :blk file_content;
     } else blk: {
         // Use sample input
         break :blk "{\"users\":[{\"id\":1,\"name\":\"John Doe\",\"email\":\"john@example.com\",\"active\":true,\"profile\":{\"age\":30,\"location\":\"NYC\",\"preferences\":{\"theme\":\"dark\",\"notifications\":true}}},{\"id\":2,\"name\":\"Jane Smith\",\"email\":\"jane@example.com\",\"active\":false,\"profile\":{\"age\":25,\"location\":\"LA\",\"preferences\":{\"theme\":\"light\",\"notifications\":false}}}],\"metadata\":{\"total\":2,\"page\":1,\"limit\":10,\"timestamp\":\"2024-01-01T00:00:00Z\"}}";
@@ -853,5 +914,5 @@ fn printUsage() void {
         \\  • Function-level profiling with timing
         \\  • Detailed performance reports in Markdown format
         \\
-    );
+    , .{});
 }

@@ -1,6 +1,9 @@
 const std = @import("std");
 const zmin = @import("zmin_lib");
 const builtin = @import("builtin");
+const errors = @import("common/errors.zig");
+const DevToolError = errors.DevToolError;
+const ErrorReporter = errors.ErrorReporter;
 
 // System statistics structure
 const SystemStats = struct {
@@ -32,10 +35,27 @@ const Server = struct {
     stats: SystemStats,
     metrics: PerformanceMetrics,
     mutex: std.Thread.Mutex,
+    reporter: ErrorReporter,
+    file_ops: errors.FileOps,
+    process_ops: errors.ProcessOps,
 
     pub fn init(allocator: std.mem.Allocator, port: u16) !Server {
-        const address = try std.net.Address.parseIp("127.0.0.1", port);
-        const server = try address.listen(.{});
+        const address = std.net.Address.parseIp("127.0.0.1", port) catch |err| {
+            switch (err) {
+                error.InvalidIPAddressFormat => return DevToolError.InvalidConfiguration,
+            }
+        };
+        const server = address.listen(.{}) catch |err| {
+            switch (err) {
+                error.AddressInUse => return DevToolError.BindFailed,
+                error.PermissionDenied => return DevToolError.PermissionDenied,
+                else => return DevToolError.BindFailed,
+            }
+        };
+
+        var reporter = ErrorReporter.init(allocator, "dev-server");
+        const file_ops = errors.FileOps{ .reporter = &reporter };
+        const process_ops = errors.ProcessOps{ .reporter = &reporter };
 
         // Detect CPU features
         const cpu_features = try detectCpuFeatures(allocator);
@@ -70,6 +90,9 @@ const Server = struct {
                 .numa_nodes = numa_nodes,
             },
             .mutex = std.Thread.Mutex{},
+            .reporter = reporter,
+            .file_ops = file_ops,
+            .process_ops = process_ops,
         };
     }
 
@@ -82,25 +105,49 @@ const Server = struct {
         std.log.info("Press Ctrl+C to stop", .{});
 
         while (true) {
-            const connection = try self.server.accept();
+            const connection = self.server.accept() catch |err| {
+                self.reporter.report(err, errors.context("dev-server", "accepting connection"));
+                continue; // Continue serving other connections
+            };
             defer connection.stream.close();
 
-            try self.handleRequest(connection);
+            self.handleRequest(connection) catch |err| {
+                self.reporter.report(err, errors.context("dev-server", "handling HTTP request"));
+                // Continue serving other requests
+            };
         }
     }
 
     fn handleRequest(self: *Server, connection: std.net.Server.Connection) !void {
         var buffer: [4096]u8 = undefined;
-        const bytes_read = try connection.stream.reader().read(&buffer);
+        const bytes_read = connection.stream.reader().read(&buffer) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "reading HTTP request"));
+            return DevToolError.ConnectionFailed;
+        };
         const request = buffer[0..bytes_read];
 
         // Parse HTTP request
         var lines = std.mem.splitSequence(u8, request, "\r\n");
-        const request_line = lines.next() orelse return error.InvalidRequest;
+        const request_line = lines.next() orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing HTTP request", "missing request line"
+            ));
+            return DevToolError.InvalidRequest;
+        };
 
         var parts = std.mem.splitSequence(u8, request_line, " ");
-        _ = parts.next() orelse return error.InvalidRequest; // method
-        const path = parts.next() orelse return error.InvalidRequest;
+        _ = parts.next() orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing HTTP request", "missing HTTP method"
+            ));
+            return DevToolError.InvalidRequest;
+        }; // method
+        const path = parts.next() orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing HTTP request", "missing request path"
+            ));
+            return DevToolError.InvalidRequest;
+        };
 
         // Track request start time
         const request_start = std.time.nanoTimestamp();
@@ -131,7 +178,7 @@ const Server = struct {
         self.updateRequestStats(request_duration);
     }
 
-    fn serveIndex(_: *Server, connection: std.net.Server.Connection) !void {
+    fn serveIndex(self: *Server, connection: std.net.Server.Connection) !void {
         const html = @embedFile("dev_server/index.html");
         const response =
             "HTTP/1.1 200 OK\r\n" ++
@@ -139,8 +186,14 @@ const Server = struct {
             "Content-Length: " ++ std.fmt.comptimePrint("{d}", .{html.len}) ++ "\r\n" ++
             "\r\n";
 
-        try connection.stream.writer().writeAll(response);
-        try connection.stream.writer().writeAll(html);
+        connection.stream.writer().writeAll(response) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "sending index.html response"));
+            return DevToolError.ConnectionFailed;
+        };
+        connection.stream.writer().writeAll(html) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "sending index.html content"));
+            return DevToolError.ConnectionFailed;
+        };
     }
 
     fn serveStatic(self: *Server, connection: std.net.Server.Connection, path: []const u8) !void {
@@ -154,8 +207,14 @@ const Server = struct {
                 "Content-Length: " ++ std.fmt.comptimePrint("{d}", .{css.len}) ++ "\r\n" ++
                 "\r\n";
 
-            try connection.stream.writer().writeAll(response);
-            try connection.stream.writer().writeAll(css);
+            connection.stream.writer().writeAll(response) catch |err| {
+                self.reporter.report(err, errors.context("dev-server", "sending CSS response"));
+                return DevToolError.ConnectionFailed;
+            };
+            connection.stream.writer().writeAll(css) catch |err| {
+                self.reporter.report(err, errors.context("dev-server", "sending CSS content"));
+                return DevToolError.ConnectionFailed;
+            };
         } else if (std.mem.eql(u8, file_path, "script.js")) {
             const js = @embedFile("dev_server/script.js");
             const response =
@@ -164,8 +223,14 @@ const Server = struct {
                 "Content-Length: " ++ std.fmt.comptimePrint("{d}", .{js.len}) ++ "\r\n" ++
                 "\r\n";
 
-            try connection.stream.writer().writeAll(response);
-            try connection.stream.writer().writeAll(js);
+            connection.stream.writer().writeAll(response) catch |err| {
+                self.reporter.report(err, errors.context("dev-server", "sending JS response"));
+                return DevToolError.ConnectionFailed;
+            };
+            connection.stream.writer().writeAll(js) catch |err| {
+                self.reporter.report(err, errors.context("dev-server", "sending JS content"));
+                return DevToolError.ConnectionFailed;
+            };
         } else {
             try self.serve404(connection);
         }
@@ -173,16 +238,41 @@ const Server = struct {
 
     fn handleMinifyApi(self: *Server, connection: std.net.Server.Connection, request: []const u8) !void {
         // Parse JSON request body
-        const body_start = std.mem.indexOf(u8, request, "\r\n\r\n") orelse return error.InvalidRequest;
+        const body_start = std.mem.indexOf(u8, request, "\r\n\r\n") orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing minify API request", "missing request body"
+            ));
+            return DevToolError.InvalidRequest;
+        };
         const body = request[body_start + 4 ..];
 
         // Simple JSON parsing for demo
-        const input_start = std.mem.indexOf(u8, body, "\"input\":\"") orelse return error.InvalidRequest;
-        const input_end = std.mem.indexOfPos(u8, body, input_start + 9, "\"") orelse return error.InvalidRequest;
+        const input_start = std.mem.indexOf(u8, body, "\"input\":\"") orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing minify API request", "missing 'input' field"
+            ));
+            return DevToolError.InvalidRequest;
+        };
+        const input_end = std.mem.indexOfPos(u8, body, input_start + 9, "\"") orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing minify API request", "malformed 'input' field"
+            ));
+            return DevToolError.InvalidRequest;
+        };
         const input = body[input_start + 9 .. input_end];
 
-        const mode_start = std.mem.indexOf(u8, body, "\"mode\":\"") orelse return error.InvalidRequest;
-        const mode_end = std.mem.indexOfPos(u8, body, mode_start + 8, "\"") orelse return error.InvalidRequest;
+        const mode_start = std.mem.indexOf(u8, body, "\"mode\":\"") orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing minify API request", "missing 'mode' field"
+            ));
+            return DevToolError.InvalidRequest;
+        };
+        const mode_end = std.mem.indexOfPos(u8, body, mode_start + 8, "\"") orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing minify API request", "malformed 'mode' field"
+            ));
+            return DevToolError.InvalidRequest;
+        };
         const mode_str = body[mode_start + 8 .. mode_end];
 
         // Minify the input
@@ -196,8 +286,16 @@ const Server = struct {
         else
             zmin.ProcessingMode.turbo;
 
-        const timer = try std.time.Timer.start();
-        const result = try zmin.minify(arena.allocator(), input, mode);
+        var timer = std.time.Timer.start() catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "starting minify timer"));
+            return DevToolError.InternalError;
+        };
+        const result = zmin.minify(arena.allocator(), input, mode) catch |err| {
+            self.reporter.report(err, errors.contextWithDetails(
+                "dev-server", "minifying JSON", "minification process failed"
+            ));
+            return DevToolError.InternalError;
+        };
         const elapsed_ns = timer.read();
         const elapsed_ms = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
 
@@ -205,31 +303,59 @@ const Server = struct {
         self.updateMinifyStats(elapsed_ms, input.len);
 
         // Create JSON response
-        const response_json = try std.fmt.allocPrint(arena.allocator(), "{{\"output\":\"{s}\",\"original_size\":{d},\"minified_size\":{d},\"compression_ratio\":{d:.2}}}", .{
+        const response_json = std.fmt.allocPrint(arena.allocator(), "{{\"output\":\"{s}\",\"original_size\":{d},\"minified_size\":{d},\"compression_ratio\":{d:.2}}}", .{
             std.fmt.fmtSliceEscapeLower(result),
             input.len,
             result.len,
             @as(f64, @floatFromInt(input.len)) / @as(f64, @floatFromInt(result.len)),
-        });
+        }) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "formatting minify response JSON"));
+            return DevToolError.OutOfMemory;
+        };
 
-        const response =
+        const response = std.fmt.allocPrint(self.allocator,
             "HTTP/1.1 200 OK\r\n" ++
             "Content-Type: application/json\r\n" ++
             "Access-Control-Allow-Origin: *\r\n" ++
-            "Content-Length: " ++ std.fmt.comptimePrint("{d}", .{response_json.len}) ++ "\r\n" ++
-            "\r\n";
+            "Content-Length: {d}\r\n" ++
+            "\r\n", .{response_json.len}) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "formatting HTTP response"));
+            return DevToolError.OutOfMemory;
+        };
+        defer self.allocator.free(response);
 
-        try connection.stream.writer().writeAll(response);
-        try connection.stream.writer().writeAll(response_json);
+        connection.stream.writer().writeAll(response) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "sending HTTP response headers"));
+            return DevToolError.ConnectionFailed;
+        };
+        connection.stream.writer().writeAll(response_json) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "sending HTTP response body"));
+            return DevToolError.ConnectionFailed;
+        };
     }
 
     fn handleBenchmarkApi(self: *Server, connection: std.net.Server.Connection, request: []const u8) !void {
         // Parse JSON request body
-        const body_start = std.mem.indexOf(u8, request, "\r\n\r\n") orelse return error.InvalidRequest;
+        const body_start = std.mem.indexOf(u8, request, "\r\n\r\n") orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing benchmark API request", "missing request body"
+            ));
+            return DevToolError.InvalidRequest;
+        };
         const body = request[body_start + 4 ..];
 
-        const input_start = std.mem.indexOf(u8, body, "\"input\":\"") orelse return error.InvalidRequest;
-        const input_end = std.mem.indexOfPos(u8, body, input_start + 9, "\"") orelse return error.InvalidRequest;
+        const input_start = std.mem.indexOf(u8, body, "\"input\":\"") orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing benchmark API request", "missing 'input' field"
+            ));
+            return DevToolError.InvalidRequest;
+        };
+        const input_end = std.mem.indexOfPos(u8, body, input_start + 9, "\"") orelse {
+            self.reporter.report(DevToolError.InvalidRequest, errors.contextWithDetails(
+                "dev-server", "parsing benchmark API request", "malformed 'input' field"
+            ));
+            return DevToolError.InvalidRequest;
+        };
         const input = body[input_start + 9 .. input_end];
 
         var arena = std.heap.ArenaAllocator.init(self.allocator);
@@ -249,8 +375,16 @@ const Server = struct {
         } = undefined;
 
         for (modes, 0..) |mode, i| {
-            const timer = try std.time.Timer.start();
-            const result = try zmin.minify(arena.allocator(), input, mode);
+            var timer = std.time.Timer.start() catch |err| {
+                self.reporter.report(err, errors.context("dev-server", "starting benchmark timer"));
+                return DevToolError.InternalError;
+            };
+            const result = zmin.minify(arena.allocator(), input, mode) catch |err| {
+                self.reporter.report(err, errors.contextWithDetails(
+                    "dev-server", "benchmarking JSON minification", "minification process failed"
+                ));
+                return DevToolError.InternalError;
+            };
             const elapsed = timer.read();
 
             results[i] = .{
@@ -265,24 +399,37 @@ const Server = struct {
         }
 
         // Create JSON response
-        const response_json = try std.fmt.allocPrint(arena.allocator(), "{{\"results\":[{{\"mode\":\"{s}\",\"time_ms\":{d:.2},\"size\":{d}}},{{\"mode\":\"{s}\",\"time_ms\":{d:.2},\"size\":{d}}},{{\"mode\":\"{s}\",\"time_ms\":{d:.2},\"size\":{d}}}]}}", .{
+        const response_json = std.fmt.allocPrint(arena.allocator(), "{{\"results\":[{{\"mode\":\"{s}\",\"time_ms\":{d:.2},\"size\":{d}}},{{\"mode\":\"{s}\",\"time_ms\":{d:.2},\"size\":{d}}},{{\"mode\":\"{s}\",\"time_ms\":{d:.2},\"size\":{d}}}]}}", .{
             results[0].mode, @as(f64, @floatFromInt(results[0].time_ns)) / 1_000_000.0, results[0].size,
             results[1].mode, @as(f64, @floatFromInt(results[1].time_ns)) / 1_000_000.0, results[1].size,
             results[2].mode, @as(f64, @floatFromInt(results[2].time_ns)) / 1_000_000.0, results[2].size,
-        });
+        }) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "formatting benchmark response JSON"));
+            return DevToolError.OutOfMemory;
+        };
 
-        const response =
+        const response = std.fmt.allocPrint(self.allocator,
             "HTTP/1.1 200 OK\r\n" ++
             "Content-Type: application/json\r\n" ++
             "Access-Control-Allow-Origin: *\r\n" ++
-            "Content-Length: " ++ std.fmt.comptimePrint("{d}", .{response_json.len}) ++ "\r\n" ++
-            "\r\n";
+            "Content-Length: {d}\r\n" ++
+            "\r\n", .{response_json.len}) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "formatting benchmark HTTP response"));
+            return DevToolError.OutOfMemory;
+        };
+        defer self.allocator.free(response);
 
-        try connection.stream.writer().writeAll(response);
-        try connection.stream.writer().writeAll(response_json);
+        connection.stream.writer().writeAll(response) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "sending benchmark response headers"));
+            return DevToolError.ConnectionFailed;
+        };
+        connection.stream.writer().writeAll(response_json) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "sending benchmark response body"));
+            return DevToolError.ConnectionFailed;
+        };
     }
 
-    fn serve404(_: *Server, connection: std.net.Server.Connection) !void {
+    fn serve404(self: *Server, connection: std.net.Server.Connection) !void {
         const html =
             "<html><head><title>404 Not Found</title></head>" ++
             "<body><h1>404 Not Found</h1><p>The requested resource was not found.</p></body></html>";
@@ -293,8 +440,14 @@ const Server = struct {
             "Content-Length: " ++ std.fmt.comptimePrint("{d}", .{html.len}) ++ "\r\n" ++
             "\r\n";
 
-        try connection.stream.writer().writeAll(response);
-        try connection.stream.writer().writeAll(html);
+        connection.stream.writer().writeAll(response) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "sending 404 response"));
+            return DevToolError.ConnectionFailed;
+        };
+        connection.stream.writer().writeAll(html) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "sending 404 content"));
+            return DevToolError.ConnectionFailed;
+        };
     }
 
     // New API handlers for enhanced development server
@@ -388,17 +541,25 @@ const Server = struct {
     }
 
     fn sendJsonResponse(self: *Server, connection: std.net.Server.Connection, json: []const u8) !void {
-        _ = self;
-        const response = try std.fmt.allocPrint(self.allocator,
+        const response = std.fmt.allocPrint(self.allocator,
             "HTTP/1.1 200 OK\r\n" ++
             "Content-Type: application/json\r\n" ++
             "Access-Control-Allow-Origin: *\r\n" ++
             "Content-Length: {d}\r\n" ++
-            "\r\n", .{json.len});
+            "\r\n", .{json.len}) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "formatting JSON response"));
+            return DevToolError.OutOfMemory;
+        };
         defer self.allocator.free(response);
 
-        try connection.stream.writer().writeAll(response);
-        try connection.stream.writer().writeAll(json);
+        connection.stream.writer().writeAll(response) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "sending JSON response headers"));
+            return DevToolError.ConnectionFailed;
+        };
+        connection.stream.writer().writeAll(json) catch |err| {
+            self.reporter.report(err, errors.context("dev-server", "sending JSON response body"));
+            return DevToolError.ConnectionFailed;
+        };
     }
 
     fn updateRequestStats(self: *Server, duration_ms: f64) void {
@@ -474,10 +635,10 @@ fn getTotalMemory() usize {
     const meminfo = std.fs.cwd().readFileAlloc(std.heap.page_allocator, "/proc/meminfo", 4096) catch return 1024 * 1024 * 1024; // 1GB default
     defer std.heap.page_allocator.free(meminfo);
 
-    var lines = std.mem.split(u8, meminfo, "\n");
+    var lines = std.mem.splitSequence(u8, meminfo, "\n");
     while (lines.next()) |line| {
         if (std.mem.startsWith(u8, line, "MemTotal:")) {
-            var parts = std.mem.split(u8, line, " ");
+            var parts = std.mem.splitSequence(u8, line, " ");
             _ = parts.next(); // Skip "MemTotal:"
             var kb_str: ?[]const u8 = null;
             while (parts.next()) |part| {
@@ -501,10 +662,10 @@ fn getCurrentMemoryUsage() usize {
     const status = std.fs.cwd().readFileAlloc(std.heap.page_allocator, "/proc/self/status", 4096) catch return 0;
     defer std.heap.page_allocator.free(status);
 
-    var lines = std.mem.split(u8, status, "\n");
+    var lines = std.mem.splitSequence(u8, status, "\n");
     while (lines.next()) |line| {
         if (std.mem.startsWith(u8, line, "VmRSS:")) {
-            var parts = std.mem.split(u8, line, " ");
+            var parts = std.mem.splitSequence(u8, line, " ");
             _ = parts.next(); // Skip "VmRSS:"
             var kb_str: ?[]const u8 = null;
             while (parts.next()) |part| {

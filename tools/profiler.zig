@@ -1,11 +1,15 @@
 const std = @import("std");
 const zmin = @import("zmin_lib");
+const errors = @import("common/errors.zig");
+const DevToolError = errors.DevToolError;
+const ErrorReporter = errors.ErrorReporter;
 
 const Profiler = struct {
     allocator: std.mem.Allocator,
     samples: std.ArrayList(Sample),
-    current_sample: ?Sample,
+    current_sample: ?*Sample,
     enabled: bool,
+    reporter: ErrorReporter,
 
     const Sample = struct {
         name: []const u8,
@@ -50,6 +54,7 @@ const Profiler = struct {
             .samples = std.ArrayList(Sample).init(allocator),
             .current_sample = null,
             .enabled = true,
+            .reporter = ErrorReporter.init(allocator, "profiler"),
         };
     }
 
@@ -67,24 +72,24 @@ const Profiler = struct {
         const memory_before = self.getCurrentMemoryUsage();
 
         var sample = Sample.init(self.allocator, name, timer.read(), memory_before);
-        sample.parent = self.current_sample;
-
-        if (self.current_sample) |*current| {
+        
+        if (self.current_sample) |current| {
+            sample.parent = current;
             try current.children.append(sample);
+            self.current_sample = &current.children.items[current.children.items.len - 1];
         } else {
             try self.samples.append(sample);
+            self.current_sample = &self.samples.items[self.samples.items.len - 1];
         }
-
-        self.current_sample = &self.samples.items[self.samples.items.len - 1];
     }
 
     pub fn endSample(self: *Profiler) void {
         if (!self.enabled or self.current_sample == null) return;
 
-        var timer = try std.time.Timer.start();
+        var timer = std.time.Timer.start() catch return;
         const memory_after = self.getCurrentMemoryUsage();
 
-        if (self.current_sample) |*sample| {
+        if (self.current_sample) |sample| {
             sample.end_time = timer.read();
             sample.memory_after = memory_after;
         }
@@ -97,8 +102,23 @@ const Profiler = struct {
 
     fn getCurrentMemoryUsage(self: *Profiler) usize {
         _ = self;
-        // This is a simplified implementation
-        // In a real profiler, you'd track actual memory usage
+        // Try to read from /proc/self/status on Linux
+        const status = std.fs.cwd().readFileAlloc(std.heap.page_allocator, "/proc/self/status", 4096) catch return 0;
+        defer std.heap.page_allocator.free(status);
+
+        var lines = std.mem.splitSequence(u8, status, "\n");
+        while (lines.next()) |line| {
+            if (std.mem.startsWith(u8, line, "VmRSS:")) {
+                var parts = std.mem.splitSequence(u8, line, " ");
+                _ = parts.next(); // Skip "VmRSS:"
+                while (parts.next()) |part| {
+                    if (part.len > 0 and std.ascii.isDigit(part[0])) {
+                        const kb_value = std.fmt.parseInt(usize, part, 10) catch return 0;
+                        return kb_value * 1024; // Convert KB to bytes
+                    }
+                }
+            }
+        }
         return 0;
     }
 
@@ -113,7 +133,14 @@ const Profiler = struct {
     }
 
     fn printSample(self: *Profiler, sample: Sample, depth: usize) void {
-        const indent = "  " ** depth;
+        // Create indent string
+        var indent_buf: [64]u8 = undefined;
+        const indent_len = @min(depth * 2, indent_buf.len);
+        for (0..indent_len) |i| {
+            indent_buf[i] = ' ';
+        }
+        const indent = indent_buf[0..indent_len];
+        
         const duration = sample.duration();
         const memory = sample.memory_used();
 
@@ -152,7 +179,14 @@ const Profiler = struct {
     }
 
     fn writeSampleToJson(self: *Profiler, file: std.fs.File, sample: Sample, indent: usize) !void {
-        const indent_str = " " ** indent;
+        // Create indent string
+        var indent_buf: [256]u8 = undefined;
+        const indent_len = @min(indent, indent_buf.len);
+        for (0..indent_len) |i| {
+            indent_buf[i] = ' ';
+        }
+        const indent_str = indent_buf[0..indent_len];
+        
         try file.writer().print("{s}{{\n", .{indent_str});
         try file.writer().print("{s}  \"name\": \"{s}\",\n", .{ indent_str, sample.name });
         try file.writer().print("{s}  \"start_time\": {d},\n", .{ indent_str, sample.start_time });
@@ -178,7 +212,7 @@ const Profiler = struct {
             try file.writer().print("\n{s}  ]\n", .{indent_str});
         }
 
-        try file.writer().print("{s}}}\n", .{indent_str});
+        try file.writer().print("{s}}}", .{indent_str});
     }
 };
 
@@ -195,6 +229,9 @@ pub fn main() !void {
     var json_output: ?[]const u8 = null;
     var iterations: u32 = 100;
 
+    // Create error reporter for argument parsing
+    var reporter = ErrorReporter.init(allocator, "profiler");
+
     // Parse command line arguments
     var i: usize = 1;
     while (i < args.len) : (i += 1) {
@@ -202,29 +239,37 @@ pub fn main() !void {
 
         if (std.mem.eql(u8, arg, "--input") or std.mem.eql(u8, arg, "-i")) {
             if (i + 1 >= args.len) {
-                std.log.err("Missing input file path", .{});
-                return error.InvalidArguments;
+                reporter.report(DevToolError.MissingArgument, errors.contextWithDetails(
+                    "profiler", "parsing arguments", "Missing input file path"
+                ));
+                return DevToolError.MissingArgument;
             }
             input_file = args[i + 1];
             i += 1;
         } else if (std.mem.eql(u8, arg, "--output") or std.mem.eql(u8, arg, "-o")) {
             if (i + 1 >= args.len) {
-                std.log.err("Missing output file path", .{});
-                return error.InvalidArguments;
+                reporter.report(DevToolError.MissingArgument, errors.contextWithDetails(
+                    "profiler", "parsing arguments", "Missing output file path"
+                ));
+                return DevToolError.MissingArgument;
             }
             output_file = args[i + 1];
             i += 1;
         } else if (std.mem.eql(u8, arg, "--json") or std.mem.eql(u8, arg, "-j")) {
             if (i + 1 >= args.len) {
-                std.log.err("Missing JSON output file path", .{});
-                return error.InvalidArguments;
+                reporter.report(DevToolError.MissingArgument, errors.contextWithDetails(
+                    "profiler", "parsing arguments", "Missing JSON output file path"
+                ));
+                return DevToolError.MissingArgument;
             }
             json_output = args[i + 1];
             i += 1;
         } else if (std.mem.eql(u8, arg, "--iterations") or std.mem.eql(u8, arg, "-n")) {
             if (i + 1 >= args.len) {
-                std.log.err("Missing iteration count", .{});
-                return error.InvalidArguments;
+                reporter.report(DevToolError.MissingArgument, errors.contextWithDetails(
+                    "profiler", "parsing arguments", "Missing iteration count"
+                ));
+                return DevToolError.MissingArgument;
             }
             iterations = try std.fmt.parseInt(u32, args[i + 1], 10);
             i += 1;
@@ -232,8 +277,10 @@ pub fn main() !void {
             printUsage();
             return;
         } else {
-            std.log.err("Unknown option: {s}", .{arg});
-            return error.InvalidArguments;
+            reporter.report(DevToolError.UnknownCommand, errors.contextWithDetails(
+                "profiler", "parsing arguments", arg
+            ));
+            return DevToolError.UnknownCommand;
         }
     }
 

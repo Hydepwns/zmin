@@ -1,6 +1,9 @@
 const std = @import("std");
 const zmin = @import("zmin_lib");
 const builtin = @import("builtin");
+const errors = @import("common/errors.zig");
+const DevToolError = errors.DevToolError;
+const ErrorReporter = errors.ErrorReporter;
 
 // File change event
 const FileEvent = struct {
@@ -49,6 +52,7 @@ const HotReloader = struct {
     file_hashes: std.HashMap([]const u8, u64, std.hash_map.StringContext, std.hash_map.default_max_load_percentage),
     event_queue: std.ArrayList(FileEvent),
     mutex: std.Thread.Mutex,
+    reporter: ErrorReporter,
 
     pub fn init(allocator: std.mem.Allocator) HotReloader {
         const default_extensions = [_][]const u8{ ".zig", ".c", ".h", ".cpp", ".hpp", ".js", ".ts", ".html", ".css", ".json", ".toml", ".yaml", ".yml" };
@@ -81,6 +85,7 @@ const HotReloader = struct {
             .file_hashes = std.HashMap([]const u8, u64, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator),
             .event_queue = std.ArrayList(FileEvent).init(allocator),
             .mutex = std.Thread.Mutex{},
+            .reporter = ErrorReporter.init(allocator, "hot-reloading"),
         };
     }
 
@@ -175,19 +180,19 @@ const HotReloader = struct {
     }
 
     fn collectFiles(self: *HotReloader, path: []const u8, files: *std.ArrayList([]const u8)) !void {
-        const dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |err| {
+        var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |err| {
             if (err == error.NotDir) {
                 // It's a file, add it
                 try files.append(path);
                 return;
             }
+            self.reporter.report(err, errors.contextWithFile("hot-reloading", "opening directory", path));
             return err;
         };
         defer dir.close();
 
         var iter = dir.iterate();
-        while (iter.next()) |entry| {
-            entry catch continue;
+        while (try iter.next()) |entry| {
             const full_path = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ path, entry.name });
 
             if (entry.kind == .directory) {
@@ -243,11 +248,9 @@ const HotReloader = struct {
         const start_time = std.time.milliTimestamp();
 
         // Run build command
-        const result = std.ChildProcess.exec(.{
-            .allocator = self.allocator,
-            .argv = &[_][]const u8{ "sh", "-c", self.build_command },
-        }) catch |err| {
-            std.log.err("Failed to execute build command: {}", .{err});
+        const process_ops = errors.ProcessOps{ .reporter = &self.reporter };
+        const result = process_ops.exec(self.allocator, &[_][]const u8{ "sh", "-c", self.build_command }) catch {
+            self.stats.failed_builds += 1;
             return;
         };
 
@@ -375,7 +378,7 @@ const HotReloader = struct {
     }
 
     fn collectFilesAdvanced(self: *HotReloader, path: []const u8, files: *std.ArrayList([]const u8)) !void {
-        const dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |err| {
+        var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |err| {
             if (err == error.NotDir) {
                 // It's a file, check if we should watch it
                 if (self.shouldWatchFileAdvanced(path)) {
@@ -388,8 +391,7 @@ const HotReloader = struct {
         defer dir.close();
 
         var iter = dir.iterate();
-        while (iter.next()) |entry| {
-            entry catch continue;
+        while (try iter.next()) |entry| {
             
             // Check ignore patterns
             if (self.shouldIgnore(entry.name)) {
@@ -478,7 +480,7 @@ const HotReloader = struct {
         if (!self.config.enable_notifications) return;
         
         // On Linux, try to use notify-send
-        const result = std.ChildProcess.exec(.{
+        const result = std.process.Child.exec(.{
             .allocator = self.allocator,
             .argv = &[_][]const u8{ "notify-send", "Hot Reloader", message },
         }) catch return;
@@ -533,21 +535,34 @@ pub fn main() !void {
 
         if (std.mem.eql(u8, arg, "--build-command") or std.mem.eql(u8, arg, "-b")) {
             if (i + 1 >= args.len) {
-                std.log.err("Missing build command", .{});
-                return error.InvalidArguments;
+                hot_reloader.reporter.report(DevToolError.MissingArgument, errors.contextWithDetails(
+                    "hot-reloading",
+                    "parsing arguments",
+                    "Missing build command after -b/--build-command"
+                ));
+                return DevToolError.MissingArgument;
             }
             hot_reloader.setBuildCommand(args[i + 1]);
             i += 1;
         } else if (std.mem.eql(u8, arg, "--verbose") or std.mem.eql(u8, arg, "-v")) {
             hot_reloader.setVerbose(true);
+            hot_reloader.reporter.setVerbose(true);
         } else if (std.mem.eql(u8, arg, "--debounce") or std.mem.eql(u8, arg, "-d")) {
             if (i + 1 >= args.len) {
-                std.log.err("Missing debounce time", .{});
-                return error.InvalidArguments;
+                hot_reloader.reporter.report(DevToolError.MissingArgument, errors.contextWithDetails(
+                    "hot-reloading",
+                    "parsing arguments",
+                    "Missing debounce time after -d/--debounce"
+                ));
+                return DevToolError.MissingArgument;
             }
             const debounce_ms = std.fmt.parseInt(u64, args[i + 1], 10) catch {
-                std.log.err("Invalid debounce time: {s}", .{args[i + 1]});
-                return error.InvalidArguments;
+                hot_reloader.reporter.report(DevToolError.InvalidArguments, errors.contextWithDetails(
+                    "hot-reloading",
+                    "parsing debounce time",
+                    args[i + 1]
+                ));
+                return DevToolError.InvalidArguments;
             };
             hot_reloader.setDebounceMs(debounce_ms);
             i += 1;
@@ -557,9 +572,13 @@ pub fn main() !void {
             printHelp();
             return;
         } else if (std.mem.startsWith(u8, arg, "--")) {
-            std.log.err("Unknown option: {s}", .{arg});
+            hot_reloader.reporter.report(DevToolError.UnknownCommand, errors.contextWithDetails(
+                "hot-reloading",
+                "parsing arguments",
+                arg
+            ));
             printHelp();
-            return error.InvalidArguments;
+            return DevToolError.UnknownCommand;
         } else {
             // Treat as watch path
             try hot_reloader.addWatchPath(arg);
@@ -578,7 +597,7 @@ pub fn main() !void {
 }
 
 fn printHelp() void {
-    std.log.info(
+    const help_text =
         \\🔥 Hot Reloader - Advanced file watching and build automation
         \\
         \\Usage: hot_reloading [OPTIONS] [PATHS...]
@@ -609,5 +628,6 @@ fn printHelp() void {
         \\  • Desktop notifications (Linux)
         \\  • Configurable file type watching
         \\
-    );
+    ;
+    std.log.info("{s}", .{help_text});
 }
