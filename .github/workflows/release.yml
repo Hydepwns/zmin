@@ -12,12 +12,33 @@ on:
         type: string
 
 env:
-  ZIG_VERSION: "0.14.1"
+  BENCHMARKS_DIR: benchmarks/datasets
+  SCRIPTS_DIR: scripts
+  ZIG_OUT_DIR: zig-out/bin
 
 jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      zig-version: ${{ steps.versions.outputs.zig }}
+      zmin-version: ${{ steps.versions.outputs.zmin }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/versions.json
+      
+      - name: Read versions
+        id: versions
+        run: |
+          echo "zig=$(jq -r '.zig' .github/versions.json)" >> $GITHUB_OUTPUT
+          echo "zmin=$(jq -r '.zmin' .github/versions.json)" >> $GITHUB_OUTPUT
+
   # Build binaries for multiple platforms
   build:
     name: Build ${{ matrix.target }}
+    needs: versions
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -133,6 +154,7 @@ jobs:
   # Test across platforms
   test:
     name: Test ${{ matrix.os }}
+    needs: versions
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -290,7 +312,7 @@ jobs:
   # Publish to package registries
   publish:
     name: Publish Packages
-    needs: [build, test, release]
+    needs: [build, test, release, versions]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
 
