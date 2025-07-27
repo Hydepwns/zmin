@@ -6,11 +6,17 @@ on:
   workflow_dispatch:
 
 env:
-  ZIG_VERSION: "0.14.1"
+  BENCHMARKS_DIR: benchmarks/datasets
+  SCRIPTS_DIR: scripts
+  ZIG_OUT_DIR: zig-out/bin
 
 jobs:
+  versions:
+    uses: ./.github/workflows/read-versions.yml
+
   benchmark:
     name: Performance Benchmarks
+    needs: versions
     runs-on: ubuntu-latest
 
     steps:
@@ -20,7 +26,7 @@ jobs:
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
-        version: ${{ env.ZIG_VERSION }}
+        version: ${{ needs.versions.outputs.zig-version }}
 
     - name: Build optimized release
       run: zig build --release=fast

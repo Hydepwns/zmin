@@ -10,11 +10,16 @@ on:
     - cron: '0 3 * * *'
 
 env:
-  ZIG_VERSION: "0.14.1"
+  BENCHMARKS_DIR: benchmarks/datasets
+  SCRIPTS_DIR: scripts
+  ZIG_OUT_DIR: zig-out/bin
 
 jobs:
+  versions:
+    uses: ./.github/workflows/read-versions.yml
   valgrind:
     name: Valgrind Memory Check
+    needs: versions
     runs-on: ubuntu-latest
     
     steps:
@@ -24,7 +29,7 @@ jobs:
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
-        version: ${{ env.ZIG_VERSION }}
+        version: ${{ needs.versions.outputs.zig-version }}
 
     - name: Install Valgrind
       run: |
@@ -54,9 +59,9 @@ jobs:
         
         # Check for errors
         if grep -q "ERROR SUMMARY: 0 errors" valgrind.log; then
-          echo "✅ No memory errors detected"
+          source ${{ env.SCRIPTS_DIR }}/common.sh && print_success "No memory errors detected"
         else
-          echo "❌ Memory errors found!"
+          source ${{ env.SCRIPTS_DIR }}/common.sh && print_error "Memory errors found!"
           exit 1
         fi
 
@@ -69,6 +74,7 @@ jobs:
 
   address-sanitizer:
     name: AddressSanitizer Check
+    needs: versions
     runs-on: ubuntu-latest
     
     steps:
@@ -78,7 +84,7 @@ jobs:
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
-        version: ${{ env.ZIG_VERSION }}
+        version: ${{ needs.versions.outputs.zig-version }}
 
     - name: Build with AddressSanitizer
       run: |
@@ -98,10 +104,10 @@ jobs:
         
         # Check for ASAN errors
         if grep -q "AddressSanitizer" asan.log; then
-          echo "❌ AddressSanitizer found issues!"
+          source ${{ env.SCRIPTS_DIR }}/common.sh && print_error "AddressSanitizer found issues!"
           exit 1
         else
-          echo "✅ No AddressSanitizer issues detected"
+          source ${{ env.SCRIPTS_DIR }}/common.sh && print_success "No AddressSanitizer issues detected"
         fi
 
     - name: Upload ASAN logs
@@ -113,6 +119,7 @@ jobs:
 
   thread-sanitizer:
     name: ThreadSanitizer Check
+    needs: versions
     runs-on: ubuntu-latest
     
     steps:
@@ -122,7 +129,7 @@ jobs:
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
-        version: ${{ env.ZIG_VERSION }}
+        version: ${{ needs.versions.outputs.zig-version }}
 
     - name: Build with ThreadSanitizer
       run: |
@@ -136,10 +143,11 @@ jobs:
         # Run parallel-specific tests
         zig build test:parallel || echo "Parallel tests completed"
         
-        echo "✅ Thread safety check completed"
+        source ${{ env.SCRIPTS_DIR }}/common.sh && print_success "Thread safety check completed"
 
   memory-profiling:
     name: Memory Usage Profiling
+    needs: versions
     runs-on: ubuntu-latest
     
     steps:
@@ -149,7 +157,7 @@ jobs:
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
-        version: ${{ env.ZIG_VERSION }}
+        version: ${{ needs.versions.outputs.zig-version }}
 
     - name: Install memory profiling tools
       run: |
@@ -164,22 +172,22 @@ jobs:
         echo "Profiling memory usage for different modes..."
         
         # Generate test data
-        python3 scripts/generate_test_data.py
+        source ${{ env.SCRIPTS_DIR }}/common.sh && setup_benchmark_datasets
         
         # Profile standard mode
         echo "Standard mode:"
-        /usr/bin/time -v ./zig-out/bin/zmin benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        /usr/bin/time -v ./zig-out/bin/zmin benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
         
         # Profile with pretty printing
         echo -e "\nPretty print mode:"
-        /usr/bin/time -v ./zig-out/bin/zmin --pretty benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        /usr/bin/time -v ./zig-out/bin/zmin --pretty benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
         
         # Profile parallel processing
         echo -e "\nParallel processing (default):"
-        /usr/bin/time -v ./zig-out/bin/zmin --threads 4 benchmarks/datasets/large.json /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        /usr/bin/time -v ./zig-out/bin/zmin --threads 4 benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
         
         # Detailed profiling with Valgrind Massif
-        valgrind --tool=massif --massif-out-file=massif.out ./zig-out/bin/zmin benchmarks/datasets/large.json /dev/null
+        valgrind --tool=massif --massif-out-file=massif.out ./zig-out/bin/zmin benchmarks/datasets/large.json -o /dev/null
         
         # Generate summary
         ms_print massif.out > massif_report.txt
@@ -196,6 +204,7 @@ jobs:
 
   leak-detection:
     name: Memory Leak Detection
+    needs: versions
     runs-on: ubuntu-latest
     
     steps:
@@ -205,7 +214,12 @@ jobs:
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
-        version: ${{ env.ZIG_VERSION }}
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Install Valgrind
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind
 
     - name: Build with debug symbols
       run: zig build
@@ -228,7 +242,7 @@ jobs:
         # Test with large file
         echo "Testing large file processing..."
         dd if=/dev/urandom bs=1M count=10 2>/dev/null | base64 | sed 's/.*/"data": "&"/' | sed '1s/^/{/; $s/$/}/' > large_test.json
-        ./zig-out/bin/zmin large_test.json /dev/null
+        ./zig-out/bin/zmin large_test.json -o /dev/null
         rm large_test.json
         
         # Test error conditions
@@ -250,9 +264,9 @@ jobs:
         
         # Check results
         if grep -q "All heap blocks were freed" leak_detection.log; then
-          echo "✅ No memory leaks detected"
+          source ${{ env.SCRIPTS_DIR }}/common.sh && print_success "No memory leaks detected"
         else
-          echo "❌ Memory leaks found!"
+          source ${{ env.SCRIPTS_DIR }}/common.sh && print_error "Memory leaks found!"
           exit 1
         fi
 

@@ -8,11 +8,17 @@ on:
   workflow_dispatch:
 
 env:
-  ZIG_VERSION: "0.14.1"
+  BENCHMARKS_DIR: benchmarks/datasets
+  SCRIPTS_DIR: scripts
+  ZIG_OUT_DIR: zig-out/bin
 
 jobs:
+  versions:
+    uses: ./.github/workflows/read-versions.yml
+
   performance-test:
     name: Performance Regression Test
+    needs: versions
     runs-on: ubuntu-latest
     
     steps:
@@ -24,12 +30,12 @@ jobs:
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
-        version: ${{ env.ZIG_VERSION }}
+        version: ${{ needs.versions.outputs.zig-version }}
 
     - name: Cache benchmark datasets
       uses: actions/cache@v4
       with:
-        path: benchmarks/datasets
+        path: ${{ env.BENCHMARKS_DIR }}
         key: benchmark-datasets-v1
 
     - name: Build optimized binaries
@@ -49,10 +55,15 @@ jobs:
     - name: Run performance benchmarks
       run: |
         # Create test datasets if not cached
-        if [ ! -d benchmarks/datasets ]; then
-          mkdir -p benchmarks/datasets
-          python3 scripts/generate_test_data.py
+        # Source common functions
+        source ${{ env.SCRIPTS_DIR }}/common.sh
+        
+        # Setup benchmark datasets
+        setup_benchmark_datasets
         fi
+        
+        # Source common functions once at the beginning
+        source ${{ env.SCRIPTS_DIR }}/common.sh
         
         echo "## Performance Comparison Report" > performance-report.md
         echo "" >> performance-report.md
@@ -64,23 +75,20 @@ jobs:
         for dataset in small medium large; do
           echo "Testing with $dataset dataset..."
           
-          # Baseline performance (removed mode parameter)
-          baseline_time=$(./scripts/benchmark-single.sh ./zmin-baseline standard benchmarks/datasets/$dataset.json)
+          # Baseline performance
+          baseline_time=$(./${{ env.SCRIPTS_DIR }}/benchmark-single.sh ./zmin-baseline ${{ env.BENCHMARKS_DIR }}/$dataset.json)
           
-          # Current performance (removed mode parameter)
-          current_time=$(./scripts/benchmark-single.sh ./zmin-current standard benchmarks/datasets/$dataset.json)
+          # Current performance
+          current_time=$(./${{ env.SCRIPTS_DIR }}/benchmark-single.sh ./zmin-current ${{ env.BENCHMARKS_DIR }}/$dataset.json)
           
-          # Calculate change
-          change=$(echo "scale=2; (($current_time - $baseline_time) / $baseline_time) * 100" | bc)
+          # Calculate change and format result
+          change=$(calculate_percentage_change $baseline_time $current_time)
+          result=$(format_performance_result $dataset $change)
+          echo "$result" >> performance-report.md
           
-          # Format result
-          if (( $(echo "$change < -5" | bc -l) )); then
-            echo "✅ **$dataset**: ${change}% (improvement)" >> performance-report.md
-          elif (( $(echo "$change > 5" | bc -l) )); then
-            echo "❌ **$dataset**: +${change}% (regression)" >> performance-report.md
+          # Emit warning if regression detected
+          if [[ "$result" == *"${FAILURE_ICON}"* ]]; then
             echo "::warning::Performance regression detected with $dataset dataset: +${change}%"
-          else
-            echo "➖ **$dataset**: ${change}% (no significant change)" >> performance-report.md
           fi
         done
 
