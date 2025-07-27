@@ -77,7 +77,7 @@ pub const PluginLoader = struct {
     
     /// Register a plugin from a file path
     pub fn registerPlugin(self: *Self, path: []const u8) !void {
-        var plugin_entry = PluginEntry.init(self.allocator, path);
+        const plugin_entry = PluginEntry.init(self.allocator, path);
         try self.plugins.append(plugin_entry);
         std.log.info("Registered plugin: {s}", .{path});
     }
@@ -99,7 +99,7 @@ pub const PluginLoader = struct {
         
         // Initialize the plugin
         plugin.instance = plugin.interface.init(self.allocator) catch |err| {
-            std.log.err("Failed to initialize plugin {s}: {}", .{ plugin.path, err });
+            std.log.err("Failed to initialize plugin {s}: {any}", .{ plugin.path, err });
             return PluginError.PluginInitFailed;
         };
         
@@ -114,7 +114,7 @@ pub const PluginLoader = struct {
     pub fn loadAllPlugins(self: *Self) !void {
         for (0..self.plugins.items.len) |i| {
             self.loadPlugin(i) catch |err| {
-                std.log.warn("Failed to load plugin at index {}: {}", .{ i, err });
+                std.log.warn("Failed to load plugin at index {d}: {any}", .{ i, err });
             };
         }
     }
@@ -185,14 +185,14 @@ pub const PluginLoader = struct {
     
     /// List all plugins
     pub fn listPlugins(self: *Self) void {
-        std.log.info("=== Plugin Registry ===");
-        std.log.info("Total plugins: {}", .{self.plugins.items.len});
-        std.log.info("Loaded plugins: {}", .{self.loaded_count});
-        std.log.info("");
+        std.log.info("=== Plugin Registry ===", .{});
+        std.log.info("Total plugins: {d}", .{self.plugins.items.len});
+        std.log.info("Loaded plugins: {d}", .{self.loaded_count});
+        std.log.info("", .{});
         
         for (self.plugins.items, 0..) |plugin, i| {
             const status = if (plugin.loaded) "LOADED" else "REGISTERED";
-            std.log.info("[{}] {} - {s}", .{ i, status, plugin.path });
+            std.log.info("[{d}] {s} - {s}", .{ i, status, plugin.path });
             
             if (plugin.loaded) {
                 const info = plugin.interface.get_info();
@@ -277,7 +277,7 @@ pub const PluginDiscovery = struct {
     pub fn autoDiscover(loader: *PluginLoader) !void {
         for (STANDARD_PLUGIN_PATHS) |path| {
             loader.addPluginPath(path) catch |err| {
-                std.log.debug("Could not add plugin path {s}: {}", .{ path, err });
+                std.log.debug("Could not add plugin path {s}: {any}", .{ path, err });
             };
         }
         
