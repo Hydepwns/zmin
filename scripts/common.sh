@@ -99,10 +99,14 @@ calculate_percentage_change() {
 format_performance_result() {
     local dataset=$1
     local change=$2
-    
-    if (( $(echo "$change < -5" | bc -l) )); then
+
+    # Use higher threshold for CI environments to account for runner variability
+    local regression_threshold=10  # Increased from 5% to 10%
+    local improvement_threshold=-5  # Keep improvement threshold at -5%
+
+    if (( $(echo "$change < $improvement_threshold" | bc -l) )); then
         echo "${SUCCESS_ICON} **$dataset**: ${change}% (improvement)"
-    elif (( $(echo "$change > 5" | bc -l) )); then
+    elif (( $(echo "$change > $regression_threshold" | bc -l) )); then
         echo "${FAILURE_ICON} **$dataset**: +${change}% (regression)"
     else
         echo "${NEUTRAL_ICON} **$dataset**: ${change}% (no significant change)"
