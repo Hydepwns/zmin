@@ -1,0 +1,470 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "zmin - Zig JSON Minifier Library",
+    "description": "Complete API documentation for the zmin library - a high-performance JSON minification library written in Zig.\n\n## Features\n- Multiple processing modes (eco, sport, turbo)\n- Streaming and parallel processing\n- Memory profiling and optimization\n- Comprehensive error handling\n- C API for cross-language integration",
+    "version": "1.0.0",
+    "contact": {
+      "name": "zmin Library",
+      "url": "https://github.com/hydepwns/zmin"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://docs.zmin.dev/api",
+      "description": "Production API documentation"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Core Functions",
+      "description": "Basic minification and validation functions"
+    },
+    {
+      "name": "Advanced APIs",
+      "description": "Streaming, parallel, and configurable minification"
+    },
+    {
+      "name": "Types",
+      "description": "Data structures and enums"
+    },
+    {
+      "name": "Utilities",
+      "description": "Helper functions and utilities"
+    },
+    {
+      "name": "C API",
+      "description": "C/C++ integration interface"
+    }
+  ],
+  "paths": {
+    "/minify": {
+      "post": {
+        "tags": ["Core Functions"],
+        "summary": "Minify JSON using default mode (SPORT)",
+        "description": "Minifies JSON using the default processing mode (SPORT). This is the most commonly used function.\n\n**Memory Management**: The caller owns the returned memory and must free it using the allocator.",
+        "operationId": "minify",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["input"],
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "JSON string to minify",
+                    "example": "{  \"test\" : true  }"
+                  },
+                  "allocator": {
+                    "type": "string",
+                    "description": "Memory allocator type (optional, defaults to page_allocator)",
+                    "enum": ["page_allocator", "arena_allocator", "general_purpose_allocator"],
+                    "example": "page_allocator"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully minified JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "output": {
+                      "type": "string",
+                      "description": "Minified JSON string",
+                      "example": "{\"test\":true}"
+                    },
+                    "stats": {
+                      "$ref": "#/components/schemas/PerformanceStats"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Memory allocation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/minify-with-mode": {
+      "post": {
+        "tags": ["Core Functions"],
+        "summary": "Minify JSON using specific processing mode",
+        "description": "Minifies JSON using a specified processing mode (eco, sport, or turbo).\n\n**Modes**:\n- `eco`: Memory-efficient mode (64KB limit)\n- `sport`: Balanced mode (default)\n- `turbo`: Maximum performance mode",
+        "operationId": "minifyWithMode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["input", "mode"],
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "JSON string to minify",
+                    "example": "{  \"large\" : \"json\", \"with\" : \"spaces\"  }"
+                  },
+                  "mode": {
+                    "$ref": "#/components/schemas/ProcessingMode"
+                  },
+                  "allocator": {
+                    "type": "string",
+                    "description": "Memory allocator type",
+                    "enum": ["page_allocator", "arena_allocator", "general_purpose_allocator"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully minified JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "output": {
+                      "type": "string",
+                      "description": "Minified JSON string"
+                    },
+                    "stats": {
+                      "$ref": "#/components/schemas/PerformanceStats"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/validate": {
+      "post": {
+        "tags": ["Core Functions"],
+        "summary": "Validate JSON without minifying",
+        "description": "Validates JSON syntax without performing any minification.\nUseful for checking JSON validity before processing.",
+        "operationId": "validate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["input"],
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "JSON string to validate",
+                    "example": "{\"valid\": true}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON is valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON is invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/benchmark": {
+      "post": {
+        "tags": ["Utilities"],
+        "summary": "Benchmark minification performance",
+        "description": "Run performance benchmarks on JSON minification with specified parameters.",
+        "operationId": "benchmark",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["input", "iterations", "mode"],
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "JSON string to benchmark"
+                  },
+                  "iterations": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000,
+                    "description": "Number of iterations to run",
+                    "example": 1000
+                  },
+                  "mode": {
+                    "$ref": "#/components/schemas/ProcessingMode"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Benchmark results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProcessingMode": {
+        "type": "string",
+        "enum": ["eco", "sport", "turbo"],
+        "description": "Processing modes for JSON minification:\n- `eco`: Memory-efficient mode (64KB limit)\n- `sport`: Balanced mode (default)\n- `turbo`: Maximum performance mode",
+        "example": "sport"
+      },
+      "PerformanceStats": {
+        "type": "object",
+        "properties": {
+          "input_size": {
+            "type": "integer",
+            "description": "Size of input in bytes",
+            "example": 1024
+          },
+          "output_size": {
+            "type": "integer",
+            "description": "Size of output in bytes",
+            "example": 512
+          },
+          "compression_ratio": {
+            "type": "number",
+            "format": "float",
+            "description": "Compression ratio (input_size / output_size)",
+            "example": 2.0
+          },
+          "processing_time_us": {
+            "type": "integer",
+            "description": "Processing time in microseconds",
+            "example": 1500
+          },
+          "throughput_mbps": {
+            "type": "number",
+            "format": "float",
+            "description": "Throughput in MB/s",
+            "example": 680.5
+          },
+          "memory_peak_bytes": {
+            "type": "integer",
+            "description": "Peak memory usage in bytes",
+            "example": 2048
+          },
+          "threads_used": {
+            "type": "integer",
+            "description": "Number of threads used",
+            "example": 4
+          }
+        }
+      },
+      "JsonError": {
+        "type": "string",
+        "enum": [
+          "InvalidJson",
+          "UnexpectedEndOfInput",
+          "InvalidCharacter",
+          "InvalidEscapeSequence",
+          "InvalidUnicodeEscape",
+          "TrailingComma",
+          "DuplicateKey",
+          "DepthLimitExceeded",
+          "NumberOverflow",
+          "InvalidNumber",
+          "OutOfMemory"
+        ],
+        "description": "JSON processing error types"
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/JsonError"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "context": {
+            "$ref": "#/components/schemas/ErrorContext"
+          }
+        }
+      },
+      "ErrorContext": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "integer",
+            "description": "Line number where error occurred",
+            "example": 5
+          },
+          "column": {
+            "type": "integer",
+            "description": "Column number where error occurred",
+            "example": 12
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Character offset in input",
+            "example": 123
+          },
+          "message": {
+            "type": "string",
+            "description": "Detailed error message"
+          }
+        }
+      },
+      "BenchmarkResult": {
+        "type": "object",
+        "properties": {
+          "iterations": {
+            "type": "integer",
+            "description": "Number of iterations run",
+            "example": 1000
+          },
+          "total_time_us": {
+            "type": "integer",
+            "description": "Total time in microseconds",
+            "example": 1500000
+          },
+          "min_time_us": {
+            "type": "integer",
+            "description": "Minimum iteration time",
+            "example": 1200
+          },
+          "max_time_us": {
+            "type": "integer",
+            "description": "Maximum iteration time",
+            "example": 1800
+          },
+          "avg_time_us": {
+            "type": "integer",
+            "description": "Average iteration time",
+            "example": 1500
+          },
+          "std_dev_us": {
+            "type": "integer",
+            "description": "Standard deviation",
+            "example": 150
+          },
+          "throughput_mbps": {
+            "type": "number",
+            "format": "float",
+            "description": "Average throughput in MB/s",
+            "example": 680.5
+          }
+        }
+      }
+    },
+    "examples": {
+      "SimpleMinify": {
+        "summary": "Simple JSON minification",
+        "value": {
+          "input": "{  \"hello\" : \"world\",  \"number\" : 42  }",
+          "allocator": "page_allocator"
+        }
+      },
+      "LargeJsonMinify": {
+        "summary": "Large JSON with turbo mode",
+        "value": {
+          "input": "{\"large\": \"json\", \"with\": \"many\", \"properties\": \"and\", \"nested\": {\"objects\": \"inside\"}}",
+          "mode": "turbo",
+          "allocator": "arena_allocator"
+        }
+      },
+      "ValidationExample": {
+        "summary": "JSON validation",
+        "value": {
+          "input": "{\"valid\": true, \"array\": [1, 2, 3]}"
+        }
+      },
+      "BenchmarkExample": {
+        "summary": "Performance benchmark",
+        "value": {
+          "input": "{\"benchmark\": \"data\", \"with\": \"various\", \"types\": [1, \"string\", true, null]}",
+          "iterations": 1000,
+          "mode": "sport"
+        }
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find more info about zmin",
+    "url": "https://github.com/hydepwns/zmin"
+  }
+} 

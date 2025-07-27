@@ -4,79 +4,254 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
 
 env:
   ZIG_VERSION: "0.14.1"
 
 jobs:
-  create-release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      tag_name: ${{ steps.get_tag.outputs.tag_name }}
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+  # Build binaries for multiple platforms
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            archive_name: zmin-linux-x64
+          - target: x86_64-linux-musl
+            os: ubuntu-latest  
+            archive: tar.gz
+            archive_name: zmin-linux-x64-musl
+          - target: aarch64-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            archive_name: zmin-linux-arm64
+          - target: x86_64-macos-none
+            os: macos-latest
+            archive: tar.gz
+            archive_name: zmin-macos-x64
+          - target: aarch64-macos-none
+            os: macos-latest
+            archive: tar.gz
+            archive_name: zmin-macos-arm64
+          - target: x86_64-windows-gnu
+            os: ubuntu-latest
+            archive: zip
+            archive_name: zmin-windows-x64
 
-    - name: Get tag name
-      id: get_tag
-      run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
         version: ${{ env.ZIG_VERSION }}
 
-    - name: Run performance benchmarks for release
-      run: |
-        zig build --release=fast
-        
-        # Create test data
-        echo '{"performance": "test", "data": "release_benchmark"}' > release_test.json
-        
-        # Quick performance test
-        start_time=$(date +%s%N)
-        ./zig-out/bin/zmin --mode turbo release_test.json /dev/null 2>/dev/null || true
-        end_time=$(date +%s%N)
-        
-        echo "Release performance verified"
+    - name: Cache Zig
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/zig
+        key: ${{ runner.os }}-zig-${{ hashFiles('build.zig', 'build.zig.zon') }}
 
-    - name: Create GitHub Release
-      id: create_release
+    - name: Build for ${{ matrix.target }}
+      run: |
+        echo "Building for target: ${{ matrix.target }}"
+        zig build -Doptimize=ReleaseFast -Dtarget=${{ matrix.target }}
+
+    - name: Build WebAssembly
+      if: matrix.target == 'x86_64-linux-gnu'
+      run: |
+        zig build wasm -Doptimize=ReleaseSmall
+
+    - name: Build C API
+      if: matrix.target == 'x86_64-linux-gnu'
+      run: |
+        zig build c-api -Doptimize=ReleaseFast
+
+    - name: Create archive
+      run: |
+        mkdir -p artifacts
+        
+        # Copy main binaries
+        if [ "${{ matrix.target }}" = "x86_64-windows-gnu" ]; then
+          cp zig-out/bin/zmin.exe artifacts/
+          cp zig-out/bin/zmin-cli.exe artifacts/ 2>/dev/null || true
+        else
+          cp zig-out/bin/zmin artifacts/
+          cp zig-out/bin/zmin-cli artifacts/ 2>/dev/null || true
+        fi
+        
+        # Copy tools
+        if [ "${{ matrix.target }}" = "x86_64-windows-gnu" ]; then
+          cp zig-out/bin/zmin-format.exe artifacts/ 2>/dev/null || true
+          cp zig-out/bin/zmin-validate.exe artifacts/ 2>/dev/null || true
+        else
+          cp zig-out/bin/zmin-format artifacts/ 2>/dev/null || true
+          cp zig-out/bin/zmin-validate artifacts/ 2>/dev/null || true
+        fi
+        
+        # Copy WebAssembly and C API (only for Linux build)
+        if [ "${{ matrix.target }}" = "x86_64-linux-gnu" ]; then
+          cp zig-out/wasm/zmin.wasm artifacts/ 2>/dev/null || true
+          cp zig-out/lib/libzmin.so artifacts/ 2>/dev/null || true
+        fi
+        
+        # Copy documentation
+        cp README.md artifacts/
+        cp LICENSE artifacts/ 2>/dev/null || true
+        cp CHANGELOG.md artifacts/ 2>/dev/null || true
+        cp QUICK_REFERENCE.md artifacts/ 2>/dev/null || true
+        cp -r docs artifacts/ 2>/dev/null || true
+        
+        # Create archive
+        cd artifacts
+        if [ "${{ matrix.archive }}" = "zip" ]; then
+          zip -r ../${{ matrix.archive_name }}.zip *
+        else
+          tar czf ../${{ matrix.archive_name }}.tar.gz *
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.archive_name }}
+        path: ${{ matrix.archive_name }}.*
+
+  # Test across platforms
+  test:
+    name: Test ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+
+    - name: Run tests
+      run: zig build test:fast
+
+    - name: Run benchmarks
+      run: |
+        zig build benchmark:sport
+        zig build benchmark:turbo
+
+  # Create GitHub Release
+  release:
+    name: Create Release
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    outputs:
+      tag_name: ${{ steps.get_tag.outputs.tag_name }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get tag name
+      id: get_tag
+      run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Generate checksums
+      run: |
+        cd artifacts
+        find . -name "zmin-*" -type f | while read file; do
+          sha256sum "$file" >> ../checksums.txt
+        done
+        cd ..
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get previous tag
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        
+        # Generate changelog
+        if [ -n "$PREVIOUS_TAG" ]; then
+          echo "## Changes since $PREVIOUS_TAG" > changelog.md
+          git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG"..HEAD >> changelog.md
+        else
+          echo "## Initial Release" > changelog.md
+          echo "First release of zmin - high-performance JSON minifier" >> changelog.md
+        fi
+        
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        cat changelog.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.get_tag.outputs.tag_name }}
-        name: Zmin ${{ steps.get_tag.outputs.tag_name }}
+        name: Release ${{ steps.get_tag.outputs.tag_name }}
         body: |
-          ## Zmin ${{ steps.get_tag.outputs.tag_name }}
+          # zmin ${{ steps.get_tag.outputs.tag_name }}
           
           Ultra-high-performance JSON minifier with **3.5+ GB/s** throughput.
           
-          ### 🚀 Performance Modes
+          ## 🚀 Performance Modes
           - **ECO**: 580 MB/s, 64KB memory - Perfect for memory-constrained environments
           - **SPORT**: 850 MB/s, O(√n) memory - Balanced performance and memory usage
           - **TURBO**: 3.5+ GB/s, O(n) memory - Maximum speed with SIMD + NUMA optimization
           
-          ### 📊 Key Features
+          ## 📊 Key Features
           - **Zero Dependencies**: Pure Zig implementation
           - **Cross-Platform**: Linux, macOS, Windows (x64 + ARM64)
           - **SIMD Optimized**: AVX2/AVX/SSE automatic detection
           - **Memory Safe**: Zig's built-in safety guarantees
           - **Parallel Processing**: Multi-threaded work-stealing for large files
+          - **WebAssembly Support**: Browser and Node.js integration
+          - **Language Bindings**: Python, Node.js, Go
+          - **GPU Acceleration**: Experimental CUDA/OpenCL support
           
-          ### 📥 Installation
+          ## 📥 Installation
           
-          Download the appropriate binary for your platform below, or build from source:
+          ### Binary Download
+          Download the appropriate binary for your platform from the assets below.
           
+          ### Package Managers
+          ```bash
+          # Homebrew (macOS/Linux)
+          brew install zmin
+          
+          # npm
+          npm install -g @zmin/cli
+          
+          # Python
+          pip install zmin
+          ```
+          
+          ### Build from Source
           ```bash
           git clone https://github.com/hydepwns/zmin
           cd zmin
-          zig build --release=fast
+          zig build -Doptimize=ReleaseFast
           ```
           
-          ### 🔧 Usage Examples
+          ## 🔧 Usage Examples
           
           ```bash
           # Basic minification (ECO mode)
@@ -85,113 +260,163 @@ jobs:
           # Maximum performance (TURBO mode)
           zmin --mode turbo large_file.json minified.json
           
-          # Pretty printing with custom indentation
-          zmin --pretty --indent=4 input.json formatted.json
+          # Interactive CLI with auto-completion
+          zmin-cli
           
-          # Validation only
-          zmin --validate suspicious.json
+          # Validation with detailed errors
+          zmin-validate suspicious.json
+          
+          # Format minified JSON
+          zmin-format --indent=2 minified.json pretty.json
           
           # Pipeline usage
           curl -s https://api.example.com/data | zmin > compressed.json
           ```
           
-          ### 📚 Documentation
+          ${{ steps.changelog.outputs.changelog }}
           
-          - [Performance Modes](docs/PERFORMANCE_MODES.md)
-          - [Technical Implementation](docs/TECHNICAL_IMPLEMENTATION.md)
-          - [Quick Reference](QUICK_REFERENCE.md)
+          ## Checksums
+          ```
+          $(cat checksums.txt)
+          ```
+        files: |
+          artifacts/*/zmin-*
+          checksums.txt
         draft: false
-        prerelease: false
-        generate_release_notes: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        prerelease: ${{ contains(github.ref_name, '-') }}
 
-  build-release:
-    name: Build Release (${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
-    needs: create-release
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-linux-gnu
-            os: ubuntu-latest
-            archive_name: zmin-linux-x64
-          - target: x86_64-macos-none
-            os: macos-latest
-            archive_name: zmin-macos-x64
-          - target: x86_64-windows-gnu
-            os: ubuntu-latest
-            archive_name: zmin-windows-x64
+  # Publish to package registries
+  publish:
+    name: Publish Packages
+    needs: [build, test, release]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
         version: ${{ env.ZIG_VERSION }}
 
-    - name: Build release binary
-      run: |
-        echo "Building for target: ${{ matrix.target }}"
-        zig build --release=fast -Dtarget=${{ matrix.target }}
-        
-        # Verify binary was created
-        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-          if [ ! -f "zig-out/bin/zmin.exe" ]; then
-            echo "❌ Windows binary not found"
-            exit 1
-          fi
-          echo "✅ Windows binary created: $(ls -lh zig-out/bin/zmin.exe)"
-        else
-          if [ ! -f "zig-out/bin/zmin" ]; then
-            echo "❌ Binary not found"
-            exit 1
-          fi
-          echo "✅ Binary created: $(ls -lh zig-out/bin/zmin)"
-        fi
-
-    - name: Create release package
-      run: |
-        mkdir -p release
-        
-        # Copy binary
-        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-          cp zig-out/bin/zmin.exe release/
-        else
-          cp zig-out/bin/zmin release/
-        fi
-        
-        # Copy documentation
-        cp README.md release/
-        cp LICENSE release/
-        cp QUICK_REFERENCE.md release/
-        cp -r docs release/ 2>/dev/null || true
-        
-        # Create platform-specific archive
-        cd release
-        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-          zip -r ../${{ matrix.archive_name }}.zip .
-          echo "Created: ${{ matrix.archive_name }}.zip"
-        else
-          tar -czf ../${{ matrix.archive_name }}.tar.gz .
-          echo "Created: ${{ matrix.archive_name }}.tar.gz"
-        fi
-        cd ..
-
-    - name: Upload Release Asset
-      uses: softprops/action-gh-release@v1
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
       with:
-        tag_name: ${{ needs.create-release.outputs.tag_name }}
-        files: |
-          ${{ matrix.archive_name }}.*
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Download Linux artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: zmin-linux-x64
+        path: dist/
+
+    - name: Build WebAssembly for npm
+      run: |
+        zig build wasm -Doptimize=ReleaseSmall
+        mkdir -p bindings/npm/dist
+        cp zig-out/wasm/zmin.wasm bindings/npm/dist/
+
+    - name: Publish to npm
+      working-directory: bindings/npm
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        # Update version in package.json
+        VERSION=${GITHUB_REF_NAME#v}
+        npm version $VERSION --no-git-tag-version
+        npm publish
+      continue-on-error: true
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+    - name: Build Python wheel
+      working-directory: bindings/python
+      run: |
+        pip install build wheel
+        # Copy shared library
+        cp ../../zig-out/lib/libzmin.so zmin/ 2>/dev/null || true
+        python -m build
+
+    - name: Publish to PyPI
+      working-directory: bindings/python
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      run: |
+        pip install twine
+        twine upload dist/*
+      continue-on-error: true
+
+  # Update Homebrew formula
+  homebrew:
+    name: Update Homebrew Formula
+    needs: [release]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
+
+    steps:
+    - name: Update Homebrew formula
+      uses: dawidd6/action-homebrew-bump-formula@v3
       with:
-        name: ${{ matrix.archive_name }}
-        path: ${{ matrix.archive_name }}.*
-        retention-days: 30
+        token: ${{ secrets.HOMEBREW_TOKEN }}
+        formula: zmin
+        tag: ${{ needs.release.outputs.tag_name }}
+        revision: ${{ github.sha }}
+      continue-on-error: true
+
+  # Build and push Docker images
+  docker:
+    name: Build Docker Images
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+      continue-on-error: true
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          zmin/zmin
+          ghcr.io/${{ github.repository }}
+        tags: |
+          type=ref,event=tag
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+      continue-on-error: true

@@ -1,0 +1,729 @@
+openapi: 3.0.3
+info:
+  title: zmin - Zig JSON Minifier Library
+  description: |
+    Complete API documentation for the zmin library - a high-performance JSON minification library written in Zig.
+    
+    ## Features
+    - Multiple processing modes (eco, sport, turbo)
+    - Streaming and parallel processing
+    - Memory profiling and optimization
+    - Comprehensive error handling
+    - C API for cross-language integration
+  version: 1.0.0
+  contact:
+    name: zmin Library
+    url: https://github.com/your-org/zmin
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://docs.zmin.dev/api
+    description: Production API documentation
+
+tags:
+  - name: Core Functions
+    description: Basic minification and validation functions
+  - name: Advanced APIs
+    description: Streaming, parallel, and configurable minification
+  - name: Types
+    description: Data structures and enums
+  - name: Utilities
+    description: Helper functions and utilities
+  - name: C API
+    description: C/C++ integration interface
+
+paths:
+  /minify:
+    post:
+      tags:
+        - Core Functions
+      summary: Minify JSON using default mode (SPORT)
+      description: |
+        Minifies JSON using the default processing mode (SPORT). This is the most commonly used function.
+        
+        **Memory Management**: The caller owns the returned memory and must free it using the allocator.
+      operationId: minify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - input
+              properties:
+                input:
+                  type: string
+                  description: JSON string to minify
+                  example: '{  "test" : true  }'
+                allocator:
+                  type: string
+                  description: Memory allocator type (optional, defaults to page_allocator)
+                  enum: [page_allocator, arena_allocator, general_purpose_allocator]
+                  example: page_allocator
+      responses:
+        '200':
+          description: Successfully minified JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  output:
+                    type: string
+                    description: Minified JSON string
+                    example: '{"test":true}'
+                  stats:
+                    $ref: '#/components/schemas/PerformanceStats'
+        '400':
+          description: Invalid JSON input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Memory allocation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /minify-with-mode:
+    post:
+      tags:
+        - Core Functions
+      summary: Minify JSON using specific processing mode
+      description: |
+        Minifies JSON using a specified processing mode (eco, sport, or turbo).
+        
+        **Modes**:
+        - `eco`: Memory-efficient mode (64KB limit)
+        - `sport`: Balanced mode (default)
+        - `turbo`: Maximum performance mode
+      operationId: minifyWithMode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - input
+                - mode
+              properties:
+                input:
+                  type: string
+                  description: JSON string to minify
+                  example: '{  "large" : "json", "with" : "spaces"  }'
+                mode:
+                  $ref: '#/components/schemas/ProcessingMode'
+                allocator:
+                  type: string
+                  description: Memory allocator type
+                  enum: [page_allocator, arena_allocator, general_purpose_allocator]
+      responses:
+        '200':
+          description: Successfully minified JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  output:
+                    type: string
+                    description: Minified JSON string
+                  stats:
+                    $ref: '#/components/schemas/PerformanceStats'
+        '400':
+          description: Invalid JSON input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validate:
+    post:
+      tags:
+        - Core Functions
+      summary: Validate JSON without minifying
+      description: |
+        Validates JSON syntax without performing any minification.
+        Useful for checking JSON validity before processing.
+      operationId: validate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - input
+              properties:
+                input:
+                  type: string
+                  description: JSON string to validate
+                  example: '{"valid": true}'
+      responses:
+        '200':
+          description: JSON is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    example: true
+        '400':
+          description: JSON is invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /streaming-minifier:
+    post:
+      tags:
+        - Advanced APIs
+      summary: Initialize streaming minifier
+      description: |
+        Creates a streaming minifier for processing large files or data streams.
+        Process data in chunks and get minified output incrementally.
+      operationId: createStreamingMinifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                allocator:
+                  type: string
+                  description: Memory allocator type
+                  enum: [page_allocator, arena_allocator, general_purpose_allocator]
+      responses:
+        '200':
+          description: Streaming minifier created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  minifier_id:
+                    type: string
+                    description: Unique identifier for the minifier instance
+                    example: "stream_12345"
+
+  /streaming-minifier/{minifier_id}/process:
+    post:
+      tags:
+        - Advanced APIs
+      summary: Process chunk with streaming minifier
+      description: |
+        Process a chunk of JSON data with an existing streaming minifier.
+      operationId: processChunk
+      parameters:
+        - name: minifier_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Streaming minifier identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - chunk
+              properties:
+                chunk:
+                  type: string
+                  description: JSON chunk to process
+                  example: '{"key": "value",'
+      responses:
+        '200':
+          description: Chunk processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  has_output:
+                    type: boolean
+                    description: Whether output is available
+                    example: false
+
+  /parallel-minifier:
+    post:
+      tags:
+        - Advanced APIs
+      summary: Create parallel minifier
+      description: |
+        Creates a multi-threaded minifier for high-performance processing.
+      operationId: createParallelMinifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParallelMinifierConfig'
+      responses:
+        '200':
+          description: Parallel minifier created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  minifier_id:
+                    type: string
+                    description: Unique identifier for the minifier instance
+
+  /minify-with-options:
+    post:
+      tags:
+        - Advanced APIs
+      summary: Minify with custom options
+      description: |
+        Minify JSON with custom configuration options for specialized use cases.
+      operationId: minifyWithOptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - input
+                - options
+              properties:
+                input:
+                  type: string
+                  description: JSON string to minify
+                options:
+                  $ref: '#/components/schemas/MinifierOptions'
+      responses:
+        '200':
+          description: Successfully minified JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  output:
+                    type: string
+                    description: Minified JSON string
+                  stats:
+                    $ref: '#/components/schemas/PerformanceStats'
+
+  /benchmark:
+    post:
+      tags:
+        - Utilities
+      summary: Benchmark minification performance
+      description: |
+        Run performance benchmarks on JSON minification with specified parameters.
+      operationId: benchmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - input
+                - iterations
+                - mode
+              properties:
+                input:
+                  type: string
+                  description: JSON string to benchmark
+                iterations:
+                  type: integer
+                  minimum: 1
+                  maximum: 10000
+                  description: Number of iterations to run
+                  example: 1000
+                mode:
+                  $ref: '#/components/schemas/ProcessingMode'
+      responses:
+        '200':
+          description: Benchmark results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenchmarkResult'
+
+  /c-api/minify:
+    post:
+      tags:
+        - C API
+      summary: C API - Minify JSON
+      description: |
+        C API endpoint for JSON minification. Returns a result structure with output and error information.
+      operationId: cApiMinify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - input
+                - input_size
+                - mode
+              properties:
+                input:
+                  type: string
+                  description: JSON string to minify
+                input_size:
+                  type: integer
+                  description: Size of input string in bytes
+                mode:
+                  $ref: '#/components/schemas/ProcessingMode'
+      responses:
+        '200':
+          description: C API result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CApiResult'
+
+components:
+  schemas:
+    ProcessingMode:
+      type: string
+      enum: [eco, sport, turbo]
+      description: |
+        Processing modes for JSON minification:
+        - `eco`: Memory-efficient mode (64KB limit)
+        - `sport`: Balanced mode (default)
+        - `turbo`: Maximum performance mode
+      example: sport
+
+    PerformanceStats:
+      type: object
+      properties:
+        input_size:
+          type: integer
+          description: Size of input in bytes
+          example: 1024
+        output_size:
+          type: integer
+          description: Size of output in bytes
+          example: 512
+        compression_ratio:
+          type: number
+          format: float
+          description: Compression ratio (input_size / output_size)
+          example: 2.0
+        processing_time_us:
+          type: integer
+          description: Processing time in microseconds
+          example: 1500
+        throughput_mbps:
+          type: number
+          format: float
+          description: Throughput in MB/s
+          example: 680.5
+        memory_peak_bytes:
+          type: integer
+          description: Peak memory usage in bytes
+          example: 2048
+        threads_used:
+          type: integer
+          description: Number of threads used
+          example: 4
+
+    MinificationResult:
+      type: object
+      properties:
+        output:
+          type: string
+          description: Minified JSON string
+        stats:
+          $ref: '#/components/schemas/PerformanceStats'
+
+    JsonError:
+      type: string
+      enum:
+        - InvalidJson
+        - UnexpectedEndOfInput
+        - InvalidCharacter
+        - InvalidEscapeSequence
+        - InvalidUnicodeEscape
+        - TrailingComma
+        - DuplicateKey
+        - DepthLimitExceeded
+        - NumberOverflow
+        - InvalidNumber
+        - OutOfMemory
+      description: JSON processing error types
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/JsonError'
+        message:
+          type: string
+          description: Human-readable error message
+        context:
+          $ref: '#/components/schemas/ErrorContext'
+
+    ErrorContext:
+      type: object
+      properties:
+        line:
+          type: integer
+          description: Line number where error occurred
+          example: 5
+        column:
+          type: integer
+          description: Column number where error occurred
+          example: 12
+        offset:
+          type: integer
+          description: Character offset in input
+          example: 123
+        message:
+          type: string
+          description: Detailed error message
+
+    ParallelMinifierConfig:
+      type: object
+      properties:
+        thread_count:
+          type: integer
+          nullable: true
+          description: Number of threads (null = auto-detect)
+          example: 8
+        chunk_size:
+          type: integer
+          description: Size of chunks in bytes
+          default: 1048576
+          example: 1048576
+        mode:
+          $ref: '#/components/schemas/ProcessingMode'
+
+    MinifierOptions:
+      type: object
+      properties:
+        preserve_unicode:
+          type: boolean
+          description: Preserve Unicode characters
+          default: true
+        normalize_numbers:
+          type: boolean
+          description: Normalize number formatting
+          default: false
+        sort_keys:
+          type: boolean
+          description: Sort object keys alphabetically
+          default: false
+        remove_null_values:
+          type: boolean
+          description: Remove null values from objects
+          default: false
+        inline_short_arrays:
+          type: boolean
+          description: Inline short arrays on single line
+          default: true
+        max_depth:
+          type: integer
+          description: Maximum nesting depth
+          default: 1000
+          minimum: 1
+          maximum: 10000
+
+    BenchmarkResult:
+      type: object
+      properties:
+        iterations:
+          type: integer
+          description: Number of iterations run
+          example: 1000
+        total_time_us:
+          type: integer
+          description: Total time in microseconds
+          example: 1500000
+        min_time_us:
+          type: integer
+          description: Minimum iteration time
+          example: 1200
+        max_time_us:
+          type: integer
+          description: Maximum iteration time
+          example: 1800
+        avg_time_us:
+          type: integer
+          description: Average iteration time
+          example: 1500
+        std_dev_us:
+          type: integer
+          description: Standard deviation
+          example: 150
+        throughput_mbps:
+          type: number
+          format: float
+          description: Average throughput in MB/s
+          example: 680.5
+
+    CApiResult:
+      type: object
+      properties:
+        output:
+          type: string
+          description: Minified JSON string (null if error)
+          nullable: true
+        output_size:
+          type: integer
+          description: Size of output in bytes
+          example: 512
+        error_code:
+          type: integer
+          description: Error code (0 = success)
+          example: 0
+        error_message:
+          type: string
+          description: Error message (null if success)
+          nullable: true
+
+    MemoryProfile:
+      type: object
+      properties:
+        allocations:
+          type: integer
+          description: Number of memory allocations
+          example: 150
+        deallocations:
+          type: integer
+          description: Number of memory deallocations
+          example: 150
+        peak_usage:
+          type: integer
+          description: Peak memory usage in bytes
+          example: 8192
+        current_usage:
+          type: integer
+          description: Current memory usage in bytes
+          example: 0
+
+    NumaConfig:
+      type: object
+      properties:
+        node_binding:
+          type: integer
+          nullable: true
+          description: NUMA node to bind to
+          example: 0
+        interleave:
+          type: boolean
+          description: Interleave memory across nodes
+          default: false
+
+    CpuFeatures:
+      type: object
+      properties:
+        sse2:
+          type: boolean
+          description: SSE2 support available
+        avx2:
+          type: boolean
+          description: AVX2 support available
+        avx512:
+          type: boolean
+          description: AVX-512 support available
+        neon:
+          type: boolean
+          description: NEON support available
+        sve:
+          type: boolean
+          description: SVE support available
+
+    Version:
+      type: object
+      properties:
+        major:
+          type: integer
+          description: Major version number
+          example: 1
+        minor:
+          type: integer
+          description: Minor version number
+          example: 0
+        patch:
+          type: integer
+          description: Patch version number
+          example: 0
+        string:
+          type: string
+          description: Version string
+          example: "1.0.0"
+
+  examples:
+    SimpleMinify:
+      summary: Simple JSON minification
+      value:
+        input: '{  "hello" : "world",  "number" : 42  }'
+        allocator: page_allocator
+
+    LargeJsonMinify:
+      summary: Large JSON with turbo mode
+      value:
+        input: '{"large": "json", "with": "many", "properties": "and", "nested": {"objects": "inside"}}'
+        mode: turbo
+        allocator: arena_allocator
+
+    ValidationExample:
+      summary: JSON validation
+      value:
+        input: '{"valid": true, "array": [1, 2, 3]}'
+
+    ParallelConfig:
+      summary: Parallel minifier configuration
+      value:
+        thread_count: 8
+        chunk_size: 2097152
+        mode: turbo
+
+    MinifierOptions:
+      summary: Custom minifier options
+      value:
+        input: '{"a": null, "b": "value", "c": [1, 2, 3]}'
+        options:
+          preserve_unicode: true
+          normalize_numbers: false
+          sort_keys: true
+          remove_null_values: true
+          inline_short_arrays: false
+          max_depth: 100
+
+    BenchmarkExample:
+      summary: Performance benchmark
+      value:
+        input: '{"benchmark": "data", "with": "various", "types": [1, "string", true, null]}'
+        iterations: 1000
+        mode: sport
+
+    CApiExample:
+      summary: C API usage
+      value:
+        input: '{"c": "api", "example": true}'
+        input_size: 25
+        mode: sport
+
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication (if required)
+
+externalDocs:
+  description: Find more info about zmin
+  url: https://github.com/your-org/zmin 
