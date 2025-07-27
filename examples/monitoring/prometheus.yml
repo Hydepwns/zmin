@@ -1,0 +1,94 @@
+# Prometheus configuration for zmin monitoring
+#
+# This configuration sets up Prometheus to scrape metrics from zmin services
+# and includes alerting rules for performance monitoring.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'zmin-cluster'
+    environment: 'production'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - localhost:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "alerts/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Zmin performance metrics
+  - job_name: 'zmin-performance'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['localhost:8080']
+        labels:
+          service: 'zmin'
+          mode: 'performance'
+    metrics_path: '/metrics'
+    params:
+      detailed: ['true']
+
+  # Zmin API metrics
+  - job_name: 'zmin-api'
+    static_configs:
+      - targets: ['localhost:8081']
+        labels:
+          service: 'zmin-api'
+          version: '1.0.0'
+
+  # Node exporter for system metrics
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+        labels:
+          service: 'node-exporter'
+
+  # Zmin benchmark results
+  - job_name: 'zmin-benchmarks'
+    scrape_interval: 60s
+    static_configs:
+      - targets: ['localhost:8082']
+        labels:
+          service: 'zmin-benchmarks'
+    metrics_path: '/benchmark/metrics'
+
+  # Zmin GPU metrics (if GPU acceleration is enabled)
+  - job_name: 'zmin-gpu'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['localhost:8083']
+        labels:
+          service: 'zmin-gpu'
+          accelerator: 'cuda'
+
+# Remote write configuration for long-term storage
+remote_write:
+  - url: 'http://localhost:9201/write'
+    remote_timeout: 30s
+    queue_config:
+      capacity: 10000
+      max_shards: 5
+      min_shards: 1
+      max_samples_per_send: 5000
+      batch_send_deadline: 5s
+      min_backoff: 30ms
+      max_backoff: 100ms
+
+# Remote read configuration
+remote_read:
+  - url: 'http://localhost:9201/read'
+    read_recent: true
