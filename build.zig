@@ -33,7 +33,7 @@ const ModuleRegistry = struct {
     memory_optimizer_mod: *std.Build.Module,
     numa_detector_mod: *std.Build.Module,
     memory_profiler_mod: *std.Build.Module,
-    
+
     // Error handling modules
     core_errors_mod: *std.Build.Module,
     error_recovery_mod: *std.Build.Module,
@@ -65,7 +65,10 @@ pub fn build(b: *std.Build) void {
     createTools(b, config, modules);
 
     // Setup build steps
-    setupBuildSteps(b, exe);
+    setupBuildSteps(b, exe, modules);
+
+    // Phase 5: Advanced features setup
+    setupAdvancedFeatures(b, config, modules);
 }
 
 fn createModules(b: *std.Build, config: Config) ModuleRegistry {
@@ -248,11 +251,11 @@ fn setupModuleDependencies(modules: ModuleRegistry) void {
     modules.sport_minifier_mod.addImport("minifier", modules.minifier_mod);
     modules.turbo_unified_mod.addImport("cpu_detection", modules.cpu_detection_mod);
     modules.turbo_unified_mod.addImport("numa_detector", modules.numa_detector_mod);
-    
+
     // Setup error handling dependencies
     modules.error_recovery_mod.addImport("errors", modules.core_errors_mod);
     modules.error_recovery_mod.addImport("modes", modules.modes_mod);
-    
+
     // Add new modules to lib
     modules.lib_mod.addImport("numa_detector", modules.numa_detector_mod);
     modules.lib_mod.addImport("memory_profiler", modules.memory_profiler_mod);
@@ -286,10 +289,47 @@ fn createExecutable(b: *std.Build, modules: ModuleRegistry) *std.Build.Step.Comp
 
     exe.root_module.strip = false;
     b.installArtifact(exe);
+
+    // Create CLI modules for enhanced executable
+    const cli_interactive_mod = b.createModule(.{
+        .root_source_file = b.path("src/cli/interactive.zig"),
+        .target = exe.root_module.resolved_target,
+        .optimize = exe.root_module.optimize.?,
+    });
+    cli_interactive_mod.addImport("zmin_lib", modules.lib_mod);
+
+    const cli_args_mod = b.createModule(.{
+        .root_source_file = b.path("src/cli/args_parser.zig"),
+        .target = exe.root_module.resolved_target,
+        .optimize = exe.root_module.optimize.?,
+    });
+    cli_args_mod.addImport("zmin_lib", modules.lib_mod);
+
+    // Enhanced CLI executable (disabled temporarily due to API mismatch)
+    // const cli_exe = b.addExecutable(.{
+    //     .name = "zmin-cli",
+    //     .root_source_file = b.path("src/main_cli.zig"),
+    //     .target = exe.root_module.resolved_target,
+    //     .optimize = exe.root_module.optimize.?,
+    // });
+    // cli_exe.root_module.addImport("zmin_lib", modules.lib_mod);
+    // cli_exe.root_module.addImport("cli/interactive.zig", cli_interactive_mod);
+    // cli_exe.root_module.addImport("cli/args_parser.zig", cli_args_mod);
+    // cli_exe.root_module.strip = false;
+    // b.installArtifact(cli_exe);
+
     return exe;
 }
 
 fn createTestSuite(b: *std.Build, config: Config, modules: ModuleRegistry) void {
+    // Phase 3: Create test framework module
+    const test_framework_mod = b.createModule(.{
+        .root_source_file = b.path("tests/test_framework.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    test_framework_mod.addImport("zmin_lib", modules.lib_mod);
+
     // Create basic test modules
     const basic_test_mod = b.createModule(.{
         .root_source_file = b.path("tests/minifier/basic.zig"),
@@ -355,6 +395,38 @@ fn createTestSuite(b: *std.Build, config: Config, modules: ModuleRegistry) void 
     const minimal_tests = b.addTest(.{ .root_module = minimal_test_mod });
     const api_consistency_tests = b.addTest(.{ .root_module = api_consistency_test_mod });
 
+    // Phase 3: New test suites
+    const integration_tests = b.addTest(.{
+        .root_source_file = b.path("tests/integration/real_world_datasets.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    integration_tests.root_module.addImport("zmin_lib", modules.lib_mod);
+    integration_tests.root_module.addImport("test_framework", test_framework_mod);
+
+    const property_tests = b.addTest(.{
+        .root_source_file = b.path("tests/property_based_tests.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    property_tests.root_module.addImport("zmin_lib", modules.lib_mod);
+    property_tests.root_module.addImport("test_framework", test_framework_mod);
+
+    const fuzz_tests = b.addTest(.{
+        .root_source_file = b.path("tests/fuzz/json_fuzzer.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    fuzz_tests.root_module.addImport("zmin_lib", modules.lib_mod);
+
+    const regression_tests = b.addTest(.{
+        .root_source_file = b.path("tests/regression/regression_tests.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    regression_tests.root_module.addImport("zmin_lib", modules.lib_mod);
+    regression_tests.root_module.addImport("test_framework", test_framework_mod);
+
     // Create run steps
     const run_lib_tests = b.addRunArtifact(lib_unit_tests);
     const run_exe_tests = b.addRunArtifact(exe_unit_tests);
@@ -366,8 +438,14 @@ fn createTestSuite(b: *std.Build, config: Config, modules: ModuleRegistry) void 
     const run_api_consistency_tests = b.addRunArtifact(api_consistency_tests);
     const run_mode_tests = b.addRunArtifact(mode_tests);
 
+    // Phase 3: New test run steps
+    const run_integration_tests = b.addRunArtifact(integration_tests);
+    const run_property_tests = b.addRunArtifact(property_tests);
+    const run_fuzz_tests = b.addRunArtifact(fuzz_tests);
+    const run_regression_tests = b.addRunArtifact(regression_tests);
+
     // Create test step groups
-    const test_step = b.step("test", "Run all unit tests");
+    const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_lib_tests.step);
     test_step.dependOn(&run_exe_tests.step);
     test_step.dependOn(&run_basic_tests.step);
@@ -377,6 +455,9 @@ fn createTestSuite(b: *std.Build, config: Config, modules: ModuleRegistry) void 
     test_step.dependOn(&run_minimal_tests.step);
     test_step.dependOn(&run_api_consistency_tests.step);
     test_step.dependOn(&run_mode_tests.step);
+    test_step.dependOn(&run_integration_tests.step);
+    test_step.dependOn(&run_property_tests.step);
+    test_step.dependOn(&run_regression_tests.step);
 
     // Fast tests (excludes performance tests)
     const test_fast_step = b.step("test:fast", "Run fast tests (excludes performance)");
@@ -402,6 +483,22 @@ fn createTestSuite(b: *std.Build, config: Config, modules: ModuleRegistry) void 
     const test_integration_step = b.step("test:integration", "Run integration tests");
     test_integration_step.dependOn(&run_minimal_tests.step);
     test_integration_step.dependOn(&run_api_consistency_tests.step);
+    test_integration_step.dependOn(&run_integration_tests.step);
+
+    // Phase 3: Additional test commands
+    const test_property_step = b.step("test:property", "Run property-based tests");
+    test_property_step.dependOn(&run_property_tests.step);
+
+    const test_fuzz_step = b.step("test:fuzz", "Run fuzz tests");
+    test_fuzz_step.dependOn(&run_fuzz_tests.step);
+
+    const test_regression_step = b.step("test:regression", "Run regression tests");
+    test_regression_step.dependOn(&run_regression_tests.step);
+
+    const test_quality_step = b.step("test:quality", "Run all quality assurance tests");
+    test_quality_step.dependOn(&run_property_tests.step);
+    test_quality_step.dependOn(&run_fuzz_tests.step);
+    test_quality_step.dependOn(&run_regression_tests.step);
 }
 
 fn createBenchmarks(b: *std.Build, config: Config, modules: ModuleRegistry) void {
@@ -482,6 +579,24 @@ fn createTools(b: *std.Build, config: Config, modules: ModuleRegistry) void {
     });
     b.installArtifact(badge_generator_exe);
 
+    // Phase 4: Developer tools
+    const zmin_format_exe = b.addExecutable(.{
+        .name = "zmin-format",
+        .root_source_file = b.path("tools/zmin-format-simple.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    b.installArtifact(zmin_format_exe);
+
+    const zmin_validate_exe = b.addExecutable(.{
+        .name = "zmin-validate",
+        .root_source_file = b.path("tools/zmin-validate-simple.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    // No imports needed for simple version
+    b.installArtifact(zmin_validate_exe);
+
     // Tool steps
     const run_performance_monitor = b.addRunArtifact(performance_monitor_exe);
     const performance_monitor_step = b.step("tools:performance-monitor", "Parse benchmark output and generate performance data");
@@ -490,9 +605,17 @@ fn createTools(b: *std.Build, config: Config, modules: ModuleRegistry) void {
     const run_badge_generator = b.addRunArtifact(badge_generator_exe);
     const badge_generator_step = b.step("tools:badges", "Generate performance badges");
     badge_generator_step.dependOn(&run_badge_generator.step);
+
+    const run_format = b.addRunArtifact(zmin_format_exe);
+    const format_step = b.step("tools:format", "Format minified JSON");
+    format_step.dependOn(&run_format.step);
+
+    const run_validate = b.addRunArtifact(zmin_validate_exe);
+    const validate_step = b.step("tools:validate", "Validate JSON with detailed errors");
+    validate_step.dependOn(&run_validate.step);
 }
 
-fn setupBuildSteps(b: *std.Build, exe: *std.Build.Step.Compile) void {
+fn setupBuildSteps(b: *std.Build, exe: *std.Build.Step.Compile, modules: ModuleRegistry) void {
     // Run step
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
@@ -503,4 +626,93 @@ fn setupBuildSteps(b: *std.Build, exe: *std.Build.Step.Compile) void {
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+
+    // Build examples step
+    const examples_step = b.step("examples", "Build all examples");
+
+    const example_files = [_][]const u8{
+        "examples/basic_usage.zig",
+        "examples/mode_selection.zig",
+        "examples/streaming.zig",
+        "examples/parallel_batch.zig",
+    };
+
+    for (example_files) |example_file| {
+        const example_name = std.fs.path.stem(example_file);
+        const example_exe = b.addExecutable(.{
+            .name = example_name,
+            .root_source_file = b.path(example_file),
+            .target = exe.root_module.resolved_target,
+            .optimize = exe.root_module.optimize.?,
+        });
+        example_exe.root_module.addImport("zmin", modules.lib_mod);
+
+        const install_example = b.addInstallArtifact(example_exe, .{
+            .dest_dir = .{ .override = .{ .custom = "examples" } },
+        });
+        examples_step.dependOn(&install_example.step);
+    }
+}
+
+fn setupAdvancedFeatures(b: *std.Build, config: Config, modules: ModuleRegistry) void {
+    // WebAssembly build
+    const wasm_step = b.step("wasm", "Build WebAssembly module");
+    const wasm_lib = b.addSharedLibrary(.{
+        .name = "zmin",
+        .root_source_file = b.path("src/wasm/exports.zig"),
+        .target = b.resolveTargetQuery(.{
+            .cpu_arch = .wasm32,
+            .os_tag = .freestanding,
+        }),
+        .optimize = .ReleaseSmall,
+    });
+    wasm_lib.root_module.addImport("zmin_lib", modules.lib_mod);
+    wasm_lib.rdynamic = true;
+
+    const install_wasm = b.addInstallArtifact(wasm_lib, .{
+        .dest_dir = .{ .override = .{ .custom = "wasm" } },
+    });
+    wasm_step.dependOn(&install_wasm.step);
+
+    // C API shared library
+    const c_api_step = b.step("c-api", "Build C API shared library");
+    const c_api_lib = b.addSharedLibrary(.{
+        .name = "zmin",
+        .root_source_file = b.path("src/bindings/c_api.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    c_api_lib.root_module.addImport("zmin_lib", modules.lib_mod);
+    c_api_lib.linkLibC();
+
+    const install_c_api = b.addInstallArtifact(c_api_lib, .{});
+    c_api_step.dependOn(&install_c_api.step);
+
+    // GPU acceleration (experimental)
+    const gpu_option = b.option([]const u8, "gpu", "GPU acceleration backend (cuda/opencl)");
+    if (gpu_option) |gpu_backend| {
+        const gpu_step = b.step("gpu", "Build with GPU acceleration");
+
+        if (std.mem.eql(u8, gpu_backend, "cuda")) {
+            // CUDA module
+            const cuda_mod = b.createModule(.{
+                .root_source_file = b.path("src/gpu/cuda_minifier.zig"),
+                .target = config.target,
+                .optimize = config.optimize,
+            });
+            cuda_mod.addImport("zmin_lib", modules.lib_mod);
+            modules.lib_mod.addImport("gpu_cuda", cuda_mod);
+        } else if (std.mem.eql(u8, gpu_backend, "opencl")) {
+            // OpenCL module
+            const opencl_mod = b.createModule(.{
+                .root_source_file = b.path("src/gpu/opencl_minifier.zig"),
+                .target = config.target,
+                .optimize = config.optimize,
+            });
+            opencl_mod.addImport("zmin_lib", modules.lib_mod);
+            modules.lib_mod.addImport("gpu_opencl", opencl_mod);
+        }
+
+        b.getInstallStep().dependOn(gpu_step);
+    }
 }

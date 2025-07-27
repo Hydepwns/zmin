@@ -12,3 +12,7 @@ pub const parallel = @import("parallel/mod.zig");
 pub const parallel_minifier = parallel.ParallelMinifier;
 pub const parallel_minifier_simple = parallel.SimpleParallelMinifier;
 
+// Export modes
+pub const modes = @import("modes/mod.zig");
+pub const ProcessingMode = modes.ProcessingMode;
+
