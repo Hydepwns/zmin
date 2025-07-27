@@ -131,7 +131,7 @@ fn detectCpuModel() []const u8 {
 fn detectCpuFeatures() CpuFeatures {
     const builtin = @import("builtin");
     const cpu = builtin.cpu;
-    
+
     if (cpu.arch != .x86_64) {
         return CpuFeatures{
             .sse = false,

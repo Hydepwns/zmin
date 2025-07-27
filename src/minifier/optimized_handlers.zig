@@ -11,12 +11,12 @@ pub fn handleTopLevelOptimized(parser: *types.MinifyingParser, input: []const u8
     // Skip whitespace using SIMD
     const start = SimdUtils.skipWhitespaceSimd64(input, pos.*);
     pos.* = start;
-    
+
     if (start >= input.len) return;
-    
+
     const byte = input[start];
     pos.* += 1;
-    
+
     switch (byte) {
         '{' => {
             try pretty.writeByte(parser, byte);
@@ -66,30 +66,31 @@ pub fn handleTopLevelOptimized(parser: *types.MinifyingParser, input: []const u8
 pub fn handleStringOptimized(parser: *types.MinifyingParser, input: []const u8, pos: *usize) !usize {
     const start_pos = pos.*;
     var string_start = start_pos;
-    
+
     // Look for string end using SIMD
     while (pos.* + SimdUtils.vector_size <= input.len) {
         const classification = SimdUtils.classifyCharsSimd(input, pos.*);
-        
+
         if (classification.quote_mask != 0 or classification.backslash_mask != 0) {
             // Found quote or backslash, need detailed processing
             var i: usize = 0;
             while (i < SimdUtils.vector_size and pos.* + i < input.len) : (i += 1) {
                 const c = input[pos.* + i];
-                
+
                 if (c == '"') {
                     // Copy the string content
-                    const string_content = input[string_start..pos.* + i];
+                    const string_content = input[string_start .. pos.* + i];
                     try pretty.writeBytes(parser, string_content);
                     try pretty.writeByte(parser, '"');
                     pos.* = pos.* + i + 1;
-                    
+
                     // Determine next state
                     const context = parser.getCurrentContext();
                     switch (context) {
                         .Object => {
-                            if (parser.state == types.State.ObjectKey or 
-                                parser.state == types.State.ObjectKeyString) {
+                            if (parser.state == types.State.ObjectKey or
+                                parser.state == types.State.ObjectKeyString)
+                            {
                                 parser.state = types.State.ObjectColon;
                             } else {
                                 parser.state = types.State.ObjectComma;
@@ -98,31 +99,31 @@ pub fn handleStringOptimized(parser: *types.MinifyingParser, input: []const u8, 
                         .Array => parser.state = types.State.ArrayComma,
                         .TopLevel => parser.state = types.State.TopLevel,
                     }
-                    
+
                     return pos.* - start_pos;
                 } else if (c == '\\') {
                     // Copy up to escape
                     if (pos.* + i > string_start) {
-                        const chunk = input[string_start..pos.* + i];
+                        const chunk = input[string_start .. pos.* + i];
                         try pretty.writeBytes(parser, chunk);
                     }
-                    
+
                     // Handle escape sequence
                     pos.* = pos.* + i;
                     parser.state = types.State.StringEscape;
                     return pos.* - start_pos;
                 }
             }
-            
+
             // No string end in this chunk, copy and continue
-            const chunk = input[string_start..pos.* + SimdUtils.vector_size];
+            const chunk = input[string_start .. pos.* + SimdUtils.vector_size];
             try pretty.writeBytes(parser, chunk);
             string_start = pos.* + SimdUtils.vector_size;
         }
-        
+
         pos.* += SimdUtils.vector_size;
     }
-    
+
     // Handle remaining bytes
     while (pos.* < input.len) : (pos.* += 1) {
         const c = input[pos.*];
@@ -134,13 +135,14 @@ pub fn handleStringOptimized(parser: *types.MinifyingParser, input: []const u8, 
             }
             try pretty.writeByte(parser, '"');
             pos.* += 1;
-            
+
             // Set next state
             const context = parser.getCurrentContext();
             switch (context) {
                 .Object => {
-                    if (parser.state == types.State.ObjectKey or 
-                        parser.state == types.State.ObjectKeyString) {
+                    if (parser.state == types.State.ObjectKey or
+                        parser.state == types.State.ObjectKeyString)
+                    {
                         parser.state = types.State.ObjectColon;
                     } else {
                         parser.state = types.State.ObjectComma;
@@ -149,7 +151,7 @@ pub fn handleStringOptimized(parser: *types.MinifyingParser, input: []const u8, 
                 .Array => parser.state = types.State.ArrayComma,
                 .TopLevel => parser.state = types.State.TopLevel,
             }
-            
+
             return pos.* - start_pos;
         } else if (c == '\\') {
             // Copy up to escape
@@ -161,29 +163,29 @@ pub fn handleStringOptimized(parser: *types.MinifyingParser, input: []const u8, 
             return pos.* - start_pos;
         }
     }
-    
+
     // Copy remaining
     if (pos.* > string_start) {
         const chunk = input[string_start..pos.*];
         try pretty.writeBytes(parser, chunk);
     }
-    
+
     return pos.* - start_pos;
 }
 
 /// Optimized number handler using SIMD
 pub fn handleNumberOptimized(parser: *types.MinifyingParser, input: []const u8, pos: *usize) !usize {
     const start_pos = pos.*;
-    
+
     // Use SIMD to find end of number
     const end_pos = SimdUtils.findNumberEndSimd(input, start_pos);
-    
+
     // Copy entire number
     const number_str = input[start_pos..end_pos];
     try pretty.writeBytes(parser, number_str);
-    
+
     pos.* = end_pos;
-    
+
     // Determine next state
     const context = parser.getCurrentContext();
     switch (context) {
@@ -191,7 +193,7 @@ pub fn handleNumberOptimized(parser: *types.MinifyingParser, input: []const u8, 
         .Array => parser.state = types.State.ArrayComma,
         .TopLevel => parser.state = types.State.TopLevel,
     }
-    
+
     return end_pos - start_pos;
 }
 
@@ -200,11 +202,11 @@ pub fn handleObjectValueOptimized(parser: *types.MinifyingParser, input: []const
     // Skip whitespace using SIMD
     const start = SimdUtils.skipWhitespaceSimd64(input, pos.*);
     pos.* = start;
-    
+
     if (start >= input.len) return;
-    
+
     const byte = input[start];
-    
+
     switch (byte) {
         '"' => {
             try pretty.writeByte(parser, byte);
@@ -260,11 +262,11 @@ pub fn handleArrayValueOptimized(parser: *types.MinifyingParser, input: []const 
     // Skip whitespace using SIMD
     const start = SimdUtils.skipWhitespaceSimd64(input, pos.*);
     pos.* = start;
-    
+
     if (start >= input.len) return;
-    
+
     const byte = input[start];
-    
+
     switch (byte) {
         ']' => {
             // Empty array or trailing comma
@@ -274,7 +276,7 @@ pub fn handleArrayValueOptimized(parser: *types.MinifyingParser, input: []const 
             try pretty.writeByte(parser, byte);
             _ = parser.popContext();
             pos.* += 1;
-            
+
             const context = parser.getCurrentContext();
             switch (context) {
                 .Object => parser.state = types.State.ObjectComma,

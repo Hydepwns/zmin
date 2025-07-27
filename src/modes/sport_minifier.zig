@@ -7,25 +7,25 @@ const builtin = @import("builtin");
 pub const SportMinifier = struct {
     allocator: std.mem.Allocator,
     chunk_size: usize = 1024 * 1024, // 1MB default chunks
-    
+
     // Cache line size for alignment (typically 64 bytes)
     const cache_line_size = 64;
-    
+
     // SIMD vector size for future optimization
     const vector_size = if (builtin.cpu.arch == .x86_64) 32 else 16;
-    
+
     // Processing state
     const ProcessingState = struct {
         in_string: bool = false,
         escaped: bool = false,
-        
+
         // Process a single character and return whether to output it
         fn processChar(self: *ProcessingState, c: u8) bool {
             if (self.escaped) {
                 self.escaped = false;
                 return true;
             }
-            
+
             if (self.in_string) {
                 if (c == '\\') {
                     self.escaped = true;
@@ -34,20 +34,20 @@ pub const SportMinifier = struct {
                 }
                 return true;
             }
-            
+
             if (c == '"') {
                 self.in_string = true;
                 return true;
             }
-            
+
             return !isWhitespace(c);
         }
     };
-    
+
     pub fn init(allocator: std.mem.Allocator) SportMinifier {
         return .{ .allocator = allocator };
     }
-    
+
     pub fn minifyStreaming(
         self: *SportMinifier,
         reader: anytype,
@@ -57,27 +57,27 @@ pub const SportMinifier = struct {
         const aligned_chunk_size = std.mem.alignForward(usize, self.chunk_size, cache_line_size);
         const buffer = try self.allocator.alignedAlloc(u8, cache_line_size, aligned_chunk_size);
         defer self.allocator.free(buffer);
-        
+
         // Output buffer for batched writes
         const output_size = 64 * 1024; // 64KB output buffer
         const output_buffer = try self.allocator.alloc(u8, output_size);
         defer self.allocator.free(output_buffer);
         var output_pos: usize = 0;
-        
+
         var state = ProcessingState{};
-        
+
         // Main processing loop
         while (true) {
             const bytes_read = try reader.read(buffer);
             if (bytes_read == 0) break;
-            
+
             // Process in cache-friendly blocks
             var pos: usize = 0;
-            
+
             // Fast path: process aligned blocks when not in string
             while (pos + vector_size <= bytes_read and !state.in_string) {
-                const block = buffer[pos..pos + vector_size];
-                
+                const block = buffer[pos .. pos + vector_size];
+
                 // Quick scan for quotes
                 var has_quote = false;
                 var quote_pos: usize = vector_size;
@@ -88,14 +88,14 @@ pub const SportMinifier = struct {
                         break;
                     }
                 }
-                
+
                 if (!has_quote) {
                     // No quotes in block - fast whitespace removal
                     for (block) |c| {
                         if (!isWhitespace(c)) {
                             output_buffer[output_pos] = c;
                             output_pos += 1;
-                            
+
                             // Flush output buffer if nearly full
                             if (output_pos >= output_size - vector_size) {
                                 try writer.writeAll(output_buffer[0..output_pos]);
@@ -112,7 +112,7 @@ pub const SportMinifier = struct {
                             output_pos += 1;
                         }
                     }
-                    
+
                     // Handle the quote
                     output_buffer[output_pos] = '"';
                     output_pos += 1;
@@ -120,14 +120,14 @@ pub const SportMinifier = struct {
                     pos += quote_pos + 1;
                 }
             }
-            
+
             // Slow path: byte-by-byte processing
             while (pos < bytes_read) {
                 const c = buffer[pos];
                 if (state.processChar(c)) {
                     output_buffer[output_pos] = c;
                     output_pos += 1;
-                    
+
                     // Flush if buffer is full
                     if (output_pos >= output_size - 1) {
                         try writer.writeAll(output_buffer[0..output_pos]);
@@ -137,30 +137,30 @@ pub const SportMinifier = struct {
                 pos += 1;
             }
         }
-        
+
         // Flush remaining output
         if (output_pos > 0) {
             try writer.writeAll(output_buffer[0..output_pos]);
         }
     }
-    
+
     // Optimized minify for when we have the full input
     pub fn minify(self: *SportMinifier, input: []const u8, output: []u8) !usize {
         _ = self;
-        
+
         var out_pos: usize = 0;
         var state = ProcessingState{};
-        
+
         // Process in blocks for better performance
         var i: usize = 0;
-        
+
         // Aligned block processing
         const aligned_end = input.len & ~@as(usize, vector_size - 1);
-        
+
         while (i < aligned_end and !state.in_string) {
             const block_end = @min(i + vector_size, aligned_end);
             const block = input[i..block_end];
-            
+
             // Look for quotes in block
             var quote_found = false;
             var quote_idx: usize = 0;
@@ -171,7 +171,7 @@ pub const SportMinifier = struct {
                     break;
                 }
             }
-            
+
             if (!quote_found) {
                 // Fast path: no quotes, bulk copy non-whitespace
                 for (block) |c| {
@@ -196,7 +196,7 @@ pub const SportMinifier = struct {
                 i += quote_idx + 1;
             }
         }
-        
+
         // Process remainder byte by byte
         while (i < input.len) {
             const c = input[i];
@@ -206,10 +206,10 @@ pub const SportMinifier = struct {
             }
             i += 1;
         }
-        
+
         return out_pos;
     }
-    
+
     inline fn isWhitespace(c: u8) bool {
         // Optimized whitespace check using bit manipulation
         return switch (c) {

@@ -45,7 +45,7 @@ pub const RecoveryExecutor = struct {
     error_handler: *errors.ErrorHandler,
     max_attempts: u32,
     current_attempt: u32 = 0,
-    
+
     /// Initialize recovery executor
     pub fn init(
         allocator: std.mem.Allocator,
@@ -58,15 +58,15 @@ pub const RecoveryExecutor = struct {
             .max_attempts = max_attempts,
         };
     }
-    
+
     /// Execute recovery for an error
     pub fn recover(
         self: *RecoveryExecutor,
         err: anyerror,
-        context: errors.ErrorContext,
+        _: errors.ErrorContext,
     ) !RecoveryResult {
         self.current_attempt += 1;
-        
+
         if (self.current_attempt > self.max_attempts) {
             return RecoveryResult{
                 .success = false,
@@ -74,24 +74,14 @@ pub const RecoveryExecutor = struct {
                 .details = "Maximum recovery attempts exceeded",
             };
         }
-        
+
         // Get appropriate recovery strategy
         const strategy = errors.RecoveryStrategy.forError(err);
-        
+
         // Log recovery attempt
-        const recovery_context = errors.ErrorContext.init(
-            err,
-            .info,
-            "Recovery attempt"
-        ).withDetails(
-            try std.fmt.allocPrint(
-                self.allocator,
-                "Attempting recovery strategy: {s}",
-                .{strategy.getDescription()}
-            )
-        );
-        try self.error_handler.handle(recovery_context);
-        
+        const recovery_context = errors.ErrorContext.init(err, .info, "Recovery attempt").withDetails(try std.fmt.allocPrint(self.allocator, "Attempting recovery strategy: {s}", .{strategy.getDescription()}));
+        _ = try self.error_handler.handle(recovery_context);
+
         // Execute recovery strategy
         return switch (strategy) {
             .fail_fast => self.failFast(err),
@@ -103,20 +93,18 @@ pub const RecoveryExecutor = struct {
             .use_streaming => self.useStreaming(err),
         };
     }
-    
-    fn failFast(self: *RecoveryExecutor, err: anyerror) RecoveryResult {
+
+    fn failFast(self: *RecoveryExecutor, _: anyerror) RecoveryResult {
         _ = self;
-        _ = err;
         return RecoveryResult{
             .success = false,
             .strategy = .fail_fast,
             .details = "No recovery attempted - failing fast",
         };
     }
-    
-    fn fallbackToEco(self: *RecoveryExecutor, err: anyerror) RecoveryResult {
+
+    fn fallbackToEco(self: *RecoveryExecutor, _: anyerror) RecoveryResult {
         _ = self;
-        _ = err;
         return RecoveryResult{
             .success = true,
             .strategy = .fallback_to_eco_mode,
@@ -130,10 +118,9 @@ pub const RecoveryExecutor = struct {
             .details = "Switched to ECO mode for minimal memory usage",
         };
     }
-    
-    fn fallbackToScalar(self: *RecoveryExecutor, err: anyerror) RecoveryResult {
+
+    fn fallbackToScalar(self: *RecoveryExecutor, _: anyerror) RecoveryResult {
         _ = self;
-        _ = err;
         return RecoveryResult{
             .success = true,
             .strategy = .fallback_to_scalar,
@@ -146,36 +133,29 @@ pub const RecoveryExecutor = struct {
             .details = "Disabled SIMD optimizations, using scalar processing",
         };
     }
-    
-    fn reduceParallelism(self: *RecoveryExecutor, err: anyerror) RecoveryResult {
-        _ = err;
-        
+
+    fn reduceParallelism(self: *RecoveryExecutor, _: anyerror) RecoveryResult {
         // Calculate reduced thread count
         const current_threads = std.Thread.getCpuCount() catch 4;
         const new_threads = @max(1, current_threads / 2);
-        
+
         return RecoveryResult{
             .success = true,
             .strategy = .retry_with_reduced_parallelism,
             .config = RecoveryConfig{
                 .thread_count = new_threads,
             },
-            .performance_impact = @as(f64, @floatFromInt(new_threads)) / 
-                                @as(f64, @floatFromInt(current_threads)),
-            .details = try std.fmt.allocPrint(
-                self.allocator,
-                "Reduced thread count from {d} to {d}",
-                .{ current_threads, new_threads }
-            ),
+            .performance_impact = @as(f64, @floatFromInt(new_threads)) /
+                @as(f64, @floatFromInt(current_threads)),
+            .details = try std.fmt.allocPrint(self.allocator, "Reduced thread count from {d} to {d}", .{ current_threads, new_threads }),
         };
     }
-    
-    fn reducerChunkSize(self: *RecoveryExecutor, err: anyerror) RecoveryResult {
+
+    fn reducerChunkSize(self: *RecoveryExecutor, _: anyerror) RecoveryResult {
         _ = self;
-        _ = err;
-        
+
         const new_chunk_size = 256 * 1024; // 256KB chunks
-        
+
         return RecoveryResult{
             .success = true,
             .strategy = .retry_with_smaller_chunks,
@@ -186,10 +166,9 @@ pub const RecoveryExecutor = struct {
             .details = "Reduced chunk size to 256KB for lower memory pressure",
         };
     }
-    
-    fn skipOptimizations(self: *RecoveryExecutor, err: anyerror) RecoveryResult {
+
+    fn skipOptimizations(self: *RecoveryExecutor, _: anyerror) RecoveryResult {
         _ = self;
-        _ = err;
         return RecoveryResult{
             .success = true,
             .strategy = .skip_optimizations,
@@ -202,10 +181,9 @@ pub const RecoveryExecutor = struct {
             .details = "Disabled all optimizations for maximum compatibility",
         };
     }
-    
-    fn useStreaming(self: *RecoveryExecutor, err: anyerror) RecoveryResult {
+
+    fn useStreaming(self: *RecoveryExecutor, _: anyerror) RecoveryResult {
         _ = self;
-        _ = err;
         return RecoveryResult{
             .success = true,
             .strategy = .use_streaming,
@@ -218,31 +196,31 @@ pub const RecoveryExecutor = struct {
             .details = "Switched to streaming mode for large file processing",
         };
     }
-    
+
     /// Apply recovery configuration
     pub fn applyConfig(config: RecoveryConfig) modes.ModeConfig {
         var mode_config = modes.ModeConfig.fromMode(config.mode);
-        
+
         if (config.max_memory) |max_mem| {
             mode_config.chunk_size = @min(mode_config.chunk_size, max_mem);
         }
-        
+
         if (config.thread_count) |threads| {
             mode_config.parallel_chunks = threads;
         }
-        
+
         if (config.chunk_size) |chunk| {
             mode_config.chunk_size = chunk;
         }
-        
+
         if (config.disable_simd) {
             mode_config.enable_simd = false;
         }
-        
+
         if (config.disable_parallel) {
             mode_config.parallel_chunks = 1;
         }
-        
+
         return mode_config;
     }
 };
@@ -252,33 +230,26 @@ pub const ResilientMinifier = struct {
     allocator: std.mem.Allocator,
     error_handler: errors.ErrorHandler,
     recovery_executor: RecoveryExecutor,
-    
+
     /// Initialize resilient minifier
     pub fn init(allocator: std.mem.Allocator) ResilientMinifier {
-        var error_handler = errors.ErrorHandler.init(
-            allocator,
-            errors.ErrorConfig{
-                .enable_recovery = true,
-                .max_recovery_attempts = 3,
-            }
-        );
-        
+        var error_handler = errors.ErrorHandler.init(allocator, errors.ErrorConfig{
+            .enable_recovery = true,
+            .max_recovery_attempts = 3,
+        });
+
         return ResilientMinifier{
             .allocator = allocator,
             .error_handler = error_handler,
-            .recovery_executor = RecoveryExecutor.init(
-                allocator,
-                &error_handler,
-                3
-            ),
+            .recovery_executor = RecoveryExecutor.init(allocator, &error_handler, 3),
         };
     }
-    
+
     /// Deinitialize resilient minifier
     pub fn deinit(self: *ResilientMinifier) void {
         self.error_handler.deinit();
     }
-    
+
     /// Minify JSON with automatic error recovery
     pub fn minify(
         self: *ResilientMinifier,
@@ -287,69 +258,44 @@ pub const ResilientMinifier = struct {
     ) !MinificationResult {
         var current_config = modes.ModeConfig.fromMode(initial_mode);
         var attempt: u32 = 0;
-        
+
         while (attempt < 3) : (attempt += 1) {
             // Attempt minification
-            const result = self.attemptMinification(input, current_config) catch |err| {
+            const result = modes.minify(input, current_config) catch |err| {
                 // Create error context
-                const context = errors.ErrorContext.init(
-                    err,
-                    .error,
-                    "JSON minification"
-                ).withDetails(
-                    try std.fmt.allocPrint(
-                        self.allocator,
-                        "Attempt {d} failed with mode {s}",
-                        .{ attempt + 1, @tagName(current_config.mode) }
-                    )
-                );
-                
+                const context = errors.ErrorContext.init(err, .errors, "JSON minification").withDetails(try std.fmt.allocPrint(self.allocator, "Attempt {d} failed with mode {s}", .{ attempt + 1, @tagName(current_config.mode) }));
+
                 // Handle error
-                try self.error_handler.handle(context);
-                
+                _ = try self.error_handler.handle(context);
+
                 // Attempt recovery
                 const recovery = try self.recovery_executor.recover(err, context);
-                
+
                 if (!recovery.success) {
                     return err;
                 }
-                
+
                 // Apply recovery configuration
                 if (recovery.config) |recovery_config| {
                     current_config = RecoveryExecutor.applyConfig(recovery_config);
                 }
-                
+
                 // Track recovery in stats
                 self.error_handler.stats.recovered_errors += 1;
-                
+
                 continue;
             };
-            
+
             // Success!
             return MinificationResult{
-                .output = result,
+                .output = result.output,
                 .mode_used = current_config.mode,
                 .recovery_attempts = attempt,
                 .final_config = current_config,
             };
         }
-        
+
         return error.MaxRecoveryAttemptsExceeded;
-    }
-    
-    fn attemptMinification(
-        self: *ResilientMinifier,
-        input: []const u8,
-        config: modes.ModeConfig,
-    ) ![]u8 {
-        // This would call the actual minification logic
-        // For now, simulate potential errors
-        _ = self;
-        _ = input;
-        _ = config;
-        
-        // TODO: Implement actual minification call
-        return error.NotImplemented;
     }
 };
 
@@ -367,12 +313,8 @@ pub const MinificationResult = struct {
 
 // Tests
 test "recovery strategy selection" {
-    const executor = RecoveryExecutor.init(
-        std.testing.allocator,
-        undefined,
-        3
-    );
-    
+    const executor = RecoveryExecutor.init(std.testing.allocator, undefined, 3);
+
     const result = executor.fallbackToEco(error.OutOfMemory);
     try std.testing.expect(result.success);
     try std.testing.expectEqual(modes.ProcessingMode.eco, result.config.?.mode);
@@ -384,8 +326,8 @@ test "recovery config application" {
         .thread_count = 2,
         .disable_simd = true,
     };
-    
+
     const mode_config = RecoveryExecutor.applyConfig(config);
-    try std.testing.expectEqual(@as(usize, 2), mode_config.parallel_chunks);
+    try std.testing.expectEqual(@as(u32, 2), mode_config.parallel_chunks);
     try std.testing.expect(!mode_config.enable_simd);
 }

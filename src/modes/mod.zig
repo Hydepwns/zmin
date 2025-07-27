@@ -5,13 +5,13 @@ const std = @import("std");
 pub const ProcessingMode = enum {
     // ECO Mode: O(1) memory, 91 MB/s, works everywhere
     eco,
-    
+
     // SPORT Mode: O(√n) memory, ~500 MB/s, chunk-based SIMD
     sport,
-    
+
     // TURBO Mode: O(n) memory, 2+ GB/s, full SIMD processing
     turbo,
-    
+
     pub fn getDescription(self: ProcessingMode) []const u8 {
         return switch (self) {
             .eco => "Memory-efficient streaming (64KB constant)",
@@ -19,7 +19,7 @@ pub const ProcessingMode = enum {
             .turbo => "Maximum speed (full document in memory)",
         };
     }
-    
+
     pub fn getMemoryUsage(self: ProcessingMode, file_size: usize) usize {
         return switch (self) {
             .eco => 64 * 1024, // Always 64KB
@@ -40,7 +40,7 @@ pub const ModeConfig = struct {
     enable_simd: bool = false,
     prefetch_distance: usize = 0,
     parallel_chunks: usize = 1,
-    
+
     pub fn fromMode(mode: ProcessingMode) ModeConfig {
         return switch (mode) {
             .eco => .{

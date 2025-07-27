@@ -33,7 +33,7 @@ pub const WorkItem = struct {
             .owns_memory = false, // Default to not owning memory (slice of original input)
         };
     }
-    
+
     pub fn initOwned(chunk: []const u8, chunk_id: usize, is_final: bool) WorkItem {
         return WorkItem{
             .chunk = chunk,
@@ -42,7 +42,7 @@ pub const WorkItem = struct {
             .owns_memory = true, // This chunk owns its memory and needs freeing
         };
     }
-    
+
     pub fn deinit(self: *WorkItem, allocator: std.mem.Allocator) void {
         if (self.owns_memory) {
             allocator.free(self.chunk);
@@ -72,7 +72,7 @@ pub const StreamChunk = struct {
     chunk_id: usize,
     output: []const u8,
     is_ready: bool,
-    
+
     pub fn init(chunk_id: usize, output: []const u8) StreamChunk {
         return StreamChunk{
             .chunk_id = chunk_id,
@@ -80,7 +80,7 @@ pub const StreamChunk = struct {
             .is_ready = true,
         };
     }
-    
+
     pub fn deinit(self: *StreamChunk, allocator: std.mem.Allocator) void {
         allocator.free(self.output);
     }

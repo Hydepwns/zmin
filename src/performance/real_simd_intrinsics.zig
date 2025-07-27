@@ -6,13 +6,13 @@ const cpu_detection = @import("cpu_detection.zig");
 pub const RealSimdProcessor = struct {
     strategy: cpu_detection.SimdStrategy,
     chunk_size: usize,
-    
+
     // Performance counters
     operations_count: u64,
     bytes_processed: u64,
     simd_operations: u64,
     scalar_fallbacks: u64,
-    
+
     pub fn init() RealSimdProcessor {
         const strategy = cpu_detection.getOptimalSimdStrategy();
         return RealSimdProcessor{
@@ -24,7 +24,7 @@ pub const RealSimdProcessor = struct {
             .scalar_fallbacks = 0,
         };
     }
-    
+
     /// High-performance whitespace removal using real SIMD intrinsics
     pub fn processWhitespaceIntrinsics(self: *RealSimdProcessor, input: []const u8, output: []u8) usize {
         _ = std.time.nanoTimestamp();
@@ -33,7 +33,7 @@ pub const RealSimdProcessor = struct {
             self.operations_count += 1;
             self.bytes_processed += input.len;
         }
-        
+
         return switch (self.strategy) {
             .avx512 => self.processAvx512Intrinsics(input, output),
             .avx2 => self.processAvx2Intrinsics(input, output),
@@ -41,36 +41,36 @@ pub const RealSimdProcessor = struct {
             .scalar => self.processScalarOptimized(input, output),
         };
     }
-    
+
     /// AVX-512 implementation using real intrinsics
     fn processAvx512Intrinsics(self: *RealSimdProcessor, input: []const u8, output: []u8) usize {
         if (comptime !builtin.cpu.arch.isX86()) {
             return self.processScalarOptimized(input, output);
         }
-        
+
         var out_pos: usize = 0;
         var pos: usize = 0;
-        
+
         // Process 64-byte chunks with AVX-512 if available
         if (comptime builtin.cpu.arch == .x86_64) {
             while (pos + 64 <= input.len) {
                 // Create whitespace mask for AVX-512 vector
                 // In real implementation, would use _mm512_load_si512, _mm512_cmpeq_epi8, etc.
-                
+
                 // Simulated AVX-512 operations for now
-                const chunk = input[pos..pos + 64];
+                const chunk = input[pos .. pos + 64];
                 for (chunk) |byte| {
                     if (!isWhitespace(byte)) {
                         output[out_pos] = byte;
                         out_pos += 1;
                     }
                 }
-                
+
                 pos += 64;
                 self.simd_operations += 1;
             }
         }
-        
+
         // Process remaining bytes
         while (pos < input.len) {
             const byte = input[pos];
@@ -80,30 +80,30 @@ pub const RealSimdProcessor = struct {
             }
             pos += 1;
         }
-        
+
         return out_pos;
     }
-    
+
     /// AVX2 implementation using real intrinsics
     fn processAvx2Intrinsics(self: *RealSimdProcessor, input: []const u8, output: []u8) usize {
         if (comptime !builtin.cpu.arch.isX86()) {
             return self.processScalarOptimized(input, output);
         }
-        
+
         var out_pos: usize = 0;
         var pos: usize = 0;
-        
+
         // Process 32-byte chunks with AVX2 if available
         if (comptime builtin.cpu.arch == .x86_64) {
             while (pos + 32 <= input.len) {
                 // Vectorized whitespace detection using AVX2
                 // In real implementation, would use _mm256_load_si256, _mm256_cmpeq_epi8, etc.
-                
+
                 // Create masks for each whitespace character
-                const chunk = input[pos..pos + 32];
+                const chunk = input[pos .. pos + 32];
                 var non_whitespace_count: usize = 0;
                 var temp_buffer: [32]u8 = undefined;
-                
+
                 // Vectorized comparison (simulated)
                 for (chunk) |byte| {
                     if (!isWhitespace(byte)) {
@@ -111,16 +111,16 @@ pub const RealSimdProcessor = struct {
                         non_whitespace_count += 1;
                     }
                 }
-                
+
                 // Copy non-whitespace bytes
-                @memcpy(output[out_pos..out_pos + non_whitespace_count], temp_buffer[0..non_whitespace_count]);
+                @memcpy(output[out_pos .. out_pos + non_whitespace_count], temp_buffer[0..non_whitespace_count]);
                 out_pos += non_whitespace_count;
-                
+
                 pos += 32;
                 self.simd_operations += 1;
             }
         }
-        
+
         // Process remaining bytes
         while (pos < input.len) {
             const byte = input[pos];
@@ -130,29 +130,29 @@ pub const RealSimdProcessor = struct {
             }
             pos += 1;
         }
-        
+
         return out_pos;
     }
-    
+
     /// SSE2 implementation using real intrinsics
     fn processSse2Intrinsics(self: *RealSimdProcessor, input: []const u8, output: []u8) usize {
         if (comptime !builtin.cpu.arch.isX86()) {
             return self.processScalarOptimized(input, output);
         }
-        
+
         var out_pos: usize = 0;
         var pos: usize = 0;
-        
+
         // Process 16-byte chunks with SSE2
         if (comptime builtin.cpu.arch == .x86_64) {
             while (pos + 16 <= input.len) {
                 // Vectorized whitespace detection using SSE2
                 // In real implementation, would use _mm_load_si128, _mm_cmpeq_epi8, etc.
-                
-                const chunk = input[pos..pos + 16];
+
+                const chunk = input[pos .. pos + 16];
                 var non_whitespace_count: usize = 0;
                 var temp_buffer: [16]u8 = undefined;
-                
+
                 // Create whitespace masks
                 for (chunk) |byte| {
                     if (!isWhitespace(byte)) {
@@ -160,16 +160,16 @@ pub const RealSimdProcessor = struct {
                         non_whitespace_count += 1;
                     }
                 }
-                
+
                 // Copy non-whitespace bytes
-                @memcpy(output[out_pos..out_pos + non_whitespace_count], temp_buffer[0..non_whitespace_count]);
+                @memcpy(output[out_pos .. out_pos + non_whitespace_count], temp_buffer[0..non_whitespace_count]);
                 out_pos += non_whitespace_count;
-                
+
                 pos += 16;
                 self.simd_operations += 1;
             }
         }
-        
+
         // Process remaining bytes
         while (pos < input.len) {
             const byte = input[pos];
@@ -179,14 +179,14 @@ pub const RealSimdProcessor = struct {
             }
             pos += 1;
         }
-        
+
         return out_pos;
     }
-    
+
     /// Highly optimized scalar implementation as fallback
     fn processScalarOptimized(self: *RealSimdProcessor, input: []const u8, output: []u8) usize {
         var out_pos: usize = 0;
-        
+
         // Unrolled loop for better performance
         var pos: usize = 0;
         while (pos + 8 <= input.len) {
@@ -200,7 +200,7 @@ pub const RealSimdProcessor = struct {
             }
             pos += 8;
         }
-        
+
         // Process remaining bytes
         while (pos < input.len) {
             const byte = input[pos];
@@ -210,11 +210,11 @@ pub const RealSimdProcessor = struct {
             }
             pos += 1;
         }
-        
+
         self.scalar_fallbacks += 1;
         return out_pos;
     }
-    
+
     /// Optimized whitespace detection using lookup table
     fn isWhitespace(byte: u8) bool {
         // Use bit manipulation for faster whitespace detection
@@ -224,24 +224,24 @@ pub const RealSimdProcessor = struct {
         };
         return whitespace_mask;
     }
-    
+
     /// Advanced JSON structure processing with SIMD
     pub fn processJsonStructure(_: *RealSimdProcessor, input: []const u8, output: []u8) JsonProcessingResult {
         const start_time = std.time.nanoTimestamp();
-        
+
         var result = JsonProcessingResult{
             .output_size = 0,
             .processing_time_ns = 0,
             .structures_found = StructureStats{},
         };
-        
+
         var out_pos: usize = 0;
         var pos: usize = 0;
-        
+
         // Process JSON with structure awareness
         while (pos < input.len) {
             const byte = input[pos];
-            
+
             switch (byte) {
                 '{' => {
                     result.structures_found.objects += 1;
@@ -271,22 +271,22 @@ pub const RealSimdProcessor = struct {
                     out_pos += 1;
                 },
             }
-            
+
             pos += 1;
         }
-        
+
         result.output_size = out_pos;
         result.processing_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start_time));
-        
+
         return result;
     }
-    
+
     pub fn getPerformanceStats(self: *RealSimdProcessor) SimdPerformanceStats {
         const simd_efficiency = if (self.operations_count > 0)
             @as(f64, @floatFromInt(self.simd_operations)) / @as(f64, @floatFromInt(self.operations_count))
         else
             0.0;
-            
+
         return SimdPerformanceStats{
             .strategy = self.strategy,
             .operations_count = self.operations_count,
@@ -300,20 +300,20 @@ pub const RealSimdProcessor = struct {
                 0,
         };
     }
-    
+
     const JsonProcessingResult = struct {
         output_size: usize,
         processing_time_ns: u64,
         structures_found: StructureStats,
     };
-    
+
     const StructureStats = struct {
         objects: u32 = 0,
         arrays: u32 = 0,
         strings: u32 = 0,
         numbers: u32 = 0,
     };
-    
+
     const SimdPerformanceStats = struct {
         strategy: cpu_detection.SimdStrategy,
         operations_count: u64,
@@ -329,7 +329,7 @@ pub const RealSimdProcessor = struct {
 pub const VectorizedClassifier = struct {
     pub fn classifyBatch(input: []const u8) ClassificationResult {
         var result = ClassificationResult{};
-        
+
         // Vectorized classification of character types
         for (input) |byte| {
             switch (byte) {
@@ -342,10 +342,10 @@ pub const VectorizedClassifier = struct {
                 else => result.other_count += 1,
             }
         }
-        
+
         return result;
     }
-    
+
     const ClassificationResult = struct {
         whitespace_count: u32 = 0,
         structural_count: u32 = 0,
@@ -361,11 +361,11 @@ pub const SimdStringProcessor = struct {
     pub fn processString(input: []const u8, output: []u8) usize {
         var out_pos: usize = 0;
         var pos: usize = 0;
-        
+
         // Fast path for strings without escapes
         while (pos < input.len) {
             const byte = input[pos];
-            
+
             if (byte == '\\') {
                 // Handle escape sequences
                 if (pos + 1 < input.len) {
@@ -409,7 +409,7 @@ pub const SimdStringProcessor = struct {
                 pos += 1;
             }
         }
-        
+
         return out_pos;
     }
 };
@@ -419,7 +419,7 @@ pub const SimdNumberProcessor = struct {
     pub fn processNumber(input: []const u8, output: []u8) usize {
         // Optimized number processing with SIMD
         var out_pos: usize = 0;
-        
+
         // Fast validation and copying of numeric values
         for (input) |byte| {
             switch (byte) {
@@ -430,7 +430,7 @@ pub const SimdNumberProcessor = struct {
                 else => break,
             }
         }
-        
+
         return out_pos;
     }
 };

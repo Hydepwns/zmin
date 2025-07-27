@@ -15,7 +15,7 @@ pub const MinifierInterface = struct {
         writer: anytype,
     ) !void {
         const config = ModeConfig.fromMode(mode);
-        
+
         switch (mode) {
             .eco => {
                 const EcoMinifier = @import("eco_minifier.zig").EcoMinifier;
@@ -28,26 +28,24 @@ pub const MinifierInterface = struct {
                 try minifier.minifyStreaming(reader, writer);
             },
             .turbo => {
-                // Use parallel implementation for optimal performance
-                const TurboMinifierParallelV2 = @import("turbo_minifier_parallel_v2.zig").TurboMinifierParallelV2;
-                
+                // Use the existing turbo module
+                const turbo = @import("turbo/mod.zig");
+                var minifier = try turbo.TurboMinifier.init(allocator);
+
                 // TURBO mode needs full file in memory
                 const input = try reader.readAllAlloc(allocator, config.chunk_size);
                 defer allocator.free(input);
-                
+
                 const output = try allocator.alloc(u8, input.len);
                 defer allocator.free(output);
-                
-                // Initialize parallel minifier with auto-detected thread count
-                var minifier = try TurboMinifierParallelV2.init(allocator, .{});
-                defer minifier.deinit();
-                
-                const output_len = try minifier.minify(input, output);
-                try writer.writeAll(output[0..output_len]);
+
+                const result = try minifier.minify(input, turbo.TurboConfig{});
+                @memcpy(output[0..result.output.len], result.output);
+                try writer.writeAll(output[0..result.output.len]);
             },
         }
     }
-    
+
     /// Minify JSON string using specified mode
     pub fn minifyString(
         allocator: std.mem.Allocator,
@@ -57,16 +55,16 @@ pub const MinifierInterface = struct {
         var stream = std.io.fixedBufferStream(input);
         var output = std.ArrayList(u8).init(allocator);
         defer output.deinit();
-        
+
         try minify(allocator, mode, stream.reader(), output.writer());
         return output.toOwnedSlice();
     }
-    
+
     /// Get memory requirements for a given file size and mode
     pub fn getMemoryRequirement(mode: ProcessingMode, file_size: usize) usize {
         return mode.getMemoryUsage(file_size);
     }
-    
+
     /// Check if mode is supported on current platform
     pub fn isModeSupported(mode: ProcessingMode) bool {
         switch (mode) {
