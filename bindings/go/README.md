@@ -33,7 +33,7 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/yourusername/zmin/go"
+    "github.com/hydepwns/zmin/go"
 )
 
 func main() {
