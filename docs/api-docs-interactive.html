@@ -7,41 +7,67 @@
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.css" />
     <style>
+        /* Dark theme inspired by The Monospace Web */
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #606060;
+            --accent: #00ff41;
+            --accent-hover: #00cc33;
+            --border: #333333;
+            --border-light: #404040;
+            --shadow: rgba(0, 0, 0, 0.5);
+            --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+        }
+
         html {
             box-sizing: border-box;
             overflow: -moz-scrollbars-vertical;
             overflow-y: scroll;
+            background: var(--bg-primary);
+            color: var(--text-primary);
         }
+
         *, *:before, *:after {
             box-sizing: inherit;
         }
+
         body {
             margin: 0;
-            background: #fafafa;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg-primary);
+            font-family: var(--font-mono);
+            color: var(--text-primary);
+            line-height: 1.6;
         }
-        
+
         /* Header */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 2rem;
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 2px 8px var(--shadow);
         }
         .header h1 {
             margin: 0;
-            font-size: 2rem;
-            font-weight: 300;
+            font-size: 2.5rem;
+            font-weight: 400;
+            color: var(--accent);
+            font-family: var(--font-mono);
         }
         .header p {
             margin: 0.5rem 0 0 0;
-            opacity: 0.9;
+            color: var(--text-secondary);
+            font-size: 1rem;
         }
-        
+
         /* Navigation */
         .nav-tabs {
-            background: white;
-            border-bottom: 1px solid #ddd;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
             padding: 0 2rem;
             margin: 0;
             display: flex;
@@ -53,449 +79,366 @@
             padding: 1rem 1.5rem;
             cursor: pointer;
             font-size: 0.9rem;
-            font-weight: 500;
-            color: #666;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s ease;
+            font-weight: 400;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            font-family: var(--font-mono);
         }
         .nav-tab:hover {
-            color: #333;
-            background: #f8f9fa;
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
         }
         .nav-tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-            background: #f8f9fa;
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            background: var(--bg-tertiary);
         }
-        
+
         /* Content areas */
         .content {
             display: none;
+            background: var(--bg-primary);
         }
         .content.active {
             display: block;
         }
-        
-        /* Swagger UI customizations */
+
+        /* Swagger UI dark theme customizations */
+        .swagger-ui {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+        }
         .swagger-ui .topbar {
             display: none !important;
         }
         .swagger-ui .info {
             margin: 2rem 0;
+            background: var(--bg-secondary) !important;
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
         }
         .swagger-ui .info .title {
-            color: #333;
+            color: var(--accent) !important;
             font-size: 1.8rem;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .info .description {
+            color: var(--text-secondary) !important;
         }
         .swagger-ui .scheme-container {
-            background: #f8f9fa;
+            background: var(--bg-tertiary) !important;
             margin: 0 0 20px;
             padding: 20px;
             border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
         }
-        
-        /* Redoc customizations */
+        .swagger-ui .scheme-container .schemes-title {
+            color: var(--text-primary) !important;
+        }
+        .swagger-ui .scheme-container .schemes {
+            background: var(--bg-secondary) !important;
+            border: 1px solid var(--border);
+        }
+        .swagger-ui .scheme-container .schemes .scheme {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border);
+        }
+        .swagger-ui .scheme-container .schemes .scheme:hover {
+            background: var(--bg-tertiary) !important;
+        }
+
+        /* Operation blocks */
+        .swagger-ui .opblock {
+            background: var(--bg-secondary) !important;
+            border: 1px solid var(--border) !important;
+            margin: 0 0 1rem 0;
+            border-radius: 6px;
+        }
+        .swagger-ui .opblock .opblock-summary {
+            background: var(--bg-tertiary) !important;
+            border-bottom: 1px solid var(--border);
+        }
+        .swagger-ui .opblock .opblock-summary .opblock-summary-method {
+            background: var(--accent) !important;
+            color: var(--bg-primary) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .opblock .opblock-summary .opblock-summary-path {
+            color: var(--text-primary) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .opblock .opblock-summary .opblock-summary-description {
+            color: var(--text-secondary) !important;
+        }
+
+        /* Parameters and responses */
+        .swagger-ui .opblock .opblock-body {
+            background: var(--bg-secondary) !important;
+        }
+        .swagger-ui .parameters-container {
+            background: var(--bg-tertiary) !important;
+            border: 1px solid var(--border);
+        }
+        .swagger-ui .parameters-container .parameters-container-title {
+            color: var(--text-primary) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .parameters-container .parameter__name {
+            color: var(--accent) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .parameters-container .parameter__type {
+            color: var(--text-secondary) !important;
+        }
+        .swagger-ui .parameters-container .parameter__deprecated {
+            color: #ff6b6b !important;
+        }
+
+        /* Code blocks */
+        .swagger-ui .highlight-code {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border);
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .highlight-code .hljs {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+        }
+
+        /* Buttons */
+        .swagger-ui .btn {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .btn:hover {
+            background: var(--bg-secondary) !important;
+        }
+        .swagger-ui .btn.execute {
+            background: var(--accent) !important;
+            color: var(--bg-primary) !important;
+            border-color: var(--accent) !important;
+        }
+        .swagger-ui .btn.execute:hover {
+            background: var(--accent-hover) !important;
+        }
+
+        /* Models */
+        .swagger-ui .model {
+            background: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+        }
+        .swagger-ui .model .model-title {
+            color: var(--accent) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .model .model-title .model-title__text {
+            color: var(--accent) !important;
+        }
+
+        /* Redoc dark theme customizations */
         .redoc-container {
-            margin: 0;
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
         }
-        
-        /* Status indicators */
-        .status-bar {
-            background: white;
-            padding: 1rem 2rem;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.85rem;
+        .redoc-container .redoc-wrap {
+            background: var(--bg-primary) !important;
         }
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+        .redoc-container .menu-content {
+            background: var(--bg-secondary) !important;
+            border-right: 1px solid var(--border);
         }
-        .status-dot {
+        .redoc-container .menu-content .menu-item {
+            color: var(--text-secondary) !important;
+        }
+        .redoc-container .menu-content .menu-item:hover {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-primary) !important;
+        }
+        .redoc-container .menu-content .menu-item.active {
+            background: var(--bg-tertiary) !important;
+            color: var(--accent) !important;
+        }
+
+        /* Content area */
+        .redoc-container .api-content {
+            background: var(--bg-primary) !important;
+        }
+        .redoc-container .api-content h1,
+        .redoc-container .api-content h2,
+        .redoc-container .api-content h3 {
+            color: var(--accent) !important;
+            font-family: var(--font-mono);
+        }
+        .redoc-container .api-content p {
+            color: var(--text-secondary) !important;
+        }
+
+        /* Code samples */
+        .redoc-container .code-block {
+            background: var(--bg-secondary) !important;
+            border: 1px solid var(--border);
+        }
+        .redoc-container .code-block pre {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+            font-family: var(--font-mono);
+        }
+
+        /* Response examples */
+        .redoc-container .response-col_status {
+            color: var(--accent) !important;
+        }
+        .redoc-container .response-col_description {
+            color: var(--text-secondary) !important;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
-            border-radius: 50%;
-            background: #28a745;
         }
-        .status-dot.warning {
-            background: #ffc107;
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
         }
-        .status-dot.error {
-            background: #dc3545;
-        }
-        
-        /* Interactive examples */
-        .interactive-section {
-            padding: 2rem;
-            background: white;
-            margin: 1rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .example-input {
-            width: 100%;
-            padding: 1rem;
-            border: 1px solid #ddd;
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
             border-radius: 4px;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
         }
-        .example-output {
-            background: #f8f9fa;
-            padding: 1rem;
-            border-radius: 4px;
-            border: 1px solid #e9ecef;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 0.9rem;
-            white-space: pre-wrap;
-            min-height: 100px;
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-light);
         }
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: background 0.3s ease;
-        }
-        .btn:hover {
-            background: #5a6fd8;
-        }
-        
-        /* Version selector */
-        .version-selector {
-            position: relative;
-            display: inline-block;
-        }
-        .version-select {
-            padding: 0.5rem 1rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: white;
-            font-size: 0.85rem;
-        }
-        
-        /* Auto-refresh indicator */
-        .auto-refresh {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
-            color: #666;
-        }
-        .refresh-spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid #ddd;
-            border-top: 2px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            display: none;
-        }
-        .refresh-spinner.active {
-            display: block;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            body {
-                background: #1a1a1a;
-                color: #e0e0e0;
-            }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
             .header {
-                background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+                padding: 1rem;
+            }
+            .header h1 {
+                font-size: 2rem;
             }
             .nav-tabs {
-                background: #2d3748;
-                border-bottom-color: #4a5568;
+                padding: 0 1rem;
+                flex-wrap: wrap;
             }
             .nav-tab {
-                color: #a0aec0;
+                padding: 0.75rem 1rem;
+                font-size: 0.8rem;
             }
-            .nav-tab:hover {
-                color: #e2e8f0;
-                background: #4a5568;
-            }
-            .nav-tab.active {
-                color: #81e6d9;
-                background: #4a5568;
-                border-bottom-color: #81e6d9;
-            }
-            .status-bar, .interactive-section {
-                background: #2d3748;
-                border-color: #4a5568;
-            }
+        }
+
+        /* Focus states for accessibility */
+        .nav-tab:focus,
+        .swagger-ui .btn:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* Loading states */
+        .loading {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 2rem;
+            font-family: var(--font-mono);
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🚀 zmin API Documentation</h1>
-        <p>Ultra-high-performance JSON minifier written in Zig - Interactive API Reference</p>
+        <h1>zmin</h1>
+        <p>High-performance JSON minifier API documentation</p>
     </div>
-    
-    <div class="status-bar">
-        <div style="display: flex; gap: 2rem;">
-            <div class="status-item">
-                <div class="status-dot"></div>
-                <span>Documentation Status: Live</span>
-            </div>
-            <div class="status-item">
-                <div class="status-dot" id="spec-status"></div>
-                <span id="spec-status-text">OpenAPI Spec: Loading...</span>
-            </div>
-            <div class="status-item">
-                <div class="version-selector">
-                    <select class="version-select" id="version-select">
-                        <option value="1.0.0">v1.0.0 (current)</option>
-                        <option value="generated">Generated from Source</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        
-        <div class="auto-refresh">
-            <div class="refresh-spinner" id="refresh-spinner"></div>
-            <span>Auto-refresh: <span id="auto-refresh-status">Enabled</span></span>
-            <button class="btn" onclick="toggleAutoRefresh()" style="margin-left: 1rem; padding: 0.25rem 0.75rem; font-size: 0.8rem;">Toggle</button>
-        </div>
+
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="showTab('swagger')">Interactive API</button>
+        <button class="nav-tab" onclick="showTab('redoc')">API Reference</button>
+        <button class="nav-tab" onclick="showTab('examples')">Examples</button>
     </div>
-    
-    <nav class="nav-tabs">
-        <button class="nav-tab active" onclick="showTab('swagger')">Swagger UI</button>
-        <button class="nav-tab" onclick="showTab('redoc')">ReDoc</button>
-        <button class="nav-tab" onclick="showTab('interactive')">Try It Live</button>
-        <button class="nav-tab" onclick="showTab('examples')">Code Examples</button>
-    </nav>
-    
-    <!-- Swagger UI -->
+
     <div id="swagger-content" class="content active">
         <div id="swagger-ui"></div>
     </div>
-    
-    <!-- ReDoc -->
+
     <div id="redoc-content" class="content">
-        <div id="redoc-container"></div>
+        <div id="redoc"></div>
     </div>
-    
-    <!-- Interactive Testing -->
-    <div id="interactive-content" class="content">
-        <div class="interactive-section">
-            <h2>🔬 Live API Testing</h2>
-            <p>Test zmin functions directly in your browser:</p>
-            
-            <h3>JSON Minification</h3>
-            <textarea class="example-input" id="json-input" placeholder='Enter JSON to minify, e.g.:
-{
-  "name": "example",
-  "values": [1, 2, 3],
-  "nested": {
-    "key": "value"
-  }
-}'></textarea>
-            
-            <div style="margin: 1rem 0;">
-                <label>
-                    <select id="mode-select" style="margin-right: 1rem;">
-                        <option value="eco">Eco Mode (Memory Efficient)</option>
-                        <option value="sport" selected>Sport Mode (Balanced)</option>
-                        <option value="turbo">Turbo Mode (Maximum Performance)</option>
-                    </select>
-                </label>
-                <button class="btn" onclick="testMinify()">Minify JSON</button>
-                <button class="btn" onclick="testValidate()" style="margin-left: 0.5rem;">Validate Only</button>
-            </div>
-            
-            <div class="example-output" id="minify-output">Results will appear here...</div>
-            
-            <h3>Performance Benchmark</h3>
-            <div style="margin: 1rem 0;">
-                <input type="number" id="iterations" value="1000" min="1" max="10000" style="margin-right: 1rem; padding: 0.5rem;">
-                <label>iterations</label>
-                <button class="btn" onclick="runBenchmark()" style="margin-left: 1rem;">Run Benchmark</button>
-            </div>
-            <div class="example-output" id="benchmark-output">Benchmark results will appear here...</div>
-        </div>
-    </div>
-    
-    <!-- Code Examples -->
+
     <div id="examples-content" class="content">
-        <div class="interactive-section">
-            <h2>📚 Code Examples</h2>
-            
-            <h3>Zig Usage</h3>
-            <pre class="example-output">const std = @import("std");
-const zmin = @import("zmin");
+        <div style="padding: 2rem; max-width: 1200px; margin: 0 auto;">
+            <h2 style="color: var(--accent); margin-bottom: 1rem;">API Examples</h2>
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-    
-    const json_input = "{ \"key\": \"value\", \"number\": 42 }";
-    
-    // Basic minification
-    const result = try zmin.minify(allocator, json_input);
-    defer allocator.free(result);
-    
-    // Minification with specific mode
-    const turbo_result = try zmin.minifyWithMode(allocator, json_input, .turbo);
-    defer allocator.free(turbo_result);
-    
-    // Validation only
-    const is_valid = try zmin.validate(json_input);
-}</pre>
-            
-            <h3>C API Usage</h3>
-            <pre class="example-output">#include "zmin.h"
-#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
+            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 6px; margin-bottom: 1.5rem; border: 1px solid var(--border);">
+                <h3 style="color: var(--accent); margin-top: 0;">Basic Minification</h3>
+                <pre style="background: var(--bg-primary); padding: 1rem; border-radius: 4px; border: 1px solid var(--border); overflow-x: auto;"><code style="color: var(--text-primary); font-family: var(--font-mono);">curl -X POST "https://api.zmin.dev/v1/minify" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "{\"key\": \"value\"}"}'
 
-int main() {
-    const char* json = "{ \"key\": \"value\", \"spaces\": true }";
-    
-    ZminResult result = zmin_minify(json, strlen(json), ZMIN_MODE_SPORT);
-    
-    if (result.error_code == 0) {
-        printf("Minified: %s\\n", result.output);
-        printf("Size: %zu -> %zu bytes\\n", strlen(json), result.output_size);
-        free(result.output);
-    } else {
-        printf("Error: %s\\n", result.error_message);
+# Response
+{
+  "output": "{\"key\":\"value\"}",
+  "size_reduction": "12%",
+  "processing_time": "0.001s"
+}</code></pre>
+            </div>
+
+            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 6px; margin-bottom: 1.5rem; border: 1px solid var(--border);">
+                <h3 style="color: var(--accent); margin-top: 0;">Turbo Mode</h3>
+                <pre style="background: var(--bg-primary); padding: 1rem; border-radius: 4px; border: 1px solid var(--border); overflow-x: auto;"><code style="color: var(--text-primary); font-family: var(--font-mono);">curl -X POST "https://api.zmin.dev/v1/minify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "{\"large\": \"dataset\"}",
+    "mode": "turbo",
+    "options": {
+      "chunk_size": "1MB",
+      "threads": 16
     }
-    
-    return 0;
-}</pre>
-            
-            <h3>Node.js Usage</h3>
-            <pre class="example-output">const { minify, validate, benchmark } = require('@zmin/cli');
+  }'</code></pre>
+            </div>
 
-async function example() {
-    const json = '{ "key": "value", "number": 42 }';
-    
-    // Basic minification
-    const result = await minify(json);
-    console.log('Minified:', result);
-    
-    // With options
-    const formatted = await minify(json, { 
-        mode: 'turbo',
-        preserveUnicode: true 
-    });
-    
-    // Validation
-    const isValid = await validate(json);
-    console.log('Valid:', isValid);
-    
-    // Performance benchmark
-    const benchResult = await benchmark(json, { iterations: 1000 });
-    console.log('Throughput:', benchResult.throughput_mbps, 'MB/s');
-}
-
-example().catch(console.error);</pre>
-            
-            <h3>Python Usage</h3>
-            <pre class="example-output">import zmin
-
-# Basic usage
-json_data = '{ "key": "value", "number": 42 }'
-result = zmin.minify(json_data)
-print(f"Minified: {result}")
-
-# With options
-result_turbo = zmin.minify(json_data, mode='turbo', threads=8)
-
-# Validation
-is_valid = zmin.validate(json_data)
-print(f"Valid JSON: {is_valid}")
-
-# Benchmark
-benchmark_result = zmin.benchmark(json_data, iterations=1000, mode='sport')
-print(f"Throughput: {benchmark_result['throughput_mbps']} MB/s")</pre>
-            
-            <h3>Go Usage</h3>
-            <pre class="example-output">package main
-
-import (
-    "fmt"
-    "github.com/hydepwns/zmin-go"
-)
-
-func main() {
-    jsonData := `{ "key": "value", "number": 42 }`
-    
-    // Basic minification
-    result := zmin.Minify(jsonData)
-    fmt.Printf("Minified: %s\\n", result)
-    
-    // With options
-    options := &zmin.Options{
-        Mode:            zmin.ModeTurbo,
-        Threads:         8,
-        PreserveUnicode: true,
+            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 6px; margin-bottom: 1.5rem; border: 1px solid var(--border);">
+                <h3 style="color: var(--accent); margin-top: 0;">GPU Acceleration</h3>
+                <pre style="background: var(--bg-primary); padding: 1rem; border-radius: 4px; border: 1px solid var(--border); overflow-x: auto;"><code style="color: var(--text-primary); font-family: var(--font-mono);">curl -X POST "https://api.zmin.dev/v1/minify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "{\"massive\": \"dataset\"}",
+    "mode": "turbo",
+    "gpu": "cuda",
+    "options": {
+      "memory_limit": "4GB"
     }
-    
-    resultTurbo := zmin.MinifyWithOptions(jsonData, options)
-    fmt.Printf("Turbo minified: %s\\n", resultTurbo)
-    
-    // Validation
-    isValid := zmin.Validate(jsonData)
-    fmt.Printf("Valid: %t\\n", isValid)
-}</pre>
+  }'</code></pre>
+            </div>
         </div>
     </div>
-    
-    <!-- Scripts -->
+
     <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
     <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.js"></script>
-    
+
     <script>
-        let autoRefreshEnabled = true;
-        let refreshInterval;
-        let currentSpecUrl = './api-reference.yaml';
-        
-        // Tab switching
         function showTab(tabName) {
             // Hide all content
-            document.querySelectorAll('.content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
+            const contents = document.querySelectorAll('.content');
+            contents.forEach(content => content.classList.remove('active'));
+
             // Remove active class from all tabs
-            document.querySelectorAll('.nav-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Show selected content and mark tab as active
+            const tabs = document.querySelectorAll('.nav-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            // Show selected content and activate tab
             document.getElementById(tabName + '-content').classList.add('active');
             event.target.classList.add('active');
-            
-            // Initialize viewers if needed
-            if (tabName === 'swagger' && !window.swaggerInitialized) {
-                initSwagger();
-            } else if (tabName === 'redoc' && !window.redocInitialized) {
-                initRedoc();
-            }
         }
-        
+
         // Initialize Swagger UI
-        function initSwagger() {
+        window.onload = function() {
             const ui = SwaggerUIBundle({
-                url: currentSpecUrl,
+                url: './api-reference.yaml',
                 dom_id: '#swagger-ui',
                 deepLinking: true,
                 presets: [
@@ -506,210 +449,34 @@ func main() {
                     SwaggerUIBundle.plugins.DownloadUrl
                 ],
                 layout: "StandaloneLayout",
-                validatorUrl: null,
-                docExpansion: "list",
-                filter: true,
-                showExtensions: true,
-                showCommonExtensions: true,
-                tryItOutEnabled: true,
-                requestInterceptor: function(request) {
-                    return request;
-                },
-                responseInterceptor: function(response) {
-                    return response;
-                },
-                onComplete: function() {
-                    updateSpecStatus('success', 'OpenAPI Spec: Loaded');
-                },
-                onFailure: function() {
-                    updateSpecStatus('error', 'OpenAPI Spec: Failed to Load');
-                }
+                theme: "dark"
             });
-            
-            window.ui = ui;
-            window.swaggerInitialized = true;
-        }
-        
-        // Initialize ReDoc
-        function initRedoc() {
-            Redoc.init(currentSpecUrl, {
-                scrollYOffset: 60,
-                hideDownloadButton: false,
-                hideHostname: false,
+
+            // Initialize Redoc
+            Redoc.init('./api-reference.yaml', {
+                scrollYOffset: 0,
+                hideDownloadButton: true,
                 theme: {
                     colors: {
                         primary: {
-                            main: '#667eea'
+                            main: '#00ff41'
                         }
                     },
                     typography: {
+                        fontFamily: 'SF Mono, Monaco, Inconsolata, Roboto Mono, Source Code Pro, Menlo, Consolas, DejaVu Sans Mono, monospace',
                         fontSize: '14px',
-                        lineHeight: '1.5em',
-                        code: {
-                            fontSize: '13px'
+                        lineHeight: '1.6em',
+                        headings: {
+                            fontFamily: 'SF Mono, Monaco, Inconsolata, Roboto Mono, Source Code Pro, Menlo, Consolas, DejaVu Sans Mono, monospace',
+                            fontWeight: '400'
                         }
+                    },
+                    sidebar: {
+                        backgroundColor: '#1a1a1a',
+                        textColor: '#e0e0e0'
                     }
                 }
-            }, document.getElementById('redoc-container'));
-            
-            window.redocInitialized = true;
-        }
-        
-        // Update spec status
-        function updateSpecStatus(status, text) {
-            const statusDot = document.getElementById('spec-status');
-            const statusText = document.getElementById('spec-status-text');
-            
-            statusDot.className = 'status-dot ' + status;
-            statusText.textContent = text;
-        }
-        
-        // Version selector
-        document.getElementById('version-select').addEventListener('change', function(e) {
-            const version = e.target.value;
-            if (version === 'generated') {
-                currentSpecUrl = './api-reference-generated.json';
-            } else {
-                currentSpecUrl = './api-reference.yaml';
-            }
-            
-            // Reinitialize viewers
-            window.swaggerInitialized = false;
-            window.redocInitialized = false;
-            
-            const activeTab = document.querySelector('.nav-tab.active');
-            if (activeTab.textContent.includes('Swagger')) {
-                initSwagger();
-            } else if (activeTab.textContent.includes('ReDoc')) {
-                initRedoc();
-            }
-        });
-        
-        // Auto-refresh functionality
-        function toggleAutoRefresh() {
-            autoRefreshEnabled = !autoRefreshEnabled;
-            document.getElementById('auto-refresh-status').textContent = autoRefreshEnabled ? 'Enabled' : 'Disabled';
-            
-            if (autoRefreshEnabled) {
-                startAutoRefresh();
-            } else {
-                stopAutoRefresh();
-            }
-        }
-        
-        function startAutoRefresh() {
-            refreshInterval = setInterval(() => {
-                const spinner = document.getElementById('refresh-spinner');
-                spinner.classList.add('active');
-                
-                // Check for updated specs
-                fetch(currentSpecUrl + '?t=' + Date.now())
-                    .then(response => response.text())
-                    .then(() => {
-                        // Reload viewers if specs have changed
-                        if (window.swaggerInitialized) {
-                            window.ui.specActions.updateUrl(currentSpecUrl + '?t=' + Date.now());
-                        }
-                    })
-                    .finally(() => {
-                        spinner.classList.remove('active');
-                    });
-            }, 30000); // Check every 30 seconds
-        }
-        
-        function stopAutoRefresh() {
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
-            }
-        }
-        
-        // Interactive testing functions
-        function testMinify() {
-            const input = document.getElementById('json-input').value;
-            const mode = document.getElementById('mode-select').value;
-            const output = document.getElementById('minify-output');
-            
-            if (!input.trim()) {
-                output.textContent = 'Please enter JSON to minify';
-                return;
-            }
-            
-            try {
-                // Simulate API call (in real implementation, this would call the actual zmin API)
-                const parsed = JSON.parse(input);
-                const minified = JSON.stringify(parsed);
-                const stats = {
-                    input_size: input.length,
-                    output_size: minified.length,
-                    compression_ratio: (input.length / minified.length).toFixed(2),
-                    mode: mode,
-                    processing_time_us: Math.floor(Math.random() * 1000) + 100
-                };
-                
-                output.textContent = `Minified JSON:\\n${minified}\\n\\nStatistics:\\n${JSON.stringify(stats, null, 2)}`;
-            } catch (error) {
-                output.textContent = `Error: Invalid JSON\\n${error.message}`;
-            }
-        }
-        
-        function testValidate() {
-            const input = document.getElementById('json-input').value;
-            const output = document.getElementById('minify-output');
-            
-            if (!input.trim()) {
-                output.textContent = 'Please enter JSON to validate';
-                return;
-            }
-            
-            try {
-                JSON.parse(input);
-                output.textContent = 'Valid JSON ✅';
-            } catch (error) {
-                output.textContent = `Invalid JSON ❌\\nError: ${error.message}`;
-            }
-        }
-        
-        function runBenchmark() {
-            const input = document.getElementById('json-input').value;
-            const iterations = parseInt(document.getElementById('iterations').value) || 1000;
-            const output = document.getElementById('benchmark-output');
-            
-            if (!input.trim()) {
-                output.textContent = 'Please enter JSON to benchmark';
-                return;
-            }
-            
-            // Simulate benchmark
-            const results = {
-                iterations: iterations,
-                total_time_us: iterations * (Math.floor(Math.random() * 500) + 200),
-                min_time_us: Math.floor(Math.random() * 200) + 100,
-                max_time_us: Math.floor(Math.random() * 800) + 400,
-                avg_time_us: Math.floor(Math.random() * 400) + 250,
-                throughput_mbps: (Math.random() * 2000 + 500).toFixed(1)
-            };
-            
-            output.textContent = `Benchmark Results:\\n${JSON.stringify(results, null, 2)}`;
-        }
-        
-        // Initialize on page load
-        window.onload = function() {
-            initSwagger();
-            if (autoRefreshEnabled) {
-                startAutoRefresh();
-            }
-            
-            // Set default example JSON
-            document.getElementById('json-input').value = `{
-  "name": "zmin",
-  "version": "1.0.0",
-  "features": ["fast", "memory-safe", "cross-platform"],
-  "performance": {
-    "throughput": "1-3 GB/s",
-    "modes": ["eco", "sport", "turbo"]
-  },
-  "platforms": ["linux", "macos", "windows"]
-}`;
+            }, document.getElementById('redoc'));
         };
     </script>
 </body>

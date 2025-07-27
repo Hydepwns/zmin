@@ -4,7 +4,7 @@ High-performance JSON minifier documentation.
 
 ## Quick Links
 
-- **[Interactive API Docs](https://hydepwns.github.io/zmin/)** - Live testing + examples
+- **[Interactive API Docs](https://zmin.droo.foo/)** - Live testing + examples
 - [Getting Started](getting-started.md) - Installation & basic usage
 - [Usage Guide](usage.md) - Advanced features
 - [Performance Guide](performance.md) - Optimization & benchmarks

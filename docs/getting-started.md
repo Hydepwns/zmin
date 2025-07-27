@@ -132,11 +132,11 @@ const zmin = @import("zmin");
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
-    
+
     const input = "{\"hello\": \"world\"}";
     const output = try zmin.minify(allocator, input);
     defer allocator.free(output);
-    
+
     std.debug.print("Minified: {s}\n", .{output});
 }
 ```
@@ -145,7 +145,7 @@ pub fn main() !void {
 
 - Read the [Usage Guide](usage.md) for advanced features
 - Check the [Performance Guide](performance.md) for optimization tips
-- Try the [Interactive API Docs](https://hydepwns.github.io/zmin/) for live examples
+- Try the [Interactive API Docs](https://zmin.droo.foo/) for live examples
 - Learn about the [Architecture](performance.md#technical-implementation) for technical details
 
 ## Getting Help

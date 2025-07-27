@@ -6,32 +6,192 @@
     <title>zmin API Reference</title>
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
     <style>
+        /* Dark theme inspired by The Monospace Web */
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #606060;
+            --accent: #00ff41;
+            --accent-hover: #00cc33;
+            --border: #333333;
+            --border-light: #404040;
+            --shadow: rgba(0, 0, 0, 0.5);
+            --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+        }
+
         html {
             box-sizing: border-box;
             overflow: -moz-scrollbars-vertical;
             overflow-y: scroll;
+            background: var(--bg-primary);
+            color: var(--text-primary);
         }
+
         *, *:before, *:after {
             box-sizing: inherit;
         }
+
         body {
-            margin:0;
-            background: #fafafa;
+            margin: 0;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+        }
+
+        /* Swagger UI dark theme customizations */
+        .swagger-ui {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
         }
         .swagger-ui .topbar {
-            background-color: #2c3e50;
+            display: none !important;
         }
-        .swagger-ui .topbar .download-url-wrapper .select-label {
-            color: #fff;
+        .swagger-ui .info {
+            margin: 2rem 0;
+            background: var(--bg-secondary) !important;
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
         }
         .swagger-ui .info .title {
-            color: #2c3e50;
+            color: var(--accent) !important;
+            font-size: 1.8rem;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .info .description {
+            color: var(--text-secondary) !important;
         }
         .swagger-ui .scheme-container {
-            background: #f8f9fa;
+            background: var(--bg-tertiary) !important;
             margin: 0 0 20px;
-            padding: 20px 0;
-            box-shadow: 0 1px 2px 0 rgba(0,0,0,.15);
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+        .swagger-ui .scheme-container .schemes-title {
+            color: var(--text-primary) !important;
+        }
+        .swagger-ui .scheme-container .schemes {
+            background: var(--bg-secondary) !important;
+            border: 1px solid var(--border);
+        }
+        .swagger-ui .scheme-container .schemes .scheme {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border);
+        }
+        .swagger-ui .scheme-container .schemes .scheme:hover {
+            background: var(--bg-tertiary) !important;
+        }
+
+        /* Operation blocks */
+        .swagger-ui .opblock {
+            background: var(--bg-secondary) !important;
+            border: 1px solid var(--border) !important;
+            margin: 0 0 1rem 0;
+            border-radius: 6px;
+        }
+        .swagger-ui .opblock .opblock-summary {
+            background: var(--bg-tertiary) !important;
+            border-bottom: 1px solid var(--border);
+        }
+        .swagger-ui .opblock .opblock-summary .opblock-summary-method {
+            background: var(--accent) !important;
+            color: var(--bg-primary) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .opblock .opblock-summary .opblock-summary-path {
+            color: var(--text-primary) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .opblock .opblock-summary .opblock-summary-description {
+            color: var(--text-secondary) !important;
+        }
+
+        /* Parameters and responses */
+        .swagger-ui .opblock .opblock-body {
+            background: var(--bg-secondary) !important;
+        }
+        .swagger-ui .parameters-container {
+            background: var(--bg-tertiary) !important;
+            border: 1px solid var(--border);
+        }
+        .swagger-ui .parameters-container .parameters-container-title {
+            color: var(--text-primary) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .parameters-container .parameter__name {
+            color: var(--accent) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .parameters-container .parameter__type {
+            color: var(--text-secondary) !important;
+        }
+        .swagger-ui .parameters-container .parameter__deprecated {
+            color: #ff6b6b !important;
+        }
+
+        /* Code blocks */
+        .swagger-ui .highlight-code {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border);
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .highlight-code .hljs {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+        }
+
+        /* Buttons */
+        .swagger-ui .btn {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .btn:hover {
+            background: var(--bg-secondary) !important;
+        }
+        .swagger-ui .btn.execute {
+            background: var(--accent) !important;
+            color: var(--bg-primary) !important;
+            border-color: var(--accent) !important;
+        }
+        .swagger-ui .btn.execute:hover {
+            background: var(--accent-hover) !important;
+        }
+
+        /* Models */
+        .swagger-ui .model {
+            background: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+        }
+        .swagger-ui .model .model-title {
+            color: var(--accent) !important;
+            font-family: var(--font-mono);
+        }
+        .swagger-ui .model .model-title .model-title__text {
+            color: var(--accent) !important;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-light);
         }
     </style>
 </head>
@@ -60,6 +220,7 @@
                 showExtensions: true,
                 showCommonExtensions: true,
                 tryItOutEnabled: true,
+                theme: "dark",
                 requestInterceptor: function(request) {
                     // Add any request interceptors here if needed
                     return request;
@@ -74,4 +235,4 @@
         };
     </script>
 </body>
-</html> 
+</html>

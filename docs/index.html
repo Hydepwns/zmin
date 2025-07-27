@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zmin - High-performance JSON minifier</title>
+    <style>
+        /* Dark theme inspired by The Monospace Web */
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #606060;
+            --accent: #00ff41;
+            --accent-hover: #00cc33;
+            --border: #333333;
+            --border-light: #404040;
+            --shadow: rgba(0, 0, 0, 0.5);
+            --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            line-height: 1.6;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            padding: 4rem 2rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 4rem;
+            font-weight: 400;
+            color: var(--accent);
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-top: 1rem;
+        }
+
+        /* Navigation */
+        .nav {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s ease;
+        }
+
+        .nav a:hover {
+            color: var(--accent);
+        }
+
+        /* Main content */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section h2 {
+            font-size: 2rem;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            font-weight: 400;
+        }
+
+        .section p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        /* Features grid */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .feature {
+            background: var(--bg-secondary);
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .feature:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent);
+        }
+
+        .feature h3 {
+            color: var(--accent);
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            font-weight: 400;
+        }
+
+        .feature p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Code blocks */
+        .code-block {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+        }
+
+        .code-block pre {
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .code-block .comment {
+            color: var(--text-muted);
+        }
+
+        .code-block .string {
+            color: #ff6b6b;
+        }
+
+        .code-block .keyword {
+            color: var(--accent);
+        }
+
+        /* Performance table */
+        .performance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .performance-table th,
+        .performance-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .performance-table th {
+            background: var(--bg-tertiary);
+            color: var(--accent);
+            font-weight: 400;
+        }
+
+        .performance-table td {
+            color: var(--text-secondary);
+        }
+
+        .performance-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            background: var(--accent);
+            color: var(--bg-primary);
+            padding: 0.75rem 1.5rem;
+            text-decoration: none;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            transition: background 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-secondary);
+        }
+
+        /* Quick start section */
+        .quick-start {
+            background: var(--bg-secondary);
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin: 2rem 0;
+        }
+
+        .quick-start h3 {
+            color: var(--accent);
+            margin-bottom: 1rem;
+            font-weight: 400;
+        }
+
+        /* Links */
+        .links {
+            display: flex;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .links a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--bg-secondary);
+            padding: 2rem;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.5rem;
+            }
+
+            .nav ul {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .main {
+                padding: 2rem 1rem;
+            }
+
+            .performance-table {
+                font-size: 0.8rem;
+            }
+
+            .performance-table th,
+            .performance-table td {
+                padding: 0.5rem;
+            }
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-light);
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>zmin</h1>
+        <p>High-performance JSON minifier written in Zig</p>
+        <p class="subtitle">1-3 GB/s throughput with GPU acceleration and advanced optimization modes</p>
+    </header>
+
+    <nav class="nav">
+        <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#quick-start">Quick Start</a></li>
+            <li><a href="#performance">Performance</a></li>
+            <li><a href="api-docs-interactive.html">API Docs</a></li>
+            <li><a href="getting-started.md">Getting Started</a></li>
+            <li><a href="https://github.com/hydepwns/zmin">GitHub</a></li>
+        </ul>
+    </nav>
+
+    <main class="main">
+        <section id="features" class="section">
+            <h2>Features</h2>
+            <div class="features">
+                <div class="feature">
+                    <h3>Ultra-Fast Performance</h3>
+                    <p>1-3 GB/s throughput with SIMD + GPU acceleration for massive datasets</p>
+                </div>
+                <div class="feature">
+                    <h3>Multiple Modes</h3>
+                    <p>Eco, Sport, and Turbo modes optimized for different use cases and file sizes</p>
+                </div>
+                <div class="feature">
+                    <h3>GPU Acceleration</h3>
+                    <p>CUDA and OpenCL support for 2-5x speedup on compatible hardware</p>
+                </div>
+                <div class="feature">
+                    <h3>Plugin System</h3>
+                    <p>Extensible architecture with custom minification plugins and transformations</p>
+                </div>
+                <div class="feature">
+                    <h3>Advanced Parallelism</h3>
+                    <p>NUMA-aware work-stealing with adaptive chunking for optimal performance</p>
+                </div>
+                <div class="feature">
+                    <h3>Memory Safe</h3>
+                    <p>Memory-safe Zig implementation with comprehensive error handling and recovery</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="quick-start" class="section">
+            <h2>Quick Start</h2>
+            <div class="quick-start">
+                <h3>Installation</h3>
+                <div class="code-block">
+                    <pre><span class="comment"># Build from source</span>
+<span class="keyword">git</span> clone https://github.com/hydepwns/zmin
+<span class="keyword">cd</span> zmin && zig build
+
+<span class="comment"># Basic usage</span>
+./zig-out/bin/zmin input.json output.json
+
+<span class="comment"># High-performance modes</span>
+./zig-out/bin/zmin --mode turbo large.json out.json
+./zig-out/bin/zmin --mode sport medium.json out.json
+./zig-out/bin/zmin --mode eco small.json out.json</pre>
+                </div>
+
+                <div class="links">
+                    <a href="getting-started.md" class="btn">Getting Started Guide</a>
+                    <a href="api-docs-interactive.html" class="btn btn-secondary">Interactive API Docs</a>
+                    <a href="https://github.com/hydepwns/zmin" class="btn btn-secondary">View on GitHub</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="performance" class="section">
+            <h2>Performance</h2>
+            <p>zmin delivers exceptional performance across different file sizes and hardware configurations:</p>
+
+            <table class="performance-table">
+                <thead>
+                    <tr>
+                        <th>File Size</th>
+                        <th>Throughput</th>
+                        <th>Mode</th>
+                        <th>Hardware</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>&lt; 1 MB</td>
+                        <td>150-200 MB/s</td>
+                        <td>Eco</td>
+                        <td>Single-threaded</td>
+                    </tr>
+                    <tr>
+                        <td>1-50 MB</td>
+                        <td>400-800 MB/s</td>
+                        <td>Sport</td>
+                        <td>Parallel</td>
+                    </tr>
+                    <tr>
+                        <td>50+ MB</td>
+                        <td><strong>1-3 GB/s</strong></td>
+                        <td>Turbo</td>
+                        <td>SIMD + parallel</td>
+                    </tr>
+                    <tr>
+                        <td>100+ MB</td>
+                        <td><strong>2-5 GB/s</strong></td>
+                        <td>GPU</td>
+                        <td>CUDA/OpenCL</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p><strong>vs other tools:</strong> 2-10x faster than jq, json-minify, RapidJSON</p>
+        </section>
+
+        <section class="section">
+            <h2>Usage Examples</h2>
+            <div class="code-block">
+                <pre><span class="comment">// Basic minification</span>
+zmin input.json output.json
+
+<span class="comment">// Performance modes</span>
+zmin --mode turbo large.json out.json    <span class="comment"># Maximum throughput</span>
+zmin --mode sport medium.json out.json   <span class="comment"># Balanced performance</span>
+zmin --mode eco small.json out.json      <span class="comment"># Memory efficient</span>
+
+<span class="comment">// GPU acceleration</span>
+zmin --gpu cuda large.json out.json      <span class="comment"># NVIDIA GPU</span>
+zmin --gpu opencl large.json out.json    <span class="comment"># OpenCL GPU</span>
+
+<span class="comment">// Advanced options</span>
+zmin --chunk-size 1MB --threads 16 large.json out.json
+zmin --validate --format-check input.json out.json</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>Documentation</h2>
+            <div class="links">
+                <a href="api-docs-interactive.html">📖 Interactive API Docs</a>
+                <a href="getting-started.md">🚀 Getting Started</a>
+                <a href="usage.md">📚 Usage Guide</a>
+                <a href="performance.md">⚡ Performance Guide</a>
+                <a href="installation.md">🔧 Installation</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>zmin - High-performance JSON minifier written in Zig</p>
+        <p>MIT License • <a href="https://github.com/hydepwns/zmin" style="color: var(--accent);">GitHub</a></p>
+    </footer>
+</body>
+</html>
