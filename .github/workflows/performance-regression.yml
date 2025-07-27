@@ -32,6 +32,11 @@ jobs:
       with:
         version: ${{ needs.versions.outputs.zig-version }}
 
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc jq
+
     - name: Cache benchmark datasets
       uses: actions/cache@v4
       with:
@@ -54,22 +59,20 @@ jobs:
 
     - name: Run performance benchmarks
       run: |
-        # Create test datasets if not cached
         # Source common functions
         source ${{ env.SCRIPTS_DIR }}/common.sh
         
         # Setup benchmark datasets
         setup_benchmark_datasets
-        fi
-        
-        # Source common functions once at the beginning
-        source ${{ env.SCRIPTS_DIR }}/common.sh
         
         echo "## Performance Comparison Report" > performance-report.md
         echo "" >> performance-report.md
         echo "**Date**: $(date)" >> performance-report.md
         echo "**Commit**: ${{ github.sha }}" >> performance-report.md
         echo "" >> performance-report.md
+        
+        # Initialize JSON results
+        echo '{"results": [' > benchmark-results.json
         
         # Run benchmarks for each dataset
         for dataset in small medium large; do
@@ -90,7 +93,17 @@ jobs:
           if [[ "$result" == *"${FAILURE_ICON}"* ]]; then
             echo "::warning::Performance regression detected with $dataset dataset: +${change}%"
           fi
+          
+          # Add to JSON results
+          if [ "$dataset" != "large" ]; then
+            echo "{\"dataset\": \"$dataset\", \"baseline\": $baseline_time, \"current\": $current_time, \"change\": $change}," >> benchmark-results.json
+          else
+            echo "{\"dataset\": \"$dataset\", \"baseline\": $baseline_time, \"current\": $current_time, \"change\": $change}" >> benchmark-results.json
+          fi
         done
+        
+        # Close JSON
+        echo ']}'>> benchmark-results.json
 
     - name: Comment PR with results
       if: github.event_name == 'pull_request'
@@ -117,8 +130,12 @@ jobs:
 
     - name: Check for regressions
       run: |
+        # Source common functions to get FAILURE_ICON
+        source ${{ env.SCRIPTS_DIR }}/common.sh
+        
         # Fail if any significant regressions detected
-        if grep -q "❌" performance-report.md; then
+        if grep -q "${FAILURE_ICON}" performance-report.md; then
           echo "Performance regressions detected!"
+          cat performance-report.md
           exit 1
         fi
