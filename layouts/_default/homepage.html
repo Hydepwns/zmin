@@ -1,0 +1,255 @@
+{{ define "main" }}
+<div class="homepage">
+  {{ if .Site.Data.site.site.project }}
+    {{ $project := .Site.Data.site.site.project }}
+
+    <header class="hero">
+      <h1>{{ $project.name }}</h1>
+      <p class="tagline">{{ $project.tagline }}</p>
+      <p class="description">{{ $project.description }}</p>
+    </header>
+
+    <section class="performance">
+      <h2>🚀 Performance</h2>
+      <ul>
+        <li><strong>Up to {{ $project.performance.max_throughput }}</strong> throughput</li>
+        <li><strong>GPU acceleration</strong> for massive datasets</li>
+        <li><strong>Parallel processing</strong> with NUMA awareness</li>
+        <li><strong>Memory efficient</strong> with streaming support</li>
+      </ul>
+    </section>
+
+    <section class="features">
+      <h2>🎯 Features</h2>
+      {{ $features := $project.features }}
+      <div class="feature-list">
+        {{ range $features }}
+          <div class="feature-item">
+            <span class="feature-bullet">•</span>
+            <span class="feature-text">{{ . }}</span>
+          </div>
+        {{ end }}
+      </div>
+    </section>
+
+    <section class="installation">
+      <h2>📦 Installation</h2>
+      {{ $installation := $project.installation }}
+      <div class="installation-steps">
+        <h3>From Source</h3>
+        <div class="code-block">
+          {{ range $installation.source.commands }}
+            <div class="command-line">
+              <span class="prompt">$</span>
+              <span class="command">{{ . }}</span>
+            </div>
+          {{ end }}
+        </div>
+
+        <h3>System Requirements</h3>
+        <ul class="requirements-list">
+          {{ range $installation.requirements }}
+            <li>{{ . }}</li>
+          {{ end }}
+        </ul>
+      </div>
+    </section>
+
+    <section class="quick-start">
+      <h2>🚀 Quick Start</h2>
+      <div class="code-block">
+        <pre><code class="language-zig">const zmin = @import("zmin");
+
+// Basic minification
+const minified = try zmin.minify(allocator, json_input, .turbo);
+
+// With validation
+try zmin.validate(json_input);
+const minified = try zmin.minify(allocator, json_input, .sport);</code></pre>
+      </div>
+    </section>
+
+    <section class="documentation">
+      <h2>📚 Documentation</h2>
+      <ul>
+        {{ $links := $project.links }}
+        <li><a href="{{ $links.getting_started }}">Getting Started</a> - Quick setup guide</li>
+        <li><a href="{{ $links.api_reference }}">API Reference</a> - Complete API docs</li>
+        <li><a href="{{ $links.performance }}">Performance Guide</a> - Optimization tips</li>
+        <li><a href="{{ $links.gpu }}">GPU Acceleration</a> - CUDA/OpenCL setup</li>
+        <li><a href="{{ $links.examples }}">Examples</a> - Code examples</li>
+      </ul>
+    </section>
+
+    <section class="development-tools">
+      <h2>🔧 Development Tools</h2>
+      <p>zmin includes a comprehensive set of development tools:</p>
+      <ul>
+        <li><strong>Dev Server</strong>: Hot-reloading development server</li>
+        <li><strong>Profiler</strong>: Performance profiling and analysis</li>
+        <li><strong>Debugger</strong>: Interactive debugging tools</li>
+        <li><strong>Plugin Registry</strong>: Plugin management system</li>
+        <li><strong>Config Manager</strong>: Configuration management</li>
+      </ul>
+    </section>
+
+    <section class="contributing">
+      <h2>🤝 Contributing</h2>
+      <p>We welcome contributions! See our <a href="https://github.com/hydepwns/zmin/blob/main/CONTRIBUTING.md">Contributing Guide</a> for details.</p>
+    </section>
+
+    <section class="license">
+      <h2>📄 License</h2>
+      <p>MIT License - see <a href="https://github.com/hydepwns/zmin/blob/main/LICENSE">LICENSE</a> for details.</p>
+    </section>
+
+    <footer class="cta">
+      <p><strong>Ready to supercharge your JSON processing?</strong> <a href="{{ $project.links.getting_started }}">Get started now</a>!</p>
+    </footer>
+  {{ end }}
+</div>
+
+<style>
+.homepage {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.hero h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: var(--accent);
+}
+
+.tagline {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.description {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
+section {
+  margin-bottom: 3rem;
+}
+
+section h2 {
+  color: var(--accent);
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 0.5rem;
+}
+
+.feature-list {
+  margin: 1rem 0;
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+
+.feature-bullet {
+  color: var(--accent);
+  margin-right: 0.5rem;
+  font-weight: bold;
+}
+
+.feature-text {
+  flex: 1;
+}
+
+.installation-steps {
+  margin: 1.5rem 0;
+}
+
+.code-block {
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.command-line {
+  display: flex;
+  align-items: center;
+  margin: 0.25rem 0;
+  font-family: monospace;
+}
+
+.prompt {
+  color: var(--accent);
+  margin-right: 0.5rem;
+  font-weight: bold;
+}
+
+.command {
+  color: var(--color);
+}
+
+.requirements-list {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.requirements-list li {
+  margin: 0.25rem 0;
+}
+
+.documentation ul {
+  list-style: none;
+  padding: 0;
+}
+
+.documentation li {
+  margin: 0.5rem 0;
+}
+
+.development-tools ul {
+  list-style: none;
+  padding: 0;
+}
+
+.development-tools li {
+  margin: 0.5rem 0;
+}
+
+.cta {
+  text-align: center;
+  margin-top: 3rem;
+  padding: 2rem;
+  background: var(--bg-secondary-color);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.cta p {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.cta a {
+  color: var(--accent);
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.cta a:hover {
+  text-decoration: underline;
+}
+</style>
+{{ end }}
