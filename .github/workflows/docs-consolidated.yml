@@ -85,15 +85,7 @@ jobs:
     needs: versions
     runs-on: ubuntu-latest
     if: |
-      github.event.inputs.deploy_only != true &&
-      (github.event.inputs.force_regenerate == true ||
-       contains(github.event.head_commit.modified, 'src/') ||
-       contains(github.event.head_commit.added, 'src/') ||
-       contains(github.event.head_commit.removed, 'src/') ||
-       contains(github.event.head_commit.modified, 'docs/') ||
-       contains(github.event.head_commit.added, 'docs/') ||
-       contains(github.event.head_commit.removed, 'docs/') ||
-       github.event_name == 'schedule')
+      github.event.inputs.deploy_only != true
 
     steps:
       - name: Checkout repository
@@ -169,7 +161,8 @@ jobs:
         with:
           name: generated-api-docs
           path: docs/
-        continue-on-error: true
+
+
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v2
