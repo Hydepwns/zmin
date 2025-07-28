@@ -1,37 +1,21 @@
-{{ $currentPage := . }}
-
 <header class="header">
   <div class="header__inner">
     <div class="header__logo">
       <a href="{{ .Site.BaseURL }}">
-        <div class="logo">
-          {{ .Site.Params.header.logo | default .Site.Title }}
-        </div>
+        <div class="logo">zmin</div>
       </a>
     </div>
 
-    <div class="menu-trigger">menu</div>
+    <nav class="menu">
+      <ul class="menu__inner">
+        {{ range .Site.Menus.main }}
+          <li>
+            <a href="{{ .URL }}" {{ if eq $.RelPermalink .URL }}class="active"{{ end }}>
+              {{ .Name }}
+            </a>
+          </li>
+        {{ end }}
+      </ul>
+    </nav>
   </div>
-
-  <nav class="menu">
-    <ul class="menu__inner menu__inner--desktop">
-      {{ range .Site.Menus.main }}
-        <li>
-          <a href="{{ .URL }}" {{ if eq $currentPage.RelPermalink .URL }}class="active"{{ end }}>
-            {{ .Name }}
-          </a>
-        </li>
-      {{ end }}
-    </ul>
-
-    <ul class="menu__inner menu__inner--mobile">
-      {{ range .Site.Menus.main }}
-        <li>
-          <a href="{{ .URL }}" {{ if eq $currentPage.RelPermalink .URL }}class="active"{{ end }}>
-            {{ .Name }}
-          </a>
-        </li>
-      {{ end }}
-    </ul>
-  </nav>
 </header>

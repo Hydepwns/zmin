@@ -21,9 +21,8 @@
 
     <section class="features">
       <h2>🎯 Features</h2>
-      {{ $features := $project.features }}
       <div class="feature-list">
-        {{ range $features }}
+        {{ range $project.features }}
           <div class="feature-item">
             <span class="feature-bullet">•</span>
             <span class="feature-text">{{ . }}</span>
@@ -34,11 +33,10 @@
 
     <section class="installation">
       <h2>📦 Installation</h2>
-      {{ $installation := $project.installation }}
       <div class="installation-steps">
         <h3>From Source</h3>
         <div class="code-block">
-          {{ range $installation.source.commands }}
+          {{ range $project.installation.source.commands }}
             <div class="command-line">
               <span class="prompt">$</span>
               <span class="command">{{ . }}</span>
@@ -47,8 +45,8 @@
         </div>
 
         <h3>System Requirements</h3>
-        <ul class="requirements-list">
-          {{ range $installation.requirements }}
+        <ul>
+          {{ range $project.installation.requirements }}
             <li>{{ . }}</li>
           {{ end }}
         </ul>
@@ -58,7 +56,7 @@
     <section class="quick-start">
       <h2>🚀 Quick Start</h2>
       <div class="code-block">
-        <pre><code class="language-zig">const zmin = @import("zmin");
+        <pre><code>const zmin = @import("zmin");
 
 // Basic minification
 const minified = try zmin.minify(allocator, json_input, .turbo);
@@ -108,148 +106,4 @@ const minified = try zmin.minify(allocator, json_input, .sport);</code></pre>
     </footer>
   {{ end }}
 </div>
-
-<style>
-.homepage {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.hero {
-  text-align: center;
-  margin-bottom: 3rem;
-}
-
-.hero h1 {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  color: var(--accent);
-}
-
-.tagline {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-}
-
-.description {
-  font-size: 1.1rem;
-  color: var(--text-secondary);
-  margin-bottom: 2rem;
-}
-
-section {
-  margin-bottom: 3rem;
-}
-
-section h2 {
-  color: var(--accent);
-  margin-bottom: 1rem;
-  border-bottom: 2px solid var(--accent);
-  padding-bottom: 0.5rem;
-}
-
-.feature-list {
-  margin: 1rem 0;
-}
-
-.feature-item {
-  display: flex;
-  align-items: flex-start;
-  margin: 0.5rem 0;
-  line-height: 1.5;
-}
-
-.feature-bullet {
-  color: var(--accent);
-  margin-right: 0.5rem;
-  font-weight: bold;
-}
-
-.feature-text {
-  flex: 1;
-}
-
-.installation-steps {
-  margin: 1.5rem 0;
-}
-
-.code-block {
-  background: var(--bg-secondary-color);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 1rem;
-  margin: 1rem 0;
-  overflow-x: auto;
-}
-
-.command-line {
-  display: flex;
-  align-items: center;
-  margin: 0.25rem 0;
-  font-family: monospace;
-}
-
-.prompt {
-  color: var(--accent);
-  margin-right: 0.5rem;
-  font-weight: bold;
-}
-
-.command {
-  color: var(--color);
-}
-
-.requirements-list {
-  margin: 1rem 0;
-  padding-left: 1.5rem;
-}
-
-.requirements-list li {
-  margin: 0.25rem 0;
-}
-
-.documentation ul {
-  list-style: none;
-  padding: 0;
-}
-
-.documentation li {
-  margin: 0.5rem 0;
-}
-
-.development-tools ul {
-  list-style: none;
-  padding: 0;
-}
-
-.development-tools li {
-  margin: 0.5rem 0;
-}
-
-.cta {
-  text-align: center;
-  margin-top: 3rem;
-  padding: 2rem;
-  background: var(--bg-secondary-color);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-
-.cta p {
-  font-size: 1.2rem;
-  margin: 0;
-}
-
-.cta a {
-  color: var(--accent);
-  font-weight: bold;
-  text-decoration: none;
-}
-
-.cta a:hover {
-  text-decoration: underline;
-}
-</style>
 {{ end }}

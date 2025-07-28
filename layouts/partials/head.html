@@ -1,85 +1,38 @@
-{{ $favicon := "static/favicon.png" }}
-{{ $ogImage := "static/og-image.png" }}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ .Title }} | {{ .Site.Title }}</title>
+
+<!-- Terminal Theme CSS -->
+<link rel="stylesheet" href="{{ "assets/style.css" | absURL }}">
+
+<!-- Custom CSS - loaded after theme CSS to override properly -->
+<link rel="stylesheet" href="{{ "assets/css/custom.css" | absURL }}">
 
 <!-- Favicon -->
-<link rel="icon" type="image/png" href="{{ $favicon | absURL }}">
+<link rel="icon" type="image/png" href="{{ "static/favicon.png" | absURL }}">
 
-<!-- Open Graph / Facebook -->
+<!-- Meta tags -->
+<meta name="description" content="{{ .Description }}">
+<meta name="keywords" content="zmin, json, minifier, zig, performance, gpu">
+<meta name="author" content="zmin team">
+
+<!-- Open Graph -->
 <meta property="og:type" content="website">
+<meta property="og:url" content="{{ .Permalink }}">
 <meta property="og:url" content="{{ .Permalink }}">
 <meta property="og:title" content="{{ .Title }}">
 <meta property="og:description" content="{{ .Description }}">
-<meta property="og:image" content="{{ $ogImage | absURL }}">
+<meta property="og:image" content="{{ "static/og-image.png" | absURL }}">
 
 <!-- Twitter -->
 <meta property="twitter:card" content="summary_large_image">
 <meta property="twitter:url" content="{{ .Permalink }}">
 <meta property="twitter:title" content="{{ .Title }}">
 <meta property="twitter:description" content="{{ .Description }}">
-<meta property="twitter:image" content="{{ $ogImage | absURL }}">
+<meta property="twitter:image" content="{{ "static/og-image.png" | absURL }}">
 
-<!-- Additional meta tags -->
-<meta name="description" content="{{ .Description }}">
-<meta name="keywords" content="zmin, json, minifier, zig, performance, gpu">
-<meta name="author" content="zmin team">
-
-<!-- Custom CSS -->
-{{ if .Site.Params.customCSS }}
-  {{ range .Site.Params.customCSS }}
-    <link rel="stylesheet" href="{{ . | absURL }}">
-  {{ end }}
-{{ end }}
-
-<!-- Theme toggle script -->
+<!-- Theme setup -->
 <script>
-  // Check for saved theme preference or default to dark mode
-  const theme = localStorage.getItem('theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', theme);
-
-  // Force dark theme for zmin
   document.documentElement.setAttribute('data-theme', 'dark');
   document.body.classList.add('dark-theme');
 </script>
-
-<!-- Force dark theme styles -->
-<style>
-  :root {
-    --background: #000000 !important;
-    --foreground: #ffffff !important;
-    --accent: #77767b !important;
-    --bg-color: #000000 !important;
-    --bg-secondary-color: #1a1a1a !important;
-    --color: #ffffff !important;
-    --secondary-color: #cccccc !important;
-    --text-color: #ffffff !important;
-    --border-color: #333333 !important;
-    --link-color: #ffffff !important;
-    --link-color-hover: #cccccc !important;
-  }
-
-  body {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-  }
-
-  .container {
-    background-color: #000000 !important;
-  }
-
-  .header {
-    background-color: #000000 !important;
-    border-bottom: 1px solid #333333 !important;
-  }
-
-  .menu {
-    background-color: #000000 !important;
-  }
-
-  .menu__inner a {
-    color: #ffffff !important;
-  }
-
-  .menu__inner a:hover {
-    color: #cccccc !important;
-  }
-</style>

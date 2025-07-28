@@ -3,7 +3,7 @@ languageCode: 'en-us'
 title: 'zmin'
 theme: 'github.com/panr/hugo-theme-terminal'
 
-# Terminal theme configuration
+# Clean theme configuration
 params:
   # Main info
   mainSections: []
@@ -12,6 +12,7 @@ params:
   # Theme colors - black and white with dark default
   colorTheme: "dark"
   fontTheme: "monospace"
+  CenterTheme: true
 
   # Header
   header:
@@ -51,8 +52,17 @@ params:
       url: /docs/performance/
       weight: 4
 
-  # Custom CSS
-  customCSS: ["static/css/custom.css"]
+  # PWA settings
+  enablePWA: true
+  manifestPath: "/static/manifest.json"
+
+  # Analytics (optional)
+  enableAnalytics: false
+  analyticsID: ""
+
+  # Search settings
+  enableSearch: true
+  searchIndex: true
 
   # Terminal theme specific settings
   showReadingTime: false
@@ -103,6 +113,14 @@ buildExpired: false
 
 # Disable default taxonomies
 disableKinds: ["taxonomy", "term"]
+
+# Output formats
+outputFormats:
+  searchIndex:
+    mediaType: application/json
+    baseName: search-index
+    isPlainText: true
+    notAlternative: true
 
 # Enable emoji
 enableEmoji: true
