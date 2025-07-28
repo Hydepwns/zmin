@@ -5,9 +5,11 @@ This directory contains various development and debugging tools for zmin.
 ## Available Tools
 
 ### config-manager
+
 Configuration management utility for zmin build system.
 
 **Usage:**
+
 ```bash
 config-manager [command] [options]
 
@@ -22,9 +24,11 @@ Commands:
 ```
 
 ### hot-reloading
+
 Advanced file watching and build automation tool.
 
 **Usage:**
+
 ```bash
 hot-reloading [OPTIONS] [PATHS...]
 
@@ -37,9 +41,11 @@ Options:
 ```
 
 ### dev-server
+
 Development server with live minification and performance monitoring.
 
 **Usage:**
+
 ```bash
 dev-server [port]
 
@@ -51,9 +57,11 @@ Features:
 ```
 
 ### profiler
+
 Performance profiling tool for zmin operations.
 
 **Usage:**
+
 ```bash
 profiler [OPTIONS]
 
@@ -66,9 +74,11 @@ Options:
 ```
 
 ### debugger
+
 Advanced debugging and system information tool.
 
 **Usage:**
+
 ```bash
 debugger [OPTIONS] [INPUT_FILE]
 
@@ -85,9 +95,11 @@ Options:
 ```
 
 ### plugin-registry
+
 Plugin management and registry tool.
 
 **Usage:**
+
 ```bash
 plugin-registry [command]
 
@@ -103,6 +115,7 @@ Commands:
 ## Building the Tools
 
 The dev tools are built automatically as part of the main build:
+
 ```bash
 zig build
 ```
@@ -112,6 +125,7 @@ The compiled tools will be available in `zig-out/bin/`.
 ## Development
 
 When adding new dev tools:
+
 1. Create the tool in the `tools/` directory
 2. Add it to `build/tools.zig` in the `dev_tools` array
 3. Import any necessary modules (typically `zmin_lib`)

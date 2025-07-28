@@ -5,7 +5,7 @@ site:
     description: "High-performance JSON minifier written in Zig with GPU acceleration"
     tagline: "Ultra-fast JSON minifier written in Zig"
     performance:
-      throughput: "1.1 GB/s"
+      throughput: "1.11 GB/s"
       max_throughput: "3 GB/s"
       memory_limit_eco: "64KB"
 

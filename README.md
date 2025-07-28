@@ -1,12 +1,12 @@
 # zmin
 
-High-performance JSON minifier written in Zig. **Up to 1.1 GB/s throughput** with GPU acceleration and advanced optimization modes.
+High-performance JSON minifier written in Zig. **Up to 1.11 GB/s throughput** with GPU acceleration and advanced optimization modes.
 
 [![Docs](https://img.shields.io/badge/docs-interactive-purple)](https://zmin.droo.foo/) [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/hydepwns/zmin/actions) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ## Features
 
-- **Ultra-Fast**: Up to 1.1 GB/s throughput with SIMD + GPU acceleration
+- **Ultra-Fast**: Up to 1.11 GB/ s(TURBO: consistent), 3-5 (Achieved but needs further benchmark validaton* *7-28-25*) GB/s throughput with SIMD + GPU acceleration
 - **Multiple Modes**: Eco, Sport, and Turbo modes for different use cases
 - **GPU Acceleration**: CUDA and OpenCL support for massive datasets
 - **Plugin System**: Extensible architecture with custom minification plugins
@@ -91,7 +91,7 @@ const result = try zmin.minify(input, .{ .mode = .turbo });
 |------|----------|------------|--------------|
 | **Eco** | Small files, low memory | ~312 MB/s | Minimal |
 | **Sport** | Balanced performance | ~555 MB/s | Moderate |
-| **Turbo** | Large files, max speed | **~1.1 GB/s** | Higher |
+| **Turbo** | Large files, max speed | **~1.11 GB/s** | Higher |
 
 **Not sure which mode to use?** Check our [interactive mode selector](https://zmin.droo.foo/mode-selection)!
 
@@ -135,7 +135,7 @@ pub const MyPlugin = struct {
 |-----------|------------|------|----------|
 | < 1 MB | ~312 MB/s | Eco | Single-threaded |
 | 1-50 MB | ~555 MB/s | Sport | Parallel |
-| 50+ MB | **~1.1 GB/s** | Turbo | SIMD + parallel |
+| 50+ MB | **~1.11 GB/s** | Turbo | SIMD + parallel |
 | 100+ MB | **~2.0 GB/s** | GPU | CUDA/OpenCL |
 
 **vs other tools**: 2-10x faster than jq, json-minify, RapidJSON
