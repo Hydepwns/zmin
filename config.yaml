@@ -6,7 +6,7 @@ theme: 'github.com/panr/hugo-theme-terminal'
 # Terminal theme configuration
 params:
   # Main info
-  mainSections: ["docs"]
+  mainSections: []
   description: "High-performance JSON minifier written in Zig. Over 3 GB/s throughput with GPU acceleration."
 
   # Theme colors - black and white with dark default
