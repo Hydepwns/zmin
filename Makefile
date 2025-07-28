@@ -120,6 +120,16 @@ docs:
 	@rm -f generate-api-docs
 	@echo "✅ Documentation generated"
 
+# Content generation
+generate-content:
+	@echo "Generating content from centralized data..."
+	@zig run scripts/generate-content.zig
+
+# Build site with generated content
+build-site: generate-content
+	@echo "Building Hugo site..."
+	@hugo --minify
+
 serve-docs:
 	@echo "Serving documentation at http://localhost:8000"
 	@python3 -m http.server 8000 --directory docs/

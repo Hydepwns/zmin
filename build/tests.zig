@@ -150,6 +150,15 @@ pub fn createTestSuite(b: *std.Build, config: types.Config, modules: types.Modul
     dev_tools_test_suite.root_module.addImport("zmin_lib", modules.lib_mod);
     dev_tools_test_suite.root_module.addImport("test_framework", test_framework_mod);
 
+    // Simple integration tests that work with current module system
+
+    const simple_integration_tests = b.addTest(.{
+        .root_source_file = b.path("tests/integration/simple_dev_tools_integration.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    simple_integration_tests.root_module.addImport("zmin_lib", modules.lib_mod);
+
     // Create run steps
     const run_lib_tests = b.addRunArtifact(lib_unit_tests);
     const run_exe_tests = b.addRunArtifact(exe_unit_tests);
@@ -169,6 +178,7 @@ pub fn createTestSuite(b: *std.Build, config: types.Config, modules: types.Modul
 
     // Dev tools test run steps
     const run_simple_dev_tools_tests = b.addRunArtifact(simple_dev_tools_tests);
+    const run_simple_integration_tests = b.addRunArtifact(simple_integration_tests);
     // Future: Enable when import issues are resolved
     // const run_dev_tools_unit_tests = b.addRunArtifact(dev_tools_unit_tests);
     // const run_dev_server_unit_tests = b.addRunArtifact(dev_server_unit_tests);
@@ -191,6 +201,7 @@ pub fn createTestSuite(b: *std.Build, config: types.Config, modules: types.Modul
     test_step.dependOn(&run_property_tests.step);
     test_step.dependOn(&run_regression_tests.step);
     test_step.dependOn(&run_simple_dev_tools_tests.step);
+    test_step.dependOn(&run_simple_integration_tests.step);
 
     // Fast tests (excludes performance tests)
     const test_fast_step = b.step("test:fast", "Run fast tests (excludes performance)");
@@ -220,6 +231,11 @@ pub fn createTestSuite(b: *std.Build, config: types.Config, modules: types.Modul
     // Dev tools tests
     const test_dev_tools_step = b.step("test:dev-tools", "Run dev tools unit tests");
     test_dev_tools_step.dependOn(&run_simple_dev_tools_tests.step);
+    
+    // Integration tests
+    const test_integration_step = b.step("test:integration", "Run integration tests");
+    test_integration_step.dependOn(&run_integration_tests.step);
+    test_integration_step.dependOn(&run_simple_integration_tests.step);
     
     // Future: Add more comprehensive tests when import issues are resolved
     // test_dev_tools_step.dependOn(&run_dev_tools_unit_tests.step);
