@@ -261,6 +261,23 @@ jobs:
             echo "⚠️ ${{ env.GENERATED_HTML }} not found"
           fi
 
+      - name: Ensure CNAME file is present
+        run: |
+          # Copy CNAME file to public directory for custom domain
+          if [ -f "static/CNAME" ]; then
+            cp static/CNAME public/
+            echo "✅ Copied static/CNAME to public/"
+          elif [ -f "docs/CNAME" ]; then
+            cp docs/CNAME public/
+            echo "✅ Copied docs/CNAME to public/"
+          else
+            echo "zmin.droo.foo" > public/CNAME
+            echo "✅ Created public/CNAME with zmin.droo.foo"
+          fi
+
+          echo "CNAME file contents:"
+          cat public/CNAME
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
