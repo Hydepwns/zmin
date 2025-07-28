@@ -1,0 +1,103 @@
+# Centralized site data for DRY content management
+project:
+  name: "zmin"
+  description: "High-performance JSON minifier written in Zig with GPU acceleration"
+  tagline: "Ultra-fast JSON minifier written in Zig"
+  performance:
+    throughput: "1.1 GB/s"
+    max_throughput: "3 GB/s"
+    memory_limit_eco: "64KB"
+
+  features:
+    - "Multiple modes: Eco, Sport, and Turbo for different use cases"
+    - "GPU acceleration: CUDA and OpenCL support"
+    - "Parallel processing: Multi-threaded with NUMA optimization"
+    - "Streaming: Process large files without loading into memory"
+    - "Validation: Built-in JSON validation"
+    - "Plugin system: Extensible architecture"
+
+  installation:
+    source:
+      commands:
+        - "git clone https://github.com/hydepwns/zmin"
+        - "cd zmin"
+        - "zig build install"
+    requirements:
+      - "Zig 0.14.1 or later"
+      - "64-bit processor (x86_64 or ARM64)"
+      - "Linux, macOS, or Windows"
+      - "Minimum 64MB RAM (more for large files)"
+
+  modes:
+    eco:
+      name: "ECO"
+      description: "Energy-efficient mode"
+      memory_limit: "64KB"
+      use_case: "Memory limited environments"
+    sport:
+      name: "SPORT"
+      description: "Balanced performance mode"
+      memory_limit: "Default"
+      use_case: "General purpose"
+    turbo:
+      name: "TURBO"
+      description: "Maximum performance mode"
+      memory_limit: "Unlimited"
+      use_case: "Large datasets"
+
+  social:
+    github: "https://github.com/hydepwns/zmin"
+    twitter: "https://twitter.com/MF_DROO"
+
+  links:
+    docs: "/docs/"
+    api_reference: "/api-reference-generated.html"
+    examples: "/docs/examples/"
+    performance: "/docs/performance/"
+    getting_started: "/docs/getting-started/"
+    installation: "/docs/installation/"
+    gpu: "/docs/gpu/"
+    troubleshooting: "/docs/troubleshooting/"
+
+examples:
+  basic:
+    - name: "basic_usage.zig"
+      description: "Simple minification example"
+      file: "examples/basic_usage.zig"
+    - name: "mode_selection.zig"
+      description: "Using different processing modes"
+      file: "examples/mode_selection.zig"
+    - name: "streaming.zig"
+      description: "Processing large files with streaming"
+      file: "examples/streaming.zig"
+
+  advanced:
+    - name: "parallel_batch.zig"
+      description: "Batch processing multiple files"
+      file: "examples/parallel_batch.zig"
+
+  monitoring:
+    - name: "monitoring"
+      description: "Performance monitoring examples"
+      path: "examples/monitoring/"
+
+bindings:
+  - name: "Node.js"
+    package: "npm install zmin"
+    cli_package: "npm install @zmin/cli"
+    path: "bindings/nodejs/"
+  - name: "Python"
+    package: "pip install zmin"
+    path: "bindings/python/"
+  - name: "Go"
+    package: "go get github.com/hydepwns/zmin/go"
+    path: "bindings/go/"
+  - name: "NPM CLI"
+    package: "npm install -g @zmin/cli"
+    path: "bindings/npm/"
+
+api:
+  functions_count: 513
+  types_count: 149
+  json_reference: "/docs/api-reference-generated.json"
+  yaml_reference: "/docs/api-reference.yaml"

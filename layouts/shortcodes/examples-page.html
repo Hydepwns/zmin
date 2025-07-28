@@ -1,0 +1,184 @@
+{{ $examples := .Site.Data.site.examples }}
+{{ $bindings := .Site.Data.site.bindings }}
+<div class="examples-page">
+  <h2>Examples</h2>
+  <p>This directory contains examples demonstrating various use cases for zmin.</p>
+
+  {{< examples-list >}}
+
+  <h3>Language Bindings</h3>
+  <div class="bindings-grid">
+    {{ range $bindings }}
+      <div class="binding-card">
+        <div class="binding-header">
+          <h4 class="binding-name">{{ .name }}</h4>
+          <a href="{{ .path }}" class="binding-link">View</a>
+        </div>
+        <div class="binding-commands">
+          {{ if .package }}
+            <div class="command-line">
+              <span class="prompt">$</span>
+              <span class="command">{{ .package }}</span>
+            </div>
+          {{ end }}
+          {{ if .cli_package }}
+            <div class="command-line">
+              <span class="prompt">$</span>
+              <span class="command">{{ .cli_package }}</span>
+            </div>
+          {{ end }}
+        </div>
+      </div>
+    {{ end }}
+  </div>
+
+  <h3>Building Examples</h3>
+  <div class="code-block">
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command"># Build all examples</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command">zig build examples</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command"># Build specific example</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command">zig build-exe examples/basic_usage.zig -lc</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command"># Run example</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command">./basic_usage input.json output.json</span>
+    </div>
+  </div>
+
+  <h3>Quick Start</h3>
+
+  <h4>Basic Usage</h4>
+  <div class="code-block">
+    <pre><code class="language-zig">const std = @import("std");
+const zmin = @import("zmin");
+
+pub fn main() !void {
+    const allocator = std.heap.page_allocator;
+    const input = "{  \"hello\" : \"world\"  }";
+
+    const output = try zmin.minify(allocator, input);
+    defer allocator.free(output);
+
+    std.debug.print("Minified: {s}\n", .{output});
+}</code></pre>
+  </div>
+
+  <h4>Command Line</h4>
+  <div class="code-block">
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command"># Basic minification</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command">zmin input.json output.json</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command"># Use turbo mode for large files</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command">zmin --mode turbo large.json compressed.json</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command"># Validate without minifying</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command">zmin --validate data.json</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command"># Interactive mode</span>
+    </div>
+    <div class="command-line">
+      <span class="prompt">$</span>
+      <span class="command">zmin --interactive</span>
+    </div>
+  </div>
+
+  <h3>Documentation</h3>
+  <p>For complete documentation, visit <strong><a href="https://zmin.droo.foo">zmin.droo.foo</a></strong></p>
+</div>
+
+<style>
+.examples-page {
+  margin: 2rem 0;
+}
+.bindings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.binding-card {
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 1rem;
+  transition: border-color 0.2s ease;
+}
+.binding-card:hover {
+  border-color: var(--accent);
+}
+.binding-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.binding-name {
+  margin: 0;
+  color: var(--accent);
+  font-size: 1.1em;
+}
+.binding-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9em;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+.binding-link:hover {
+  background: var(--accent);
+  color: var(--background);
+}
+.binding-commands {
+  font-family: monospace;
+  font-size: 0.9em;
+}
+.code-block {
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+.code-block pre {
+  margin: 0;
+}
+.code-block code {
+  background: none;
+  padding: 0;
+}
+</style>

@@ -7,7 +7,7 @@ theme: 'github.com/panr/hugo-theme-terminal'
 params:
   # Main info
   mainSections: ["docs"]
-  description: "High-performance JSON minifier written in Zig. Up to 1.1 GB/s throughput with GPU acceleration."
+  description: "High-performance JSON minifier written in Zig. Over 3 GB/s throughput with GPU acceleration."
 
   # Theme colors - black and white with dark default
   colorTheme: "dark"
@@ -52,7 +52,7 @@ params:
       weight: 4
 
   # Custom CSS
-  customCSS: ["css/custom.css"]
+  customCSS: ["assets/css/custom.css"]
 
   # Terminal theme specific settings
   showReadingTime: false
