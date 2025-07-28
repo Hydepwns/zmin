@@ -90,6 +90,9 @@ jobs:
        contains(github.event.head_commit.modified, 'src/') ||
        contains(github.event.head_commit.added, 'src/') ||
        contains(github.event.head_commit.removed, 'src/') ||
+       contains(github.event.head_commit.modified, 'docs/') ||
+       contains(github.event.head_commit.added, 'docs/') ||
+       contains(github.event.head_commit.removed, 'docs/') ||
        github.event_name == 'schedule')
 
     steps:
@@ -166,6 +169,7 @@ jobs:
         with:
           name: generated-api-docs
           path: docs/
+        continue-on-error: true
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v2
@@ -217,6 +221,7 @@ jobs:
         with:
           name: generated-api-docs
           path: docs/
+        continue-on-error: true
 
       - name: Copy generated API docs to static directory
         run: |
