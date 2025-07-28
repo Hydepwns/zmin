@@ -17,7 +17,7 @@ params:
   header:
     title: "zmin"
     subtitle: "High-performance JSON minifier"
-    logo: ""
+    logo: "zmin"
     logoWidth: 50
 
   # Footer
@@ -32,7 +32,7 @@ params:
     - name: twitter
       url: "https://twitter.com/MF_DROO"
 
-  # Navigation
+  # Navigation - Terminal theme uses this for the main menu
   mainMenu:
     - identifier: docs
       name: Documentation
@@ -52,7 +52,7 @@ params:
       weight: 4
 
   # Custom CSS
-  customCSS: ["css/custom.css"]
+  customCSS: ["static/css/custom.css"]
 
   # Terminal theme specific settings
   showReadingTime: false
@@ -66,7 +66,7 @@ params:
   showWordCount: false
   showFullTextinRSS: false
 
-# Menu configuration
+# Standard Hugo menu configuration (for compatibility)
 menu:
   main:
     - identifier: docs

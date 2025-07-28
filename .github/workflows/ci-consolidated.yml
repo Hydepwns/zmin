@@ -26,6 +26,11 @@ on:
         default: false
         type: boolean
 
+# Allow only one concurrent CI run to prevent resource conflicts
+concurrency:
+  group: "ci-${{ github.ref }}"
+  cancel-in-progress: true
+
 env:
   BENCHMARKS_DIR: benchmarks/datasets
   SCRIPTS_DIR: scripts
