@@ -137,18 +137,22 @@ jobs:
 
           # Check if the API spec file exists
           if [ -f "${{ env.GENERATED_SPEC }}" ]; then
-            # Use swagger-cli to generate HTML
-            swagger-cli bundle ${{ env.GENERATED_SPEC }} --type html --outfile ${{ env.GENERATED_HTML }}
-
-            if [ -f "${{ env.GENERATED_HTML }}" ]; then
-              echo "✅ HTML documentation generated"
+            # Check if this is a placeholder file (contains empty paths)
+            if grep -q '"paths": {}' "${{ env.GENERATED_SPEC }}"; then
+              echo "⚠️ Placeholder API spec detected, HTML file already created in previous step"
             else
-              echo "❌ Failed to generate HTML documentation"
-              exit 1
+              # Use swagger-cli to generate HTML
+              swagger-cli bundle ${{ env.GENERATED_SPEC }} --type html --outfile ${{ env.GENERATED_HTML }}
+
+              if [ -f "${{ env.GENERATED_HTML }}" ]; then
+                echo "✅ HTML documentation generated"
+              else
+                echo "❌ Failed to generate HTML documentation"
+                exit 1
+              fi
             fi
           else
             echo "⚠️ API spec file not found, skipping HTML generation"
-            # The HTML file should already exist from the previous step
           fi
 
       - name: Upload generated API docs as artifacts
