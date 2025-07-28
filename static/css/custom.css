@@ -1,0 +1,216 @@
+/* Custom styles for zmin documentation */
+
+/* Terminal theme overrides for black/white theme */
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  --accent: #77767b;
+  --bg-color: #000000;
+  --bg-secondary-color: #1a1a1a;
+  --color: #ffffff;
+  --secondary-color: #cccccc;
+  --text-color: #ffffff;
+  --border-color: #333333;
+  --link-color: #ffffff;
+  --link-color-hover: #cccccc;
+}
+
+/* Code blocks */
+pre {
+  background-color: #1a1a1a !important;
+  border: 1px solid #333333 !important;
+}
+
+code {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+/* Tables */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+th, td {
+  border: 1px solid #333333;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+th {
+  background-color: #1a1a1a;
+  font-weight: bold;
+}
+
+/* Performance badges */
+.performance-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: bold;
+  margin: 0.25rem;
+}
+
+.performance-turbo {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.performance-sport {
+  background-color: #cccccc;
+  color: #000000;
+}
+
+.performance-eco {
+  background-color: #666666;
+  color: #ffffff;
+}
+
+/* Command examples */
+.command-example {
+  background-color: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 4px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.command-example pre {
+  margin: 0;
+  background: none !important;
+  border: none !important;
+}
+
+/* API documentation */
+.api-endpoint {
+  background-color: #1a1a1a;
+  border-left: 4px solid #ffffff;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.api-method {
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.api-url {
+  font-family: monospace;
+  color: #cccccc;
+}
+
+/* zmin-specific styling */
+.zmin-header {
+  text-align: center;
+  padding: 2rem 0;
+  border-bottom: 1px solid #333333;
+  margin-bottom: 2rem;
+}
+
+.zmin-header h1 {
+  font-size: 3rem;
+  font-weight: 400;
+  margin-bottom: 0.5rem;
+}
+
+.zmin-header .subtitle {
+  font-size: 1.2rem;
+  color: #cccccc;
+}
+
+/* Feature grid */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.feature-card {
+  background-color: #1a1a1a;
+  border: 1px solid #333333;
+  padding: 1.5rem;
+  transition: border-color 0.3s ease;
+}
+
+.feature-card:hover {
+  border-color: #ffffff;
+}
+
+.feature-card h3 {
+  color: #ffffff;
+  margin-bottom: 1rem;
+}
+
+.feature-card p {
+  color: #cccccc;
+  line-height: 1.6;
+}
+
+/* Performance comparison */
+.performance-comparison {
+  background-color: #1a1a1a;
+  border: 1px solid #333333;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.performance-comparison h3 {
+  color: #ffffff;
+  margin-bottom: 1rem;
+}
+
+/* Code syntax highlighting overrides */
+.highlight {
+  background-color: #1a1a1a !important;
+  border: 1px solid #333333 !important;
+}
+
+.highlight pre {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .zmin-header h1 {
+    font-size: 2rem;
+  }
+
+  .zmin-header .subtitle {
+    font-size: 1rem;
+  }
+}
+
+/* Dark mode enhancements */
+[data-theme="dark"] {
+  --background: #000000;
+  --foreground: #ffffff;
+  --accent: #77767b;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666666;
+}

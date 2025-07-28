@@ -52,7 +52,7 @@ params:
       weight: 4
 
   # Custom CSS
-  customCSS: ["assets/css/custom.css"]
+  customCSS: ["css/custom.css"]
 
   # Terminal theme specific settings
   showReadingTime: false
