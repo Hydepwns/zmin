@@ -6,6 +6,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const interface = @import("../core/interface.zig");
+const LightweightValidator = @import("minifier").lightweight_validator.LightweightValidator;
 const TurboStrategy = interface.TurboStrategy;
 const TurboConfig = interface.TurboConfig;
 const MinificationResult = interface.MinificationResult;
@@ -36,6 +37,9 @@ pub const StreamingStrategy = struct {
 
         const start_time = std.time.microTimestamp();
         const initial_memory = getCurrentMemoryUsage();
+
+        // Validate the input first
+        try LightweightValidator.validate(input);
 
         // Use config chunk size or default to streaming buffer size
         const chunk_size = if (config.chunk_size > 0) config.chunk_size else STREAM_BUFFER_SIZE;

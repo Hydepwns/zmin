@@ -3,6 +3,7 @@ pub const types = @import("types.zig");
 pub const utils = @import("utils.zig");
 pub const pretty = @import("pretty.zig");
 pub const handlers = @import("handlers.zig");
+pub const lightweight_validator = @import("lightweight_validator.zig");
 
 // Re-export the main parser type for convenience
 pub const MinifyingParser = types.MinifyingParser;

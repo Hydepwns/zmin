@@ -2,7 +2,7 @@
 // This is the refactored version of the original minifier
 
 const std = @import("std");
-const MinifyingParser = @import("../minifier/mod.zig").MinifyingParser;
+const MinifyingParser = @import("minifier").MinifyingParser;
 
 pub const EcoMinifier = struct {
     allocator: std.mem.Allocator,

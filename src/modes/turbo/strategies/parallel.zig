@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const interface = @import("../core/interface.zig");
+const LightweightValidator = @import("minifier").lightweight_validator.LightweightValidator;
 const TurboStrategy = interface.TurboStrategy;
 const TurboConfig = interface.TurboConfig;
 const MinificationResult = interface.MinificationResult;
@@ -87,6 +88,9 @@ pub const ParallelStrategy = struct {
     ) !MinificationResult {
         const start_time = std.time.microTimestamp();
         const initial_memory = getCurrentMemoryUsage();
+
+        // Validate the input first
+        try LightweightValidator.validate(input);
 
         // Determine thread count
         const cpu_count = std.Thread.getCpuCount() catch 4;

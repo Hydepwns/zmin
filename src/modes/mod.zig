@@ -3,13 +3,8 @@
 const std = @import("std");
 
 pub const ProcessingMode = enum {
-    // ECO Mode: O(1) memory, 91 MB/s, works everywhere
     eco,
-
-    // SPORT Mode: O(√n) memory, ~500 MB/s, chunk-based SIMD
     sport,
-
-    // TURBO Mode: O(n) memory, 2+ GB/s, full SIMD processing
     turbo,
 
     pub fn getDescription(self: ProcessingMode) []const u8 {

@@ -1,7 +1,8 @@
 // Unified interface for all minifier modes
 
 const std = @import("std");
-const modes = @import("mod.zig");
+const modes = @import("modes");
+
 const ProcessingMode = modes.ProcessingMode;
 const ModeConfig = modes.ModeConfig;
 
@@ -40,6 +41,7 @@ pub const MinifierInterface = struct {
                 defer allocator.free(output);
 
                 const result = try minifier.minify(input, turbo.TurboConfig{});
+                defer allocator.free(result.output);
                 @memcpy(output[0..result.output.len], result.output);
                 try writer.writeAll(output[0..result.output.len]);
             },

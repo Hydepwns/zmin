@@ -229,7 +229,7 @@ pub const SystemCapabilities = struct {
     }
 
     fn detectSimdFeatures() SimdFeatures {
-        const cpu_detection = @import("../../../performance/cpu_detection.zig");
+        const cpu_detection = @import("cpu_detection");
         const cpu_info = cpu_detection.CpuInfo.init();
         
         return SimdFeatures{
@@ -249,7 +249,7 @@ pub const SystemCapabilities = struct {
     }
 
     fn detectNumaNodes() u32 {
-        const detector = @import("../../../performance/numa_detector.zig");
+        const detector = @import("numa_detector");
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
         defer _ = gpa.deinit();
 

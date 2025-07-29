@@ -6,6 +6,7 @@
 
 const std = @import("std");
 const interface = @import("../core/interface.zig");
+const LightweightValidator = @import("minifier").lightweight_validator.LightweightValidator;
 const TurboStrategy = interface.TurboStrategy;
 const TurboConfig = interface.TurboConfig;
 const MinificationResult = interface.MinificationResult;
@@ -34,6 +35,9 @@ pub const ScalarStrategy = struct {
 
         const start_time = std.time.microTimestamp();
         const initial_memory = getCurrentMemoryUsage();
+
+        // Validate the input first
+        try LightweightValidator.validate(input);
 
         // Allocate output buffer (worst case: same size as input)
         const output = try allocator.alloc(u8, input.len);

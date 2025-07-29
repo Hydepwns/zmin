@@ -3,6 +3,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const LightweightValidator = @import("minifier").lightweight_validator.LightweightValidator;
 
 pub const SportMinifier = struct {
     allocator: std.mem.Allocator,
@@ -53,11 +54,20 @@ pub const SportMinifier = struct {
         reader: anytype,
         writer: anytype,
     ) !void {
-        // Allocate chunk buffer aligned to cache line
-        const aligned_chunk_size = std.mem.alignForward(usize, self.chunk_size, cache_line_size);
-        const buffer = try self.allocator.alignedAlloc(u8, cache_line_size, aligned_chunk_size);
-        defer self.allocator.free(buffer);
+        // For streaming, we need to read all input first to validate it
+        // This is a trade-off for correctness while maintaining most performance benefits
+        const input = try reader.readAllAlloc(self.allocator, std.math.maxInt(usize));
+        defer self.allocator.free(input);
+        
+        // Validate the input first
+        try LightweightValidator.validate(input);
+        
+        // Now do the optimized minification knowing the JSON is valid
+        return self.minifyValidated(input, writer);
+    }
 
+    /// Minify pre-validated JSON input with sport-mode optimizations
+    fn minifyValidated(self: *SportMinifier, input: []const u8, writer: anytype) !void {
         // Output buffer for batched writes
         const output_size = 64 * 1024; // 64KB output buffer
         const output_buffer = try self.allocator.alloc(u8, output_size);
@@ -66,76 +76,70 @@ pub const SportMinifier = struct {
 
         var state = ProcessingState{};
 
-        // Main processing loop
-        while (true) {
-            const bytes_read = try reader.read(buffer);
-            if (bytes_read == 0) break;
+        // Process in cache-friendly blocks
+        var pos: usize = 0;
 
-            // Process in cache-friendly blocks
-            var pos: usize = 0;
+        // Fast path: process aligned blocks when not in string
+        while (pos + vector_size <= input.len and !state.in_string) {
+            const block = input[pos .. pos + vector_size];
 
-            // Fast path: process aligned blocks when not in string
-            while (pos + vector_size <= bytes_read and !state.in_string) {
-                const block = buffer[pos .. pos + vector_size];
-
-                // Quick scan for quotes
-                var has_quote = false;
-                var quote_pos: usize = vector_size;
-                for (block, 0..) |c, i| {
-                    if (c == '"') {
-                        has_quote = true;
-                        quote_pos = i;
-                        break;
-                    }
-                }
-
-                if (!has_quote) {
-                    // No quotes in block - fast whitespace removal
-                    for (block) |c| {
-                        if (!isWhitespace(c)) {
-                            output_buffer[output_pos] = c;
-                            output_pos += 1;
-
-                            // Flush output buffer if nearly full
-                            if (output_pos >= output_size - vector_size) {
-                                try writer.writeAll(output_buffer[0..output_pos]);
-                                output_pos = 0;
-                            }
-                        }
-                    }
-                    pos += vector_size;
-                } else {
-                    // Process up to quote
-                    for (block[0..quote_pos]) |c| {
-                        if (!isWhitespace(c)) {
-                            output_buffer[output_pos] = c;
-                            output_pos += 1;
-                        }
-                    }
-
-                    // Handle the quote
-                    output_buffer[output_pos] = '"';
-                    output_pos += 1;
-                    state.in_string = true;
-                    pos += quote_pos + 1;
+            // Quick scan for quotes
+            var has_quote = false;
+            var quote_pos: usize = vector_size;
+            for (block, 0..) |c, i| {
+                if (c == '"') {
+                    has_quote = true;
+                    quote_pos = i;
+                    break;
                 }
             }
 
-            // Slow path: byte-by-byte processing
-            while (pos < bytes_read) {
-                const c = buffer[pos];
-                if (state.processChar(c)) {
-                    output_buffer[output_pos] = c;
-                    output_pos += 1;
+            if (!has_quote) {
+                // No quotes in block - fast whitespace removal
+                for (block) |c| {
+                    if (!isWhitespace(c)) {
+                        output_buffer[output_pos] = c;
+                        output_pos += 1;
 
-                    // Flush if buffer is full
-                    if (output_pos >= output_size - 1) {
-                        try writer.writeAll(output_buffer[0..output_pos]);
-                        output_pos = 0;
+                        // Flush output buffer if nearly full
+                        if (output_pos >= output_size - vector_size) {
+                            try writer.writeAll(output_buffer[0..output_pos]);
+                            output_pos = 0;
+                        }
                     }
                 }
-                pos += 1;
+                pos += vector_size;
+            } else {
+                // Process up to quote
+                for (block[0..quote_pos]) |c| {
+                    if (!isWhitespace(c)) {
+                        output_buffer[output_pos] = c;
+                        output_pos += 1;
+                    }
+                }
+
+                // Handle the quote
+                output_buffer[output_pos] = '"';
+                output_pos += 1;
+                state.in_string = true;
+                pos += quote_pos + 1;
             }
+        }
+
+        // Slow path: byte-by-byte processing
+        while (pos < input.len) {
+            const c = input[pos];
+            if (state.processChar(c)) {
+                output_buffer[output_pos] = c;
+                output_pos += 1;
+
+                // Flush if buffer is full
+                if (output_pos >= output_size - 1) {
+                    try writer.writeAll(output_buffer[0..output_pos]);
+                    output_pos = 0;
+                }
+            }
+            pos += 1;
         }
 
         // Flush remaining output
@@ -147,6 +151,9 @@ pub const SportMinifier = struct {
     // Optimized minify for when we have the full input
     pub fn minify(self: *SportMinifier, input: []const u8, output: []u8) !usize {
         _ = self;
+        
+        // Validate the input first
+        try LightweightValidator.validate(input);
 
         var out_pos: usize = 0;
         var state = ProcessingState{};
