@@ -1,204 +1,112 @@
 # zmin Development TODO List
 
-## Overview
+## Current Status (2025-01-29)
 
-This document tracks remaining work items for the zmin JSON minifier project, including compilation fixes, error handling integration, testing, and future enhancements.
+**Build Status:**
+
+- Main Project: ✅ 35/35 steps succeed (100%)
+- Test Suite: 🔄 27/29 steps succeed (93.1%)
+- Test Pass Rate: ✅ 104/105 tests passing (99%)
 
 ## High Priority Tasks
 
-### 1. ~~Fix Remaining Dev Tool Compilation Errors~~ ✅ COMPLETED
+### 1. ~~Re-enable Concurrent Processing Test~~ ✅ COMPLETED
 
-All dev tool compilation errors have been successfully fixed:
+- ~~Currently commented out in `tests/integration/real_world_datasets.zig:334-339~~
+- ~~Works fine in production but has issues with test allocator~~
+- **Completed**: Created concurrent test using thread-safe GeneralPurposeAllocator instead of std.testing.allocator
 
-- [x] `tools/profiler.zig` - Fixed undeclared identifier 'profiler' error and pointer type issues
-- [x] `tools/debugger.zig` - Fixed variable type and argument count errors
-- [x] `tools/plugin_registry.zig` - Fixed format string errors (missing {s} specifier)
-- [x] `tools/config_manager.zig` - Fixed minor remaining issues
-- [x] `src/plugins/loader.zig` - Fixed additional format string errors discovered during build
+### 2. ~~Fix Test Framework stderr Output Issue~~ ✅ COMPLETED
+
+- ~~One test marked as failed due to stderr output from other tests~~
+- **Completed**: Implemented conditional debug output system with debugPrint() function
+- **Completed**: Suppressed all stderr output from tests to prevent false failures
+- **Discovery**: Revealed actual regression test runtime failures that need investigation
+
+### 3. ~~Investigate Regression Test Runtime Failures~~ ✅ COMPLETED
+
+- ~~Actual test failures with InvalidObjectKey, NestingTooDeep, InvalidValue errors~~
+- ~~Not cosmetic stderr issues - genuine runtime failures in regression tests~~
+- **Root Cause Found**: Sport and Turbo modes only do whitespace removal without JSON validation
+- **Discovery**: Eco mode correctly validates JSON and throws proper errors, but Sport/Turbo modes accept invalid JSON
+- **New Critical Issue**: All modes need proper JSON validation while maintaining performance characteristics
+
+### 4. ~~Fix JSON Validation in Sport and Turbo Modes~~ ✅ COMPLETED
+
+- ✅ Create shared validation layer that all modes can use efficiently
+- ✅ Update SportMinifier to use proper JSON validation while maintaining performance
+- ✅ Update TurboMinifier strategies to use proper JSON validation
+- ✅ Ensure all modes properly reject invalid JSON (trailing commas, deep nesting, etc.)
+- ✅ Verify regression tests pass with consistent validation across all modes
+- **Completed**: All modes now validate JSON syntax while maintaining their performance characteristics
+- **Implementation**: Created `LightweightValidator` for consistent error detection across all modes
+- **Result**: Sport and Turbo modes now properly reject invalid JSON with appropriate error messages
 
 ## Medium Priority Tasks
 
-### 2. Complete Error Handling Integration
+### 5. Complete Error Handling Integration
 
-The following dev tools have error handling imports added but need full integration:
-
-#### dev_server.zig
+**dev_server.zig**
 
 - [ ] Add `reporter: ErrorReporter` field to Server struct
 - [ ] Update HTTP request handlers to use standardized error reporting
 - [ ] Replace generic error returns with specific DevToolError types
 - [ ] Use FileOps for file operations
-- [ ] Add error context to all error reports
 
-#### debugger.zig
+**debugger.zig**
 
 - [ ] Add `reporter: ErrorReporter` field to Debugger struct
 - [ ] Update argument parsing with error reporting
 - [ ] Replace file operations with FileOps wrapper
 - [ ] Add ProcessOps for command execution
-- [ ] Implement proper error propagation with context
 
-#### plugin_registry.zig
+**plugin_registry.zig**
 
 - [ ] Add `reporter: ErrorReporter` field to PluginRegistry struct
 - [ ] Complete migration from std.log.err to reporter.report
 - [ ] Add error context for plugin operations
-- [ ] Handle plugin loading errors with proper context
 
-### 3. Testing & Quality Assurance
+### 6. Testing & Quality Assurance
 
-- [ ] Create unit tests for all dev tools
-  - [ ] config_manager tests
-  - [ ] hot_reloading tests
-  - [ ] dev_server tests
-  - [ ] profiler tests
-  - [ ] debugger tests
-  - [ ] plugin_registry tests
+- [ ] Create unit tests for dev tools:
+  - config_manager, hot_reloading, dev_server
+  - profiler, debugger, plugin_registry
 - [ ] Add integration tests for tool interactions
 - [ ] Test error handling edge cases
-- [ ] Validate all tools work correctly with various inputs
-- [ ] Create test fixtures for common scenarios
 
 ## Low Priority Tasks
 
-### 4. CI/CD & Distribution
+### 7. CI/CD & Distribution
 
 - [ ] Create GitHub Actions workflow
-  - [ ] Build all dev tools on each commit
-  - [ ] Run test suite
-  - [ ] Generate code coverage reports
-  - [ ] Create release artifacts
 - [ ] Package dev tools for distribution
-  - [ ] Create install script
-  - [ ] Add to package managers (Homebrew, AUR, etc.)
 - [ ] Add installation instructions to README
-- [ ] Create release documentation
 
-### 5. Documentation Improvements
+### 8. Documentation Improvements
 
 - [ ] Add usage examples for each dev tool
-- [ ] Create video tutorials/GIFs showing tool usage
-- [ ] Document all configuration options
-- [ ] Add troubleshooting section for common issues
-- [ ] Create man pages for each tool
+- [ ] Create troubleshooting section
 - [ ] Add API documentation for plugin development
 
-## Future Enhancements
+## Quick Reference
 
-### 6. Feature Additions
+**Completed Recently:**
 
-- [ ] Add JSON output format to all tools for scripting
-- [ ] Implement cross-platform compatibility
-  - [ ] Windows support for all tools
-  - [ ] macOS-specific optimizations
-- [ ] Add plugin system for dev tools themselves
-- [ ] Enhance dev-server web UI
-  - [ ] Real-time performance graphs
-  - [ ] WebSocket support for live updates
-  - [ ] Plugin management interface
-- [ ] Add telemetry/analytics (opt-in)
-- [ ] Implement remote debugging capabilities
+- ✅ Fixed test framework stderr output causing false failures
+- ✅ Re-enabled concurrent processing test with thread-safe allocator
+- ✅ Fixed unicode test allocation error
+- ✅ Fixed regression test failures (performance thresholds)
+- ✅ Fixed memory leak in turbo mode
+- ✅ Resolved all compilation errors
+- ✅ Fixed all module system circular dependencies
+- ✅ **MAJOR**: Fixed JSON validation across all modes - Sport and Turbo now properly validate JSON
+- ✅ Created LightweightValidator for consistent error handling across all modes
+- ✅ Regression tests now pass with consistent behavior across eco/sport/turbo modes
 
-### 7. Code Quality Improvements
+**Known Issues:**
 
-- [ ] Standardize CLI argument parsing
-  - [ ] Create common argument parser module
-  - [ ] Add consistent help formatting
-- [ ] Add comprehensive logging with levels
-  - [ ] Debug, Info, Warn, Error levels
-  - [ ] Log rotation support
-  - [ ] Structured logging (JSON format)
-- [ ] Implement configuration file support
-  - [ ] TOML configuration for all tools
-  - [ ] Environment variable overrides
-  - [ ] Configuration validation
-- [ ] Add shell completion scripts
-  - [ ] Bash completion
-  - [ ] Zsh completion
-  - [ ] Fish completion
-
-## Completed Tasks ✅
-
-### Compilation Fixes (2025-01-27) ✅ COMPLETED
-
-#### Example Files
-
-- [x] `examples/basic_usage.zig` - Fixed wrong number of arguments to minify function (now accepts allocator, input, mode)
-- [x] `examples/mode_selection.zig` - Fixed type mismatch by casting microTimestamp to u64
-- [x] `examples/streaming.zig` - Fixed missing StreamingMinifier by using MinifierInterface
-- [x] `examples/parallel_batch.zig` - Fixed writeFile API changes and replaced atomic.Queue with mutex-based solution
-
-#### Core Library Issues
-
-- [x] `src/modes/turbo/strategies/streaming.zig` - Fixed `os.system` doesn't exist error by using hardcoded page size
-- [x] `src/plugins/loader.zig` - Fixed unused variable warning by changing var to const
-
-#### API Updates
-
-- [x] Updated all `writeFile` calls to new API: `.{ .sub_path = path, .data = data }`
-- [x] Changed `std.os.pipe()` to `std.posix.pipe()`
-- [x] Changed `std.os.fd_t` to `std.posix.fd_t`
-- [x] Updated `std.process.Child.exec` to `std.process.Child.run` with `RunResult` type
-- [x] Updated deprecated `std.mem.split` to `std.mem.splitScalar`
-- [x] Fixed `tools/common/errors.zig` - Changed ExecResult to RunResult
-
-### Error Handling Standardization
-
-- [x] Created common error types module (`tools/common/errors.zig`)
-- [x] Implemented ErrorReporter with contextual error reporting
-- [x] Added FileOps and ProcessOps helper types
-- [x] Fully integrated error handling in config_manager.zig
-- [x] Fully integrated error handling in hot_reloading.zig
-- [x] Added basic error handling to profiler.zig
-- [x] Created error handling documentation
-
-### Documentation
-
-- [x] Created comprehensive documentation suite
-- [x] Fixed documentation inconsistencies
-- [x] Created dev tools documentation
-- [x] Added mode selection guide with interactive features
-
-### Build System
-
-- [x] Added all dev tools to build configuration
-- [x] Fixed dev tools compilation errors
-- [x] Integrated dev tools into main build process
-
-## Quick Start for Contributors
-
-To work on any of these items:
-
-1. **For compilation fixes**: Start with the example files as they're simpler
-2. **For error handling**: Use config_manager.zig as a reference implementation
-3. **For testing**: Create a `tests/` directory with tool-specific test files
-4. **For documentation**: Follow the existing style in `docs/`
-
-## Priority Matrix
-
-| Priority | Impact | Effort | Items |
-|----------|--------|--------|-------|
-| High     | High   | Low    | Compilation fixes |
-| Medium   | Medium | Medium | Error handling, Testing |
-| Low      | Low    | High   | CI/CD, Documentation |
-| Future   | Variable | Variable | Feature enhancements |
-
-## Build Status
-
-As of 2025-01-27, the build succeeds for all 35 out of 35 steps: ✅
-
-- All example files compile successfully ✅
-- Core library compiles successfully ✅
-- All dev tools compile successfully ✅
-- All compilation errors have been resolved ✅
-
-## Notes
-
-- ✅ All compilation errors have been fixed - ready for release
-- Error handling integration improves user experience significantly
-- Testing ensures reliability and prevents regressions
-- CI/CD automates quality checks and releases
-- Documentation reduces support burden
+- ~~Regression tests have actual runtime failures (InvalidObjectKey, NestingTooDeep, InvalidValue)~~ ✅ RESOLVED
+- ~~**NEW CRITICAL**: Sport and Turbo modes lack JSON validation - only do whitespace removal~~ ✅ RESOLVED
 
 ---
-Last Updated: 2025-01-27
+Last Updated: 2025-01-29
