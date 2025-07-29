@@ -1,5 +1,5 @@
 const std = @import("std");
-const MinifyingParser = @import("../minifier/mod.zig").MinifyingParser;
+const MinifyingParser = @import("minifier").MinifyingParser;
 
 /// Simple parallel minifier for basic multi-threaded JSON processing
 pub const ParallelMinifier = struct {

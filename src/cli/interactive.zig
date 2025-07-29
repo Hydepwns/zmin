@@ -673,8 +673,7 @@ pub const InteractiveCLI = struct {
         defer self.allocator.free(input);
 
         // Minify using current mode
-        const minifier = @import("../minifier/mod.zig");
-        const result = try minifier.minifyWithMode(self.allocator, input, self.current_mode);
+        const result = try zmin.minifyWithMode(self.allocator, input, self.current_mode);
         defer self.allocator.free(result);
 
         // Write output file

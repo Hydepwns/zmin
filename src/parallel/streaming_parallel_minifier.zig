@@ -1,5 +1,5 @@
 const std = @import("std");
-const MinifyingParser = @import("../minifier/mod.zig").MinifyingParser;
+const MinifyingParser = @import("minifier").MinifyingParser;
 
 /// Parallel minifier that processes JSON in a streaming fashion
 /// Instead of splitting JSON into chunks, it parallelizes different aspects:

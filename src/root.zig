@@ -5,19 +5,19 @@ const std = @import("std");
 const testing = std.testing;
 
 // Export the minifier module
-pub const minifier = @import("minifier/mod.zig");
+pub const minifier = @import("minifier");
 
-// Export other modules
-pub const parallel = @import("parallel/mod.zig");
+// Export other modules  
+pub const parallel = @import("parallel");
 pub const parallel_minifier = parallel.ParallelMinifier;
 pub const parallel_minifier_simple = parallel.SimpleParallelMinifier;
 
 // Export modes
-pub const modes = @import("modes/mod.zig");
+pub const modes = @import("modes");
 pub const ProcessingMode = modes.ProcessingMode;
 
 // Export minifier interface
-pub const MinifierInterface = @import("modes/minifier_interface.zig").MinifierInterface;
+pub const MinifierInterface = @import("minifier_interface").MinifierInterface;
 
 // Convenience functions
 pub fn minify(allocator: std.mem.Allocator, input: []const u8, mode: ProcessingMode) ![]u8 {

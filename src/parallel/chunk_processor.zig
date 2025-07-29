@@ -1,6 +1,6 @@
 const std = @import("std");
 const config = @import("config.zig");
-const MinifyingParser = @import("../minifier/mod.zig").MinifyingParser;
+const MinifyingParser = @import("minifier").MinifyingParser;
 
 pub const ChunkProcessor = struct {
     allocator: std.mem.Allocator,
