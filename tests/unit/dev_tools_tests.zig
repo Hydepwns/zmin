@@ -6,6 +6,7 @@ const errors = @import("../../tools/common/errors.zig");
 
 /// Run all dev tools unit tests
 pub fn runAllTests(allocator: std.mem.Allocator, verbose: bool) !void {
+    _ = allocator; // Parameter needed for interface consistency
     if (verbose) {
         std.debug.print("🧪 Running dev tools common tests...\n", .{});
     }
@@ -159,6 +160,31 @@ fn testDevToolErrorTypes() !void {
         const error_name = @errorName(err);
         try testing.expect(error_name.len > 0);
     }
+}
+
+// Test declarations for zig test
+test "ErrorReporter initialization" {
+    try testErrorReporterInit();
+}
+
+test "ErrorReporter reporting" {
+    try testErrorReporterReport();
+}
+
+test "Error context formatting" {
+    try testErrorContextFormatting();
+}
+
+test "FileOps operations" {
+    try testFileOps();
+}
+
+test "ProcessOps operations" {
+    try testProcessOps();
+}
+
+test "DevToolError types" {
+    try testDevToolErrorTypes();
 }
 
 /// Main test entry point for this module

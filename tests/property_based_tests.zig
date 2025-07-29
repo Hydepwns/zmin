@@ -41,13 +41,13 @@ pub const MinificationProperties = struct {
         defer allocator.free(output);
 
         // Parse both and compare
-        var input_parser = std.json.Parser.init(allocator, .alloc_always);
-        defer input_parser.deinit();
-        var output_parser = std.json.Parser.init(allocator, .alloc_always);
-        defer output_parser.deinit();
+        var input_parsed = try std.json.parseFromSlice(std.json.Value, allocator, input, .{});
+        defer input_parsed.deinit();
+        var output_parsed = try std.json.parseFromSlice(std.json.Value, allocator, output, .{});
+        defer output_parsed.deinit();
 
-        const input_tree = try input_parser.parse(input);
-        const output_tree = try output_parser.parse(output);
+        const input_tree = input_parsed.value;
+        const output_tree = output_parsed.value;
 
         // TODO: Implement deep JSON comparison
         _ = input_tree;
@@ -128,7 +128,7 @@ pub const PropertyTester = struct {
         generator: anytype,
     ) !void {
         var failures: u32 = 0;
-        var prng = std.rand.DefaultPrng.init(self.seed);
+        var prng = std.Random.DefaultPrng.init(self.seed);
 
         for (0..self.iterations) |i| {
             const input = try generator.generate(self.allocator, prng.random());
@@ -142,7 +142,8 @@ pub const PropertyTester = struct {
                 }
 
                 // Try to shrink the failing input
-                if (generator.shrink) |shrinkFn| {
+                if (@hasField(@TypeOf(generator), "shrink") and generator.shrink != null) {
+                    const shrinkFn = generator.shrink.?;
                     const shrunk = try self.shrinkFailingInput(
                         input,
                         property,
@@ -204,7 +205,7 @@ pub const generators = struct {
     pub const JsonGenerator = struct {
         config: test_framework.TestData.JsonConfig,
 
-        pub fn generate(self: JsonGenerator, allocator: std.mem.Allocator, random: std.rand.Random) ![]u8 {
+        pub fn generate(self: JsonGenerator, allocator: std.mem.Allocator, random: std.Random) ![]u8 {
             var config = self.config;
             config.seed = random.int(u64);
             return test_framework.TestData.generateJson(allocator, config);
@@ -238,7 +239,7 @@ pub const generators = struct {
     pub const NumberGenerator = struct {
         include_special: bool = true,
 
-        pub fn generate(self: NumberGenerator, allocator: std.mem.Allocator, random: std.rand.Random) ![]u8 {
+        pub fn generate(self: NumberGenerator, allocator: std.mem.Allocator, random: std.Random) ![]u8 {
             const choice = random.intRangeAtMost(u8, 0, 10);
 
             return switch (choice) {
@@ -262,7 +263,7 @@ pub const generators = struct {
         include_unicode: bool = true,
         include_escapes: bool = true,
 
-        pub fn generate(self: StringGenerator, allocator: std.mem.Allocator, random: std.rand.Random) ![]u8 {
+        pub fn generate(self: StringGenerator, allocator: std.mem.Allocator, random: std.Random) ![]u8 {
             var str = std.ArrayList(u8).init(allocator);
             defer str.deinit();
 
@@ -303,10 +304,9 @@ pub const generators = struct {
 };
 
 fn isValidJson(allocator: std.mem.Allocator, input: []const u8) bool {
-    var parser = std.json.Parser.init(allocator, .alloc_always);
-    defer parser.deinit();
-
-    _ = parser.parse(input) catch return false;
+    var parsed = std.json.parseFromSlice(std.json.Value, allocator, input, .{}) catch return false;
+    defer parsed.deinit();
+    _ = parsed.value;
     return true;
 }
 

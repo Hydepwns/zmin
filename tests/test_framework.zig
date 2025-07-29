@@ -128,7 +128,7 @@ pub const TestRunner = struct {
         }
 
         try writer.print("\n📊 Test Results\n", .{});
-        try writer.print("{'='<50}\n", .{});
+        try writer.print("==================================================\n", .{});
         try writer.print("Total: {d} | ✅ Passed: {d} | ❌ Failed: {d}\n", .{
             passed + failed,
             passed,
@@ -154,7 +154,8 @@ pub const TestData = struct {
         var json = std.ArrayList(u8).init(allocator);
         errdefer json.deinit();
 
-        try generateJsonValue(&json, config, 0);
+        var prng = std.Random.DefaultPrng.init(config.seed);
+        try generateJsonValue(&json, config, 0, prng.random());
 
         return json.toOwnedSlice();
     }
@@ -173,15 +174,13 @@ pub const TestData = struct {
         json: *std.ArrayList(u8),
         config: JsonConfig,
         depth: u32,
-    ) !void {
+        random: std.Random,
+    ) std.mem.Allocator.Error!void {
         if (depth >= config.max_depth) {
             // Generate simple value at max depth
             try json.appendSlice("\"leaf\"");
             return;
         }
-
-        var prng = std.rand.DefaultPrng.init(config.seed + depth);
-        const random = prng.random();
 
         const value_type = random.intRangeAtMost(u8, 0, 6);
         switch (value_type) {
@@ -199,7 +198,7 @@ pub const TestData = struct {
     fn generateJsonString(
         json: *std.ArrayList(u8),
         config: JsonConfig,
-        random: std.rand.Random,
+        random: std.Random,
     ) !void {
         try json.append('"');
 
@@ -226,7 +225,7 @@ pub const TestData = struct {
         json: *std.ArrayList(u8),
         config: JsonConfig,
         depth: u32,
-        random: std.rand.Random,
+        random: std.Random,
     ) !void {
         try json.append('[');
 
@@ -236,7 +235,7 @@ pub const TestData = struct {
                 try json.append(',');
                 if (config.include_whitespace) try json.append(' ');
             }
-            try generateJsonValue(json, config, depth);
+            try generateJsonValue(json, config, depth, random);
         }
 
         try json.append(']');
@@ -246,7 +245,7 @@ pub const TestData = struct {
         json: *std.ArrayList(u8),
         config: JsonConfig,
         depth: u32,
-        random: std.rand.Random,
+        random: std.Random,
     ) !void {
         try json.append('{');
         if (config.include_whitespace) try json.append('\n');
@@ -266,7 +265,7 @@ pub const TestData = struct {
             if (config.include_whitespace) try json.append(' ');
 
             // Generate value
-            try generateJsonValue(json, config, depth);
+            try generateJsonValue(json, config, depth, random);
         }
 
         if (config.include_whitespace) try json.append('\n');
@@ -448,11 +447,12 @@ pub fn detectLeaks(allocator: std.mem.Allocator) type {
                     .alloc = alloc,
                     .resize = resize,
                     .free = free,
+                    .remap = remap,
                 },
             };
         }
 
-        fn alloc(ctx: *anyopaque, len: usize, log2_align: u8, ret_addr: usize) ?[*]u8 {
+        fn alloc(ctx: *anyopaque, len: usize, log2_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
             const self: *Self = @ptrCast(@alignCast(ctx));
             const result = self.wrapped_allocator.rawAlloc(len, log2_align, ret_addr);
             if (result != null) {
@@ -461,15 +461,20 @@ pub fn detectLeaks(allocator: std.mem.Allocator) type {
             return result;
         }
 
-        fn resize(ctx: *anyopaque, buf: []u8, log2_align: u8, new_len: usize, ret_addr: usize) bool {
+        fn resize(ctx: *anyopaque, buf: []u8, log2_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
             const self: *Self = @ptrCast(@alignCast(ctx));
             return self.wrapped_allocator.rawResize(buf, log2_align, new_len, ret_addr);
         }
 
-        fn free(ctx: *anyopaque, buf: []u8, log2_align: u8, ret_addr: usize) void {
+        fn free(ctx: *anyopaque, buf: []u8, log2_align: std.mem.Alignment, ret_addr: usize) void {
             const self: *Self = @ptrCast(@alignCast(ctx));
             self.wrapped_allocator.rawFree(buf, log2_align, ret_addr);
             self.allocation_count -= 1;
+        }
+
+        fn remap(ctx: *anyopaque, buf: []u8, log2_align: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+            const self: *Self = @ptrCast(@alignCast(ctx));
+            return self.wrapped_allocator.rawRemap(buf, log2_align, new_len, ret_addr);
         }
 
         pub fn checkLeaks(self: Self) !void {
