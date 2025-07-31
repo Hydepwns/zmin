@@ -10,6 +10,7 @@
 //! - Optimized for common cases
 
 const std = @import("std");
+const utils = @import("utils.zig");
 
 /// Validation errors that match the MinifyingParser errors
 pub const ValidationError = error{
@@ -103,7 +104,7 @@ pub const LightweightValidator = struct {
                 return ValidationError.UnexpectedEndOfInput;
             },
             .False => {
-                if (self.count >= 5) return; // "false" is complete  
+                if (self.count >= 5) return; // "false" is complete
                 return ValidationError.UnexpectedEndOfInput;
             },
             .Null => {
@@ -162,17 +163,21 @@ pub const LightweightValidator = struct {
         return self.context_stack[self.context_depth - 1];
     }
 
-    fn isWhitespace(byte: u8) bool {
-        return switch (byte) {
-            ' ', '\t', '\n', '\r' => true,
-            else => false,
-        };
+    inline fn isWhitespace(byte: u8) bool {
+        return utils.isWhitespace(byte);
     }
 
-    fn isHexDigit(byte: u8) bool {
-        return switch (byte) {
-            '0'...'9', 'A'...'F', 'a'...'f' => true,
-            else => false,
+    inline fn isHexDigit(byte: u8) bool {
+        return utils.isHexDigit(byte);
+    }
+
+    /// Common pattern for transitioning to next state based on context
+    inline fn transitionToNextState(self: *Self) void {
+        const context = self.getCurrentContext();
+        self.state = switch (context) {
+            .Object => .ObjectComma,
+            .Array => .ArrayComma,
+            .TopLevel => .Done,
         };
     }
 
@@ -213,12 +218,7 @@ pub const LightweightValidator = struct {
         switch (byte) {
             '}' => {
                 _ = self.popContext();
-                const context = self.getCurrentContext();
-                switch (context) {
-                    .Object => self.state = .ObjectComma,
-                    .Array => self.state = .ArrayComma,
-                    .TopLevel => self.state = .Done,
-                }
+                self.transitionToNextState();
             },
             '"' => self.state = .ObjectKeyString,
             else => return ValidationError.InvalidObjectKey,
@@ -256,7 +256,7 @@ pub const LightweightValidator = struct {
 
     fn handleObjectKeyStringEscapeUnicode(self: *Self, byte: u8) ValidationError!void {
         if (!isHexDigit(byte)) return ValidationError.InvalidUnicode;
-        
+
         self.count += 1;
         if (self.count >= 4) {
             self.state = .ObjectKeyString;
@@ -309,12 +309,7 @@ pub const LightweightValidator = struct {
             ',' => self.state = .ObjectKey,
             '}' => {
                 _ = self.popContext();
-                const context = self.getCurrentContext();
-                switch (context) {
-                    .Object => self.state = .ObjectComma,
-                    .Array => self.state = .ArrayComma,
-                    .TopLevel => self.state = .Done,
-                }
+                self.transitionToNextState();
             },
             else => return ValidationError.UnexpectedCharacter,
         }
@@ -326,12 +321,7 @@ pub const LightweightValidator = struct {
         switch (byte) {
             ']' => {
                 _ = self.popContext();
-                const context = self.getCurrentContext();
-                switch (context) {
-                    .Object => self.state = .ObjectComma,
-                    .Array => self.state = .ArrayComma,
-                    .TopLevel => self.state = .Done,
-                }
+                self.transitionToNextState();
             },
             '{' => {
                 try self.pushContext(.Object);
@@ -396,12 +386,7 @@ pub const LightweightValidator = struct {
             ',' => self.state = .ArrayValue,
             ']' => {
                 _ = self.popContext();
-                const context = self.getCurrentContext();
-                switch (context) {
-                    .Object => self.state = .ObjectComma,
-                    .Array => self.state = .ArrayComma,
-                    .TopLevel => self.state = .Done,
-                }
+                self.transitionToNextState();
             },
             else => return ValidationError.UnexpectedCharacter,
         }
@@ -409,14 +394,7 @@ pub const LightweightValidator = struct {
 
     fn handleString(self: *Self, byte: u8) ValidationError!void {
         switch (byte) {
-            '"' => {
-                const context = self.getCurrentContext();
-                switch (context) {
-                    .Object => self.state = .ObjectComma,
-                    .Array => self.state = .ArrayComma,
-                    .TopLevel => self.state = .Done,
-                }
-            },
+            '"' => self.transitionToNextState(),
             '\\' => self.state = .StringEscape,
             0x00...0x1F => return ValidationError.UnexpectedCharacter,
             else => {},
@@ -436,7 +414,7 @@ pub const LightweightValidator = struct {
 
     fn handleStringEscapeUnicode(self: *Self, byte: u8) ValidationError!void {
         if (!isHexDigit(byte)) return ValidationError.InvalidUnicode;
-        
+
         self.count += 1;
         if (self.count >= 4) {
             self.state = .String;
@@ -450,12 +428,7 @@ pub const LightweightValidator = struct {
             'e', 'E' => self.state = .NumberExponent,
             else => {
                 // End of number, transition based on context
-                const context = self.getCurrentContext();
-                switch (context) {
-                    .Object => self.state = .ObjectComma,
-                    .Array => self.state = .ArrayComma,
-                    .TopLevel => self.state = .Done,
-                }
+                self.transitionToNextState();
                 // Re-process this byte in the new state
                 try self.validateByte(byte);
             },
@@ -467,12 +440,7 @@ pub const LightweightValidator = struct {
             '0'...'9' => {},
             'e', 'E' => self.state = .NumberExponent,
             else => {
-                const context = self.getCurrentContext();
-                switch (context) {
-                    .Object => self.state = .ObjectComma,
-                    .Array => self.state = .ArrayComma,
-                    .TopLevel => self.state = .Done,
-                }
+                self.transitionToNextState();
                 try self.validateByte(byte);
             },
         }
@@ -490,12 +458,7 @@ pub const LightweightValidator = struct {
         switch (byte) {
             '0'...'9' => {},
             else => {
-                const context = self.getCurrentContext();
-                switch (context) {
-                    .Object => self.state = .ObjectComma,
-                    .Array => self.state = .ArrayComma,
-                    .TopLevel => self.state = .Done,
-                }
+                self.transitionToNextState();
                 try self.validateByte(byte);
             },
         }
@@ -506,15 +469,10 @@ pub const LightweightValidator = struct {
         if (self.count >= expected.len or byte != expected[self.count]) {
             return ValidationError.UnexpectedCharacter;
         }
-        
+
         self.count += 1;
         if (self.count >= expected.len) {
-            const context = self.getCurrentContext();
-            switch (context) {
-                .Object => self.state = .ObjectComma,
-                .Array => self.state = .ArrayComma,
-                .TopLevel => self.state = .Done,
-            }
+            self.transitionToNextState();
         }
     }
 
@@ -523,15 +481,10 @@ pub const LightweightValidator = struct {
         if (self.count >= expected.len or byte != expected[self.count]) {
             return ValidationError.UnexpectedCharacter;
         }
-        
+
         self.count += 1;
         if (self.count >= expected.len) {
-            const context = self.getCurrentContext();
-            switch (context) {
-                .Object => self.state = .ObjectComma,
-                .Array => self.state = .ArrayComma,
-                .TopLevel => self.state = .Done,
-            }
+            self.transitionToNextState();
         }
     }
 
@@ -540,15 +493,10 @@ pub const LightweightValidator = struct {
         if (self.count >= expected.len or byte != expected[self.count]) {
             return ValidationError.UnexpectedCharacter;
         }
-        
+
         self.count += 1;
         if (self.count >= expected.len) {
-            const context = self.getCurrentContext();
-            switch (context) {
-                .Object => self.state = .ObjectComma,
-                .Array => self.state = .ArrayComma,
-                .TopLevel => self.state = .Done,
-            }
+            self.transitionToNextState();
         }
     }
 };

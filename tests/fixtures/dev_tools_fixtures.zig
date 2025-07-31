@@ -2,7 +2,6 @@ const std = @import("std");
 
 /// Common test fixtures for dev tools testing
 pub const DevToolsFixtures = struct {
-    
     /// Sample configuration files for testing
     pub const ConfigFixtures = struct {
         /// Basic valid configuration
@@ -44,7 +43,7 @@ pub const DevToolsFixtures = struct {
             \\  }
             \\}
         ;
-        
+
         /// Configuration with invalid values
         pub const invalid_config =
             \\{
@@ -63,7 +62,7 @@ pub const DevToolsFixtures = struct {
             \\  }
             \\}
         ;
-        
+
         /// Minimal valid configuration
         pub const minimal_config =
             \\{
@@ -72,7 +71,7 @@ pub const DevToolsFixtures = struct {
             \\  }
             \\}
         ;
-        
+
         /// Production-style configuration
         pub const production_config =
             \\{
@@ -110,7 +109,7 @@ pub const DevToolsFixtures = struct {
             \\}
         ;
     };
-    
+
     /// Sample JSON files for testing minification
     pub const JsonFixtures = struct {
         /// Simple object
@@ -121,7 +120,7 @@ pub const DevToolsFixtures = struct {
             \\  "enabled": true
             \\}
         ;
-        
+
         /// Complex nested structure
         pub const complex_nested =
             \\{
@@ -165,7 +164,7 @@ pub const DevToolsFixtures = struct {
             \\  }
             \\}
         ;
-        
+
         /// Array with mixed types
         pub const mixed_array =
             \\[
@@ -189,24 +188,24 @@ pub const DevToolsFixtures = struct {
             \\  [1, [2, [3, [4, 5]]]]
             \\]
         ;
-        
+
         /// Large array for performance testing
         pub fn generateLargeArray(allocator: std.mem.Allocator, size: usize) ![]u8 {
             var json = std.ArrayList(u8).init(allocator);
             try json.appendSlice("[");
-            
+
             for (0..size) |i| {
                 if (i > 0) try json.appendSlice(",");
                 const item = try std.fmt.allocPrint(allocator, "{{\"id\":{d},\"value\":\"item-{d}\"}}", .{ i, i });
                 defer allocator.free(item);
                 try json.appendSlice(item);
             }
-            
+
             try json.appendSlice("]");
             return json.toOwnedSlice();
         }
     };
-    
+
     /// Sample plugin configurations
     pub const PluginFixtures = struct {
         /// Basic plugin manifest
@@ -231,7 +230,7 @@ pub const DevToolsFixtures = struct {
             \\  }
             \\}
         ;
-        
+
         /// Plugin with complex configuration
         pub const complex_plugin_manifest =
             \\{
@@ -279,7 +278,7 @@ pub const DevToolsFixtures = struct {
             \\}
         ;
     };
-    
+
     /// Error scenarios for testing
     pub const ErrorFixtures = struct {
         /// Common error messages
@@ -288,28 +287,28 @@ pub const DevToolsFixtures = struct {
         pub const permission_denied = "Permission denied accessing configuration file";
         pub const out_of_memory = "Insufficient memory to complete operation";
         pub const network_timeout = "Network request timed out after 30 seconds";
-        
+
         /// Invalid JSON strings
         pub const invalid_json_samples = [_][]const u8{
-            "{",                          // Incomplete object
-            "{ \"key\": }",              // Missing value
-            "{ \"key\": \"value\" ",     // Missing closing brace
-            "{ \"key\" \"value\" }",     // Missing colon
-            "{ key: \"value\" }",        // Unquoted key
-            "{ \"key\": 'value' }",     // Single quotes
-            "{ \"key\": undefined }",    // Undefined value
-            "{ \"key\": +123 }",        // Invalid number format
-            "{ \"key\": 123. }",        // Invalid decimal
+            "{", // Incomplete object
+            "{ \"key\": }", // Missing value
+            "{ \"key\": \"value\" ", // Missing closing brace
+            "{ \"key\" \"value\" }", // Missing colon
+            "{ key: \"value\" }", // Unquoted key
+            "{ \"key\": 'value' }", // Single quotes
+            "{ \"key\": undefined }", // Undefined value
+            "{ \"key\": +123 }", // Invalid number format
+            "{ \"key\": 123. }", // Invalid decimal
             "{ \"key\": \"val\\ue\" }", // Invalid escape
         };
-        
+
         /// Large invalid structures
         pub fn generateInvalidLargeJson(allocator: std.mem.Allocator) ![]u8 {
             var json = std.ArrayList(u8).init(allocator);
-            
+
             // Start valid structure
             try json.appendSlice("{\"data\":[");
-            
+
             // Add many valid items
             for (0..100) |i| {
                 if (i > 0) try json.appendSlice(",");
@@ -317,15 +316,15 @@ pub const DevToolsFixtures = struct {
                 defer allocator.free(item);
                 try json.appendSlice(item);
             }
-            
+
             // Add invalid item at the end
             try json.appendSlice(",{\"id\":101,\"invalid\":}");
-            
+
             // Don't close properly (missing ]}
             return json.toOwnedSlice();
         }
     };
-    
+
     /// Performance test scenarios
     pub const PerformanceFixtures = struct {
         /// Configuration for performance testing
@@ -346,12 +345,12 @@ pub const DevToolsFixtures = struct {
             \\  }
             \\}
         ;
-        
+
         /// Generate performance test data
         pub fn generatePerfTestData(allocator: std.mem.Allocator, complexity: enum { simple, medium, complex }) ![]u8 {
             return switch (complexity) {
                 .simple => try std.fmt.allocPrint(allocator, "{{\"test\": \"simple\", \"value\": {d}}}", .{std.time.timestamp()}),
-                
+
                 .medium => blk: {
                     var json = std.ArrayList(u8).init(allocator);
                     try json.appendSlice("{\"test\": \"medium\", \"data\": [");
@@ -364,7 +363,7 @@ pub const DevToolsFixtures = struct {
                     try json.appendSlice("]}");
                     break :blk json.toOwnedSlice();
                 },
-                
+
                 .complex => blk: {
                     var json = std.ArrayList(u8).init(allocator);
                     try json.appendSlice("{\"test\": \"complex\", \"nested\": {");
@@ -373,7 +372,7 @@ pub const DevToolsFixtures = struct {
                         const section = try std.fmt.allocPrint(allocator, "\"section-{d}\": {{\"items\": [", .{i});
                         defer allocator.free(section);
                         try json.appendSlice(section);
-                        
+
                         for (0..20) |j| {
                             if (j > 0) try json.appendSlice(",");
                             const item = try std.fmt.allocPrint(allocator, "{{\"id\":{d},\"data\":\"content-{d}-{d}\"}}", .{ j, i, j });
@@ -388,45 +387,40 @@ pub const DevToolsFixtures = struct {
             };
         }
     };
-    
+
     /// Helper functions for creating test environments
     pub const TestHelpers = struct {
         /// Create a temporary directory with test files
         pub fn createTestDirectory(allocator: std.mem.Allocator, temp_dir: *std.testing.TmpDir) ![]const u8 {
             const temp_path = try temp_dir.dir.realpathAlloc(allocator, ".");
-            
+
             // Create subdirectories
             try temp_dir.dir.makeDir("configs");
             try temp_dir.dir.makeDir("plugins");
             try temp_dir.dir.makeDir("profiles");
             try temp_dir.dir.makeDir("logs");
-            
+
             // Write sample files
             try temp_dir.dir.writeFile("configs/basic.json", ConfigFixtures.basic_config);
             try temp_dir.dir.writeFile("configs/invalid.json", ConfigFixtures.invalid_config);
             try temp_dir.dir.writeFile("configs/minimal.json", ConfigFixtures.minimal_config);
             try temp_dir.dir.writeFile("plugins/manifest.json", PluginFixtures.plugin_manifest);
-            
+
             // Create sample JSON files
             try temp_dir.dir.writeFile("test-simple.json", JsonFixtures.simple_object);
             try temp_dir.dir.writeFile("test-complex.json", JsonFixtures.complex_nested);
             try temp_dir.dir.writeFile("test-array.json", JsonFixtures.mixed_array);
-            
+
             return temp_path;
         }
-        
+
         /// Clean up test environment
         pub fn cleanupTestDirectory(allocator: std.mem.Allocator, path: []const u8) void {
             allocator.free(path);
         }
-        
+
         /// Create mock error scenario
-        pub fn createErrorScenario(allocator: std.mem.Allocator, scenario_type: enum { 
-            file_not_found, 
-            permission_denied, 
-            invalid_json, 
-            out_of_memory 
-        }) ![]const u8 {
+        pub fn createErrorScenario(allocator: std.mem.Allocator, scenario_type: enum { file_not_found, permission_denied, invalid_json, out_of_memory }) ![]const u8 {
             return switch (scenario_type) {
                 .file_not_found => try allocator.dupe(u8, "/nonexistent/path/file.json"),
                 .permission_denied => try allocator.dupe(u8, "/root/restricted.json"),

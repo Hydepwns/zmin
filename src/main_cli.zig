@@ -11,6 +11,9 @@ const ParseResult = @import("cli/args_parser.zig").ParseResult;
 const InteractiveCLI = @import("cli/interactive.zig").InteractiveCLI;
 const InteractiveConfig = @import("cli/interactive.zig").InteractiveConfig;
 const generateCompletion = @import("cli/args_parser.zig").generateCompletion;
+const ZeroCopyProcessor = @import("common").zero_copy_io.ZeroCopyProcessor;
+const ZeroCopyMemory = @import("common").zero_copy_io.ZeroCopyMemory;
+const char_classification = @import("common").char_classification;
 
 /// Performance statistics
 const Stats = struct {
@@ -150,7 +153,7 @@ fn processStdin(allocator: std.mem.Allocator, options: Options) !void {
     if (options.validate_only) {
         // Validate only
         zmin.validate(input) catch |err| {
-            try stderr.print("Invalid JSON: {}\n", .{err});
+            try stderr.print("Invalid JSON: {!}\n", .{err});
             std.process.exit(1);
         };
 
@@ -163,7 +166,7 @@ fn processStdin(allocator: std.mem.Allocator, options: Options) !void {
     // Minify
     const start = std.time.microTimestamp();
     const output = zmin.minifyWithMode(allocator, input, options.mode) catch |err| {
-        try stderr.print("Minification failed: {}\n", .{err});
+        try stderr.print("Minification failed: {!}\n", .{err});
         std.process.exit(1);
     };
     defer allocator.free(output);
@@ -174,7 +177,7 @@ fn processStdin(allocator: std.mem.Allocator, options: Options) !void {
         if (std.mem.eql(u8, output_file, "-")) {
             try stdout.print("{s}", .{output});
         } else {
-            try std.fs.cwd().writeFile(output_file, output);
+            try std.fs.cwd().writeFile(.{ .sub_path = output_file, .data = output });
         }
     } else {
         try stdout.print("{s}", .{output});
@@ -185,7 +188,7 @@ fn processStdin(allocator: std.mem.Allocator, options: Options) !void {
         const stats = Stats{
             .input_size = input.len,
             .output_size = output.len,
-            .processing_time_us = duration,
+            .processing_time_us = @as(u64, @intCast(duration)),
             .mode = options.mode,
         };
         try stats.print(stderr, options.verbose);
@@ -193,6 +196,91 @@ fn processStdin(allocator: std.mem.Allocator, options: Options) !void {
 }
 
 fn processFile(allocator: std.mem.Allocator, input_file: []const u8, options: Options) !void {
+    const stdout = std.io.getStdOut().writer();
+    const stderr = std.io.getStdErr().writer();
+
+    // Handle stdin input or when zero-copy is not available
+    if (std.mem.eql(u8, input_file, "-") or options.output == null or 
+        !ZeroCopyProcessor.isSupported()) {
+        return processFileTraditional(allocator, input_file, options);
+    }
+
+    const output_file = options.output.?;
+    
+    // Try zero-copy I/O for regular file-to-file processing
+    if (std.mem.eql(u8, output_file, "-")) {
+        // Output to stdout - can't use zero-copy
+        return processFileTraditional(allocator, input_file, options);
+    }
+
+    // Use zero-copy memory-mapped I/O
+    var processor = ZeroCopyProcessor.init(input_file, output_file) catch |err| switch (err) {
+        error.FileTooSmall, error.FileTooLarge => {
+            // Fall back to traditional I/O for edge cases
+            return processFileTraditional(allocator, input_file, options);
+        },
+        else => return err,
+    };
+    defer processor.deinit();
+
+    const input = processor.getInput();
+
+    if (options.validate_only) {
+        // Validate only
+        zmin.validate(input) catch |err| {
+            try stderr.print("Invalid JSON in '{s}': {!}\n", .{ input_file, err });
+            std.process.exit(1);
+        };
+
+        if (!options.quiet) {
+            try stdout.print("Valid JSON: {s}\n", .{input_file});
+        }
+        return;
+    }
+
+    // Minify using zero-copy processing
+    const start = std.time.microTimestamp();
+    
+    // Create a wrapper function for the specific mode
+    const final_size = switch (options.mode) {
+        .eco => processor.processInPlace(struct {
+            fn minify(input_data: []const u8, output_data: []u8) usize {
+                return minifyDirect(input_data, output_data, .eco);
+            }
+        }.minify),
+        .sport => processor.processInPlace(struct {
+            fn minify(input_data: []const u8, output_data: []u8) usize {
+                return minifyDirect(input_data, output_data, .sport);
+            }
+        }.minify),
+        .turbo => processor.processInPlace(struct {
+            fn minify(input_data: []const u8, output_data: []u8) usize {
+                return minifyDirect(input_data, output_data, .turbo);
+            }
+        }.minify),
+    } catch |err| {
+        try stderr.print("Failed to minify '{s}': {!}\n", .{ input_file, err });
+        std.process.exit(1);
+    };
+    const duration = std.time.microTimestamp() - start;
+
+    if (!options.quiet) {
+        try stderr.print("Minified '{s}' → '{s}' (zero-copy)\n", .{ input_file, output_file });
+    }
+
+    // Show stats if requested
+    if (options.show_stats and !options.quiet) {
+        const stats = Stats{
+            .input_size = input.len,
+            .output_size = final_size,
+            .processing_time_us = @as(u64, @intCast(duration)),
+            .mode = options.mode,
+        };
+        try stats.print(stderr, options.verbose);
+    }
+}
+
+fn processFileTraditional(allocator: std.mem.Allocator, input_file: []const u8, options: Options) !void {
     const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
 
@@ -208,7 +296,7 @@ fn processFile(allocator: std.mem.Allocator, input_file: []const u8, options: Op
     if (options.validate_only) {
         // Validate only
         zmin.validate(input) catch |err| {
-            try stderr.print("Invalid JSON in '{}': {}\n", .{ input_file, err });
+            try stderr.print("Invalid JSON in '{s}': {!}\n", .{ input_file, err });
             std.process.exit(1);
         };
 
@@ -221,7 +309,7 @@ fn processFile(allocator: std.mem.Allocator, input_file: []const u8, options: Op
     // Minify
     const start = std.time.microTimestamp();
     const output = zmin.minifyWithMode(allocator, input, options.mode) catch |err| {
-        try stderr.print("Failed to minify '{}': {}\n", .{ input_file, err });
+        try stderr.print("Failed to minify '{s}': {!}\n", .{ input_file, err });
         std.process.exit(1);
     };
     defer allocator.free(output);
@@ -232,7 +320,7 @@ fn processFile(allocator: std.mem.Allocator, input_file: []const u8, options: Op
         if (std.mem.eql(u8, output_file, "-")) {
             try stdout.print("{s}", .{output});
         } else {
-            try std.fs.cwd().writeFile(output_file, output);
+            try std.fs.cwd().writeFile(.{ .sub_path = output_file, .data = output });
             if (!options.quiet) {
                 try stderr.print("Minified '{s}' → '{s}'\n", .{ input_file, output_file });
             }
@@ -246,7 +334,7 @@ fn processFile(allocator: std.mem.Allocator, input_file: []const u8, options: Op
         const stats = Stats{
             .input_size = input.len,
             .output_size = output.len,
-            .processing_time_us = duration,
+            .processing_time_us = @as(u64, @intCast(duration)),
             .mode = options.mode,
         };
         try stats.print(stderr, options.verbose);
@@ -262,7 +350,7 @@ fn runBenchmark(allocator: std.mem.Allocator, input_file: []const u8, options: O
     defer allocator.free(input);
 
     if (!options.quiet) {
-        try stdout.print("Running benchmark: {} iterations of {} mode on '{}' ({} bytes)\n", .{
+        try stdout.print("Running benchmark: {d} iterations of {s} mode on '{s}' ({d} bytes)\n", .{
             options.benchmark_iterations,
             @tagName(options.mode),
             input_file,
@@ -287,12 +375,12 @@ fn runBenchmark(allocator: std.mem.Allocator, input_file: []const u8, options: O
         const duration = std.time.microTimestamp() - start;
         allocator.free(output);
 
-        total_time += duration;
-        min_time = @min(min_time, duration);
-        max_time = @max(max_time, duration);
+        total_time += @as(u64, @intCast(duration));
+        min_time = @min(min_time, @as(u64, @intCast(duration)));
+        max_time = @max(max_time, @as(u64, @intCast(duration)));
 
         if (!options.quiet and (i + 1) % 10 == 0) {
-            try stderr.print("\rProgress: {}/{}", .{ i + 1, options.benchmark_iterations });
+            try stderr.print("\rProgress: {d}/{d}", .{ i + 1, options.benchmark_iterations });
         }
     }
 
@@ -310,9 +398,9 @@ fn runBenchmark(allocator: std.mem.Allocator, input_file: []const u8, options: O
         \\Benchmark Results
         \\═════════════════════════════════════════
         \\File:         {s}
-        \\Size:         {} bytes
+        \\Size:         {d} bytes
         \\Mode:         {s}
-        \\Iterations:   {}
+        \\Iterations:   {d}
         \\─────────────────────────────────────────
         \\Average:      {d:.2} ms
         \\Minimum:      {d:.2} ms
@@ -339,4 +427,12 @@ fn calculateStdDev(total: u64, count: u32, min: u64, max: u64) f32 {
     _ = count;
     const variance = (@as(f32, @floatFromInt(max - min)) * @as(f32, @floatFromInt(max - min))) / 12;
     return @sqrt(variance);
+}
+
+/// Direct minification for zero-copy I/O (in-place processing) with lookup table optimization
+fn minifyDirect(input: []const u8, output: []u8, mode: zmin.ProcessingMode) usize {
+    _ = mode; // For now, use a simple direct minification regardless of mode
+    
+    // Use the optimized shared minification core
+    return char_classification.minifyCore(input, output);
 }

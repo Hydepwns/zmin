@@ -201,16 +201,16 @@ fn detectWindows(allocator: std.mem.Allocator) !NumaTopology {
     // Windows NUMA detection using Win32 API
     // Note: This is a placeholder implementation showing the structure
     // A full implementation would use the actual Windows API calls
-    
+
     // Simulate Windows API call: GetNumaHighestNodeNumber(&highest_node)
     const highest_node = detectWindowsNumaNodes();
     if (highest_node == 0) {
         // No NUMA or single node system
         return try NumaTopology.initEmpty(allocator);
     }
-    
+
     const node_count = highest_node + 1;
-    
+
     // Create topology structure
     var topology = NumaTopology{
         .node_count = @intCast(node_count),
@@ -221,27 +221,27 @@ fn detectWindows(allocator: std.mem.Allocator) !NumaTopology {
         .numa_available = true,
         .allocator = allocator,
     };
-    
+
     // Initialize arrays
     for (topology.cores_per_node) |*count| count.* = 0;
     for (topology.memory_per_node) |*mem| mem.* = 0;
-    
+
     // Get CPU count and create mapping
     const cpu_count = std.Thread.getCpuCount() catch 4;
     topology.cpu_to_node = try allocator.alloc(u32, cpu_count);
-    
+
     // Distribute CPUs evenly across nodes (simplified)
     const cpus_per_node = cpu_count / node_count;
     for (topology.cpu_to_node, 0..) |*node, cpu_id| {
         node.* = @intCast(cpu_id / cpus_per_node);
         if (node.* >= node_count) node.* = node_count - 1;
     }
-    
+
     // Count cores per node
     for (topology.cpu_to_node) |node_id| {
         topology.cores_per_node[node_id] += 1;
     }
-    
+
     // Estimate memory per node (would use GetNumaAvailableMemoryNodeEx in real implementation)
     const total_memory = getWindowsSystemMemory();
     topology.total_memory = total_memory;
@@ -249,7 +249,7 @@ fn detectWindows(allocator: std.mem.Allocator) !NumaTopology {
     for (topology.memory_per_node) |*mem| {
         mem.* = memory_per_node;
     }
-    
+
     return topology;
 }
 
@@ -260,7 +260,7 @@ fn detectWindowsNumaNodes() u32 {
     // if (windows.GetNumaHighestNodeNumber(&highest_node) != 0) {
     //     return highest_node;
     // }
-    
+
     // For this placeholder, estimate based on CPU count
     const cpu_count = std.Thread.getCpuCount() catch 4;
     if (cpu_count >= 32) return 3; // 4 NUMA nodes for high-end systems
@@ -276,7 +276,7 @@ fn getWindowsSystemMemory() u64 {
     // if (windows.GlobalMemoryStatusEx(&memstat) != 0) {
     //     return memstat.ullTotalPhys;
     // }
-    
+
     // For this placeholder, return a reasonable estimate
     return 16 * 1024 * 1024 * 1024; // 16GB estimate
 }

@@ -14,19 +14,19 @@ pub fn runAllTests(allocator: std.mem.Allocator, verbose: bool) !void {
     // Common error handling tests
     try testErrorReporterInit();
     if (verbose) std.debug.print("✅ ErrorReporter init\n", .{});
-    
+
     try testErrorReporterReport();
     if (verbose) std.debug.print("✅ ErrorReporter report\n", .{});
-    
+
     try testErrorContextFormatting();
     if (verbose) std.debug.print("✅ ErrorContext formatting\n", .{});
-    
+
     try testFileOps();
     if (verbose) std.debug.print("✅ FileOps operations\n", .{});
-    
+
     try testProcessOps();
     if (verbose) std.debug.print("✅ ProcessOps operations\n", .{});
-    
+
     try testDevToolErrorTypes();
     if (verbose) std.debug.print("✅ DevToolError types\n", .{});
 
@@ -56,16 +56,16 @@ fn testErrorReporterReport() !void {
     const allocator = gpa.allocator();
 
     var reporter = errors.ErrorReporter.init(allocator, "test-tool");
-    
+
     const ctx = errors.context("test-tool", "test operation");
-    
+
     // This should not crash - we can't easily test output without capturing stderr
     reporter.report(errors.DevToolError.FileNotFound, ctx);
-    
+
     // Test with details
     const ctx_with_details = errors.contextWithDetails("test-tool", "test operation", "test details");
     reporter.report(errors.DevToolError.InvalidArguments, ctx_with_details);
-    
+
     // Test with file path
     const ctx_with_file = errors.contextWithFile("test-tool", "test operation", "/test/file.txt");
     reporter.report(errors.DevToolError.FileReadError, ctx_with_file);
@@ -115,7 +115,7 @@ fn testFileOps() !void {
     try testing.expectError(errors.DevToolError.FileNotFound, result);
 }
 
-/// Test ProcessOps operations  
+/// Test ProcessOps operations
 fn testProcessOps() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -125,12 +125,12 @@ fn testProcessOps() !void {
     const process_ops = errors.ProcessOps{ .reporter = &reporter };
 
     // Test with a simple command that should work on most systems
-    const result = process_ops.exec(allocator, &[_][]const u8{"echo", "test"});
-    
+    const result = process_ops.exec(allocator, &[_][]const u8{ "echo", "test" });
+
     if (result) |run_result| {
         defer allocator.free(run_result.stdout);
         defer allocator.free(run_result.stderr);
-        
+
         // echo should return success
         try testing.expect(run_result.term.Exited == 0);
         try testing.expect(std.mem.indexOf(u8, run_result.stdout, "test") != null);

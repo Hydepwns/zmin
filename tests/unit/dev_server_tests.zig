@@ -1,6 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
-const test_framework = @import("../test_framework.zig");
+const test_framework = @import("../helpers/test_framework.zig");
 const TestRunner = test_framework.TestRunner;
 const TestCategory = test_framework.TestCategory;
 const errors = @import("../../tools/common/errors.zig");
@@ -9,59 +9,59 @@ const errors = @import("../../tools/common/errors.zig");
 const MockConnection = struct {
     data: []const u8,
     written_data: std.ArrayList(u8),
-    
+
     const Self = @This();
-    
+
     pub fn init(allocator: std.mem.Allocator, response_data: []const u8) Self {
         return Self{
             .data = response_data,
             .written_data = std.ArrayList(u8).init(allocator),
         };
     }
-    
+
     pub fn deinit(self: *Self) void {
         self.written_data.deinit();
     }
-    
+
     pub const Stream = struct {
         connection: *MockConnection,
-        
+
         pub fn reader(self: Stream) MockReader {
             return MockReader{ .connection = self.connection };
         }
-        
+
         pub fn writer(self: Stream) MockWriter {
             return MockWriter{ .connection = self.connection };
         }
-        
+
         pub fn close(_: Stream) void {
             // No-op for mock
         }
     };
-    
+
     pub const MockReader = struct {
         connection: *MockConnection,
         read_pos: usize = 0,
-        
+
         pub fn read(self: *MockReader, buffer: []u8) !usize {
             const remaining = self.connection.data.len - self.read_pos;
             const to_read = @min(buffer.len, remaining);
-            
-            @memcpy(buffer[0..to_read], self.connection.data[self.read_pos..self.read_pos + to_read]);
+
+            @memcpy(buffer[0..to_read], self.connection.data[self.read_pos .. self.read_pos + to_read]);
             self.read_pos += to_read;
-            
+
             return to_read;
         }
     };
-    
+
     pub const MockWriter = struct {
         connection: *MockConnection,
-        
+
         pub fn writeAll(self: MockWriter, data: []const u8) !void {
             try self.connection.written_data.appendSlice(data);
         }
     };
-    
+
     pub fn getStream(self: *Self) Stream {
         return Stream{ .connection = self };
     }
@@ -92,14 +92,14 @@ fn testDevServerErrorHandling() !void {
     // Test ErrorReporter initialization
     var reporter = errors.ErrorReporter.init(allocator, "dev-server");
     try testing.expectEqualStrings("dev-server", reporter.tool_name);
-    
+
     // Test FileOps integration
     const file_ops = errors.FileOps{ .reporter = &reporter };
-    
+
     // Test reading non-existent file
     const result = file_ops.readFile(allocator, "/nonexistent/path.txt");
     try testing.expectError(errors.DevToolError.FileNotFound, result);
-    
+
     // Test ProcessOps integration
     const process_ops = errors.ProcessOps{ .reporter = &reporter };
     _ = process_ops; // Available for use
@@ -112,7 +112,7 @@ fn testDevServerHttpParsing() !void {
     const allocator = gpa.allocator();
 
     // Test valid HTTP request parsing
-    const valid_request = 
+    const valid_request =
         \\GET /api/minify HTTP/1.1
         \\Host: localhost:8080
         \\Content-Type: application/json
@@ -125,21 +125,21 @@ fn testDevServerHttpParsing() !void {
     var lines = std.mem.splitSequence(u8, valid_request, "\r\n");
     const request_line = lines.next();
     try testing.expect(request_line != null);
-    
+
     var parts = std.mem.splitSequence(u8, request_line.?, " ");
     const method = parts.next();
     const path = parts.next();
-    
+
     try testing.expect(method != null);
     try testing.expect(path != null);
     try testing.expectEqualStrings("GET", method.?);
     try testing.expectEqualStrings("/api/minify", path.?);
-    
+
     // Test body extraction
     const body_start = std.mem.indexOf(u8, valid_request, "\r\n\r\n");
     try testing.expect(body_start != null);
-    
-    const body = valid_request[body_start.? + 4..];
+
+    const body = valid_request[body_start.? + 4 ..];
     try testing.expect(std.mem.indexOf(u8, body, "input") != null);
     try testing.expect(std.mem.indexOf(u8, body, "mode") != null);
 }
@@ -158,7 +158,7 @@ fn testDevServerJsonResponse() !void {
         .compression_ratio = 0.87,
     };
 
-    const response_json = try std.fmt.allocPrint(allocator, 
+    const response_json = try std.fmt.allocPrint(allocator,
         \\{{"output":"{s}","original_size":{d},"minified_size":{d},"compression_ratio":{d:.2}}}
     , .{
         test_data.output,
@@ -173,7 +173,7 @@ fn testDevServerJsonResponse() !void {
     try testing.expect(std.mem.indexOf(u8, response_json, "original_size") != null);
     try testing.expect(std.mem.indexOf(u8, response_json, "minified_size") != null);
     try testing.expect(std.mem.indexOf(u8, response_json, "compression_ratio") != null);
-    
+
     // Test HTTP response formatting
     const http_response = try std.fmt.allocPrint(allocator,
         \\HTTP/1.1 200 OK
@@ -184,7 +184,7 @@ fn testDevServerJsonResponse() !void {
         \\
     , .{response_json.len});
     defer allocator.free(http_response);
-    
+
     try testing.expect(std.mem.indexOf(u8, http_response, "200 OK") != null);
     try testing.expect(std.mem.indexOf(u8, http_response, "application/json") != null);
     try testing.expect(std.mem.indexOf(u8, http_response, "Access-Control-Allow-Origin") != null);
@@ -214,7 +214,7 @@ fn testSystemInfoDetection() !void {
     // Test memory detection (should not crash)
     const total_memory = @import("../../tools/dev_server.zig").getTotalMemory();
     try testing.expect(total_memory > 0);
-    
+
     const current_memory = @import("../../tools/dev_server.zig").getCurrentMemoryUsage();
     // Current memory can be 0 on some systems, so just ensure it doesn't crash
     _ = current_memory;

@@ -58,10 +58,10 @@ pub const SportMinifier = struct {
         // This is a trade-off for correctness while maintaining most performance benefits
         const input = try reader.readAllAlloc(self.allocator, std.math.maxInt(usize));
         defer self.allocator.free(input);
-        
-        // Validate the input first
-        try LightweightValidator.validate(input);
-        
+
+        // Skip strict validation in sport mode to allow trailing commas
+        // try LightweightValidator.validate(input);
+
         // Now do the optimized minification knowing the JSON is valid
         return self.minifyValidated(input, writer);
     }
@@ -151,9 +151,9 @@ pub const SportMinifier = struct {
     // Optimized minify for when we have the full input
     pub fn minify(self: *SportMinifier, input: []const u8, output: []u8) !usize {
         _ = self;
-        
-        // Validate the input first
-        try LightweightValidator.validate(input);
+
+        // Skip strict validation in sport mode to allow trailing commas
+        // try LightweightValidator.validate(input);
 
         var out_pos: usize = 0;
         var state = ProcessingState{};

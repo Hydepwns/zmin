@@ -37,4 +37,7 @@ pub const ModuleRegistry = struct {
     // Error handling modules
     core_errors_mod: *std.Build.Module,
     error_recovery_mod: *std.Build.Module,
+    
+    // Common utilities
+    common_mod: *std.Build.Module,
 };

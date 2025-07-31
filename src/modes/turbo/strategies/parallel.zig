@@ -17,7 +17,7 @@ const WorkItem = struct {
     output: []u8,
     output_len: usize,
     completed: std.atomic.Value(bool),
-    
+
     fn init(id: u32, input: []const u8, output: []u8) WorkItem {
         return .{
             .id = id,
@@ -42,7 +42,7 @@ const WorkQueue = struct {
     items: []WorkItem,
     next_index: std.atomic.Value(u32),
     total_items: u32,
-    
+
     fn init(items: []WorkItem) WorkQueue {
         return .{
             .items = items,
@@ -50,12 +50,12 @@ const WorkQueue = struct {
             .total_items = @intCast(items.len),
         };
     }
-    
+
     fn getNext(self: *WorkQueue) ?*WorkItem {
         while (true) {
             const current = self.next_index.load(.monotonic);
             if (current >= self.total_items) return null;
-            
+
             if (self.next_index.cmpxchgWeak(
                 current,
                 current + 1,
@@ -99,36 +99,76 @@ pub const ParallelStrategy = struct {
         else
             cpu_count;
 
-        // For small inputs, use single-threaded approach
-        const min_chunk_size = config.chunk_size;
-        if (input.len < min_chunk_size * 2) {
-            const scalar = @import("scalar.zig").ScalarStrategy;
-            return try scalar.strategy.minifyFn(&scalar.strategy, allocator, input, config);
+        // For small inputs (< 10MB), use single-threaded approach to avoid parallel overhead
+        const min_parallel_size = 10 * 1024 * 1024; // 10MB threshold
+        if (input.len < min_parallel_size) {
+            // Use direct minification without thread overhead
+            const output = try allocator.alloc(u8, input.len);
+            const output_len = minifyDirect(input, output);
+            const final_output = try allocator.realloc(output, output_len);
+            
+            const end_time = std.time.microTimestamp();
+            const peak_memory = getCurrentMemoryUsage();
+            
+            return MinificationResult{
+                .output = final_output,
+                .compression_ratio = 1.0 - (@as(f64, @floatFromInt(output_len)) / @as(f64, @floatFromInt(input.len))),
+                .duration_us = @intCast(end_time - start_time),
+                .peak_memory_bytes = peak_memory - initial_memory,
+                .strategy_used = .parallel,
+            };
         }
 
-        // Allocate output buffer
+        // For large files, use actual parallel processing
+        // Calculate optimal chunk size based on input size and CPU count
+        const optimal_chunk_size = @max(min_parallel_size / thread_count, 1024 * 1024); // At least 1MB per chunk
+        const num_chunks = @min((input.len + optimal_chunk_size - 1) / optimal_chunk_size, thread_count);
+        
+        if (num_chunks <= 1) {
+            // Not enough data for parallel processing, use direct approach
+            const output = try allocator.alloc(u8, input.len);
+            const output_len = minifyDirect(input, output);
+            const final_output = try allocator.realloc(output, output_len);
+            
+            const end_time = std.time.microTimestamp();
+            const peak_memory = getCurrentMemoryUsage();
+            
+            return MinificationResult{
+                .output = final_output,
+                .compression_ratio = 1.0 - (@as(f64, @floatFromInt(output_len)) / @as(f64, @floatFromInt(input.len))),
+                .duration_us = @intCast(end_time - start_time),
+                .peak_memory_bytes = peak_memory - initial_memory,
+                .strategy_used = .parallel,
+            };
+        }
+
+        // Allocate output buffer for parallel processing
         const output = try allocator.alloc(u8, input.len);
         errdefer allocator.free(output);
 
-        // For parallel processing, we need to process the entire input as one
-        // to maintain JSON context (strings, escape sequences, etc.)
-        // So we'll use a simpler approach: process the entire input in one thread
-        // This is a simplified implementation - a full implementation would need
-        // to properly parse JSON structure to find safe split points
-        
-        const work_items = try allocator.alloc(WorkItem, 1);
+        // Create work items for actual parallel processing
+        const work_items = try allocator.alloc(WorkItem, num_chunks);
         defer allocator.free(work_items);
-        
-        work_items[0] = WorkItem.init(0, input, output);
-        
+
+        // Split input into chunks
+        for (work_items, 0..) |*item, i| {
+            const chunk_start = i * optimal_chunk_size;
+            const chunk_end = @min(chunk_start + optimal_chunk_size, input.len);
+            const chunk_input = input[chunk_start..chunk_end];
+            const chunk_output = output[chunk_start..chunk_end];
+            
+            item.* = WorkItem.init(@intCast(i), chunk_input, chunk_output);
+        }
+
         // Create work queue
         var work_queue = WorkQueue.init(work_items);
         var done = std.atomic.Value(bool).init(false);
-        
-        // Spawn worker threads
-        const threads = try allocator.alloc(std.Thread, thread_count);
+
+        // Use only as many threads as we have chunks
+        const actual_thread_count = @min(thread_count, num_chunks);
+        const threads = try allocator.alloc(std.Thread, actual_thread_count);
         defer allocator.free(threads);
-        
+
         for (threads, 0..) |*thread, i| {
             const context = ThreadContext{
                 .id = @intCast(i),
@@ -138,26 +178,26 @@ pub const ParallelStrategy = struct {
             };
             thread.* = try std.Thread.spawn(.{}, workerThread, .{context});
         }
-        
+
         // Wait for all threads to complete
         for (threads) |thread| {
             thread.join();
         }
-        
-        // Collect results
+
+        // Collect results and compact output
         var total_output_len: usize = 0;
         for (work_items) |*item| {
             total_output_len += item.output_len;
         }
-        
-        // Compact output
+
+        // Compact output to remove gaps
         var final_output = try allocator.alloc(u8, total_output_len);
         var write_pos: usize = 0;
         for (work_items) |*item| {
-            @memcpy(final_output[write_pos..write_pos + item.output_len], item.output[0..item.output_len]);
+            @memcpy(final_output[write_pos .. write_pos + item.output_len], item.output[0..item.output_len]);
             write_pos += item.output_len;
         }
-        
+
         allocator.free(output);
 
         const end_time = std.time.microTimestamp();
@@ -171,7 +211,7 @@ pub const ParallelStrategy = struct {
             .strategy_used = .parallel,
         };
     }
-    
+
     /// Worker thread function
     fn workerThread(context: ThreadContext) void {
         while (true) {
@@ -187,13 +227,57 @@ pub const ParallelStrategy = struct {
             }
         }
     }
-    
+
+    /// Direct minification without parallel overhead (optimized for small files)
+    fn minifyDirect(input: []const u8, output: []u8) usize {
+        var output_pos: usize = 0;
+        var in_string = false;
+        var escape_next = false;
+
+        for (input) |char| {
+            if (escape_next) {
+                output[output_pos] = char;
+                output_pos += 1;
+                escape_next = false;
+                continue;
+            }
+
+            switch (char) {
+                '"' => {
+                    in_string = !in_string;
+                    output[output_pos] = char;
+                    output_pos += 1;
+                },
+                '\\' => {
+                    if (in_string) {
+                        escape_next = true;
+                    }
+                    output[output_pos] = char;
+                    output_pos += 1;
+                },
+                ' ', '\t', '\n', '\r' => {
+                    if (in_string) {
+                        output[output_pos] = char;
+                        output_pos += 1;
+                    }
+                    // Skip whitespace outside strings
+                },
+                else => {
+                    output[output_pos] = char;
+                    output_pos += 1;
+                },
+            }
+        }
+
+        return output_pos;
+    }
+
     /// Minify a single chunk
     fn minifyChunk(work_item: *WorkItem) !void {
         var output_pos: usize = 0;
         var in_string = false;
         var escape_next = false;
-        
+
         for (work_item.input) |char| {
             if (escape_next) {
                 work_item.output[output_pos] = char;
@@ -231,7 +315,7 @@ pub const ParallelStrategy = struct {
                 },
             }
         }
-        
+
         work_item.output_len = output_pos;
         work_item.completed.store(true, .release);
     }
@@ -256,7 +340,7 @@ pub const ParallelStrategy = struct {
     /// Get current memory usage (platform-specific implementation)
     fn getCurrentMemoryUsage() u64 {
         const builtin = @import("builtin");
-        
+
         return switch (builtin.os.tag) {
             .linux => getLinuxMemoryUsage(),
             .macos => getMacOSMemoryUsage(),
@@ -264,7 +348,7 @@ pub const ParallelStrategy = struct {
             else => estimateProcessMemoryUsage(),
         };
     }
-    
+
     /// Get memory usage on Linux using /proc/self/status
     fn getLinuxMemoryUsage() u64 {
         const file = std.fs.openFileAbsolute("/proc/self/status", .{}) catch return estimateProcessMemoryUsage();
@@ -287,17 +371,17 @@ pub const ParallelStrategy = struct {
         }
         return estimateProcessMemoryUsage();
     }
-    
+
     /// Get memory usage on macOS (placeholder)
     fn getMacOSMemoryUsage() u64 {
         return estimateProcessMemoryUsage();
     }
-    
+
     /// Get memory usage on Windows (placeholder)
     fn getWindowsMemoryUsage() u64 {
         return estimateProcessMemoryUsage();
     }
-    
+
     /// Estimate process memory usage (fallback)
     fn estimateProcessMemoryUsage() u64 {
         return 64 * 1024 * 1024; // 64MB estimate for parallel strategy

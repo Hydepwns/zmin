@@ -19,18 +19,18 @@ pub const MinifierInterface = struct {
 
         switch (mode) {
             .eco => {
-                const EcoMinifier = @import("eco_minifier.zig").EcoMinifier;
+                const EcoMinifier = @import("eco_minifier").EcoMinifier;
                 var minifier = EcoMinifier.init(allocator);
                 try minifier.minifyStreaming(reader, writer);
             },
             .sport => {
-                const SportMinifier = @import("sport_minifier.zig").SportMinifier;
+                const SportMinifier = @import("sport_minifier").SportMinifier;
                 var minifier = SportMinifier.init(allocator);
                 try minifier.minifyStreaming(reader, writer);
             },
             .turbo => {
                 // Use the existing turbo module
-                const turbo = @import("turbo/mod.zig");
+                const turbo = @import("turbo_unified");
                 var minifier = try turbo.TurboMinifier.init(allocator);
 
                 // TURBO mode needs full file in memory

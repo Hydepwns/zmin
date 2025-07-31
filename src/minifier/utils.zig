@@ -2,8 +2,12 @@ const std = @import("std");
 
 // Utility functions for JSON parsing and minification
 
-pub fn isWhitespace(byte: u8) bool {
-    return byte == ' ' or byte == '\t' or byte == '\n' or byte == '\r';
+/// Check if a byte is JSON whitespace (optimized with switch for better codegen)
+pub inline fn isWhitespace(byte: u8) bool {
+    return switch (byte) {
+        ' ', '\t', '\n', '\r' => true,
+        else => false,
+    };
 }
 
 pub fn isHexDigit(byte: u8) bool {

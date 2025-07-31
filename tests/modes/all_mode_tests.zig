@@ -5,7 +5,7 @@ const testing = std.testing;
 
 // Import all mode test modules
 const consistency_tests = @import("consistency_tests.zig");
-const performance_tests = @import("performance_tests.zig");
+const performance_tests = @import("performance_tests");
 
 // Re-export all tests
 test {

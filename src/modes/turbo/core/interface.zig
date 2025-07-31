@@ -134,7 +134,7 @@ pub const SystemCapabilities = struct {
 
     fn detectAvailableMemory() u64 {
         const builtin = @import("builtin");
-        
+
         return switch (builtin.os.tag) {
             .linux => detectLinuxMemory(),
             .windows => detectWindowsMemory(),
@@ -142,15 +142,11 @@ pub const SystemCapabilities = struct {
             else => 8 * 1024 * 1024 * 1024, // Default 8GB for other platforms
         };
     }
-    
+
     /// Detect available memory on Linux
     fn detectLinuxMemory() u64 {
         // Read /proc/meminfo to get MemAvailable (or MemFree + Buffers + Cached)
-        const meminfo = std.fs.cwd().readFileAlloc(
-            std.heap.page_allocator, 
-            "/proc/meminfo", 
-            8192
-        ) catch return getDefaultMemory();
+        const meminfo = std.fs.cwd().readFileAlloc(std.heap.page_allocator, "/proc/meminfo", 8192) catch return getDefaultMemory();
         defer std.heap.page_allocator.free(meminfo);
 
         var mem_available: ?u64 = null;
@@ -187,34 +183,34 @@ pub const SystemCapabilities = struct {
             return (mem_free + buffers + cached) * 1024;
         }
     }
-    
+
     /// Detect available memory on Windows
     fn detectWindowsMemory() u64 {
         // On Windows, we would use GlobalMemoryStatusEx() from Win32 API
         // For now, return a reasonable estimate based on common system sizes
-        // A full implementation would use: 
+        // A full implementation would use:
         // const kernel32 = std.os.windows.kernel32;
         // var memstat: std.os.windows.MEMORYSTATUSEX = undefined;
         // memstat.dwLength = @sizeOf(std.os.windows.MEMORYSTATUSEX);
         // if (kernel32.GlobalMemoryStatusEx(&memstat) != 0) {
         //     return memstat.ullAvailPhys;
         // }
-        
+
         // For this implementation, return 75% of a typical system (8GB)
         return 6 * 1024 * 1024 * 1024; // 6GB estimate
     }
-    
+
     /// Detect available memory on macOS
     fn detectMacOSMemory() u64 {
         // On macOS, we would use sysctl to get memory information
         // sysctlbyname("hw.memsize", ...) for total memory
         // vm_stat for available memory
         // For now, return a reasonable estimate
-        
+
         // For this implementation, return 75% of a typical Mac (8GB)
         return 6 * 1024 * 1024 * 1024; // 6GB estimate
     }
-    
+
     /// Parse a memory line from /proc/meminfo (format: "MemTotal: 16384 kB")
     fn parseMemoryLine(line: []const u8) ?u64 {
         var parts = std.mem.tokenizeAny(u8, line, " \t");
@@ -222,7 +218,7 @@ pub const SystemCapabilities = struct {
         const size_str = parts.next() orelse return null;
         return std.fmt.parseInt(u64, size_str, 10) catch null;
     }
-    
+
     /// Get default memory value
     fn getDefaultMemory() u64 {
         return 8 * 1024 * 1024 * 1024; // 8GB
@@ -231,7 +227,7 @@ pub const SystemCapabilities = struct {
     fn detectSimdFeatures() SimdFeatures {
         const cpu_detection = @import("cpu_detection");
         const cpu_info = cpu_detection.CpuInfo.init();
-        
+
         return SimdFeatures{
             .sse = cpu_info.features.sse,
             .sse2 = cpu_info.features.sse2,
@@ -241,10 +237,10 @@ pub const SystemCapabilities = struct {
             .sse4_2 = cpu_info.features.sse4_2,
             .avx = cpu_info.features.avx,
             .avx2 = cpu_info.features.avx2,
-            .avx512 = cpu_info.features.avx512f and 
-                      cpu_info.features.avx512dq and 
-                      cpu_info.features.avx512bw and 
-                      cpu_info.features.avx512vl,
+            .avx512 = cpu_info.features.avx512f and
+                cpu_info.features.avx512dq and
+                cpu_info.features.avx512bw and
+                cpu_info.features.avx512vl,
         };
     }
 
@@ -271,13 +267,13 @@ pub const SimdFeatures = struct {
     avx: bool = false,
     avx2: bool = false,
     avx512: bool = false,
-    
+
     /// Check if any SIMD features are available
     pub fn hasAnySimd(self: SimdFeatures) bool {
-        return self.sse or self.sse2 or self.sse3 or self.ssse3 or 
-               self.sse4_1 or self.sse4_2 or self.avx or self.avx2 or self.avx512;
+        return self.sse or self.sse2 or self.sse3 or self.ssse3 or
+            self.sse4_1 or self.sse4_2 or self.avx or self.avx2 or self.avx512;
     }
-    
+
     /// Get the best available SIMD level
     pub fn getBestLevel(self: SimdFeatures) ?StrategyType {
         if (self.avx512) return .simd;
@@ -287,7 +283,7 @@ pub const SimdFeatures = struct {
         if (self.sse2) return .simd;
         return null;
     }
-    
+
     /// Get a description of available SIMD features
     pub fn getDescription(self: SimdFeatures) []const u8 {
         if (self.avx512) return "AVX-512";

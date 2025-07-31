@@ -7,7 +7,7 @@ const testing = std.testing;
 // Export the minifier module
 pub const minifier = @import("minifier");
 
-// Export other modules  
+// Export other modules
 pub const parallel = @import("parallel");
 pub const parallel_minifier = parallel.ParallelMinifier;
 pub const parallel_minifier_simple = parallel.SimpleParallelMinifier;

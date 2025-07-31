@@ -101,19 +101,19 @@ test "integration: real world datasets" {
                 dataset: DatasetTest,
                 input: []const u8,
                 mode: ProcessingMode,
-                
+
                 pub fn run(self: @This()) !void {
                     try testDatasetWithMode(self.allocator, self.dataset, self.input, self.mode);
                 }
             };
-            
+
             const test_wrapper = TestWrapper{
                 .allocator = allocator,
                 .dataset = dataset,
                 .input = input,
                 .mode = mode,
             };
-            
+
             const test_ctx = struct {
                 var wrapper: TestWrapper = undefined;
                 fn runTest() !void {
@@ -122,7 +122,7 @@ test "integration: real world datasets" {
             };
             test_ctx.wrapper = test_wrapper;
             const testFn = test_ctx.runTest;
-            
+
             try runner.runTest(test_name, .integration, testFn);
         }
     }
@@ -414,7 +414,7 @@ test "integration: concurrent processing" {
     // Test concurrent processing of multiple inputs
     const thread_count = try std.Thread.getCpuCount();
     const actual_threads = @min(thread_count, test_data.items.len);
-    
+
     debugPrint("\nTesting parallel processing with {d} threads\n", .{actual_threads});
 
     const threads = try allocator.alloc(std.Thread, actual_threads);
@@ -450,14 +450,14 @@ test "integration: concurrent processing" {
     for (results, 0..) |maybe_result, i| {
         if (maybe_result) |result| {
             defer allocator.free(result);
-            
+
             // Verify it's valid JSON
             var parsed = std.json.parseFromSlice(std.json.Value, allocator, result, .{}) catch |err| {
                 debugPrint("  ❌ Thread {d}: Invalid JSON output: {}\n", .{ i, err });
                 return error.InvalidJsonOutput;
             };
             defer parsed.deinit();
-            
+
             debugPrint("  ✅ Thread {d}: Successfully processed {d} bytes -> {d} bytes\n", .{
                 i,
                 test_data.items[i].len,

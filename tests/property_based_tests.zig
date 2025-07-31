@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const zmin = @import("zmin_lib");
-const test_framework = @import("test_framework.zig");
+const test_framework = @import("test_framework");
 
 /// Properties that must hold for all minification operations
 pub const MinificationProperties = struct {

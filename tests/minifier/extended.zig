@@ -2,9 +2,9 @@ const std = @import("std");
 const testing = std.testing;
 
 // Import helper modules
-const helpers = @import("test_helpers.zig");
+const helpers = @import("test_helpers");
 const generators = @import("test_data_generators.zig");
-const assertions = @import("assertion_helpers.zig");
+const assertions = @import("assertion_helpers");
 
 // Import MinifyingParser for remaining tests that need direct access
 const MinifyingParser = @import("src").minifier.MinifyingParser;

@@ -232,7 +232,7 @@ pub const InteractiveCLI = struct {
     }
 
     fn executeCommand(self: *InteractiveCLI, input: []const u8) !void {
-        var iter = std.mem.tokenize(u8, input, " \t");
+        var iter = std.mem.tokenizeAny(u8, input, " \t");
         const cmd_name = iter.next() orelse return;
 
         // Collect arguments
@@ -295,7 +295,7 @@ pub const InteractiveCLI = struct {
 
         // Write output
         if (output_file) |out_file| {
-            std.fs.cwd().writeFile(out_file, output) catch |err| {
+            std.fs.cwd().writeFile(.{ .sub_path = out_file, .data = output }) catch |err| {
                 try self.printError("Failed to write file '{s}': {}", .{ out_file, err });
                 return;
             };
@@ -449,9 +449,9 @@ pub const InteractiveCLI = struct {
             const duration = std.time.microTimestamp() - start;
             self.allocator.free(output);
 
-            total_time += duration;
-            min_time = @min(min_time, duration);
-            max_time = @max(max_time, duration);
+            total_time += @as(u64, @intCast(duration));
+            min_time = @min(min_time, @as(u64, @intCast(duration)));
+            max_time = @max(max_time, @as(u64, @intCast(duration)));
 
             if ((i + 1) % 10 == 0) {
                 try self.printProgress("Progress: {d}/{d}", .{ i + 1, iterations });
@@ -591,6 +591,19 @@ pub const InteractiveCLI = struct {
             try stdout.print("\x1b[0m\n", .{});
         } else {
             try stdout.print("SUCCESS: ", .{});
+            try stdout.print(fmt, args);
+            try stdout.print("\n", .{});
+        }
+    }
+
+    fn printWarning(self: *InteractiveCLI, comptime fmt: []const u8, args: anytype) !void {
+        const stdout = std.io.getStdOut().writer();
+        if (self.config.use_colors) {
+            try stdout.print("\x1b[33m⚠️ ", .{}); // Yellow
+            try stdout.print(fmt, args);
+            try stdout.print("\x1b[0m\n", .{});
+        } else {
+            try stdout.print("WARNING: ", .{});
             try stdout.print(fmt, args);
             try stdout.print("\n", .{});
         }

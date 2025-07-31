@@ -36,18 +36,21 @@ pub fn createExecutable(b: *std.Build, modules: types.ModuleRegistry) *std.Build
     });
     cli_args_mod.addImport("zmin_lib", modules.lib_mod);
 
-    // Enhanced CLI executable (disabled temporarily due to API mismatch)
-    // const cli_exe = b.addExecutable(.{
-    //     .name = "zmin-cli",
-    //     .root_source_file = b.path("src/main_cli.zig"),
-    //     .target = exe.root_module.resolved_target,
-    //     .optimize = exe.root_module.optimize.?,
-    // });
-    // cli_exe.root_module.addImport("zmin_lib", modules.lib_mod);
-    // cli_exe.root_module.addImport("cli/interactive.zig", cli_interactive_mod);
-    // cli_exe.root_module.addImport("cli/args_parser.zig", cli_args_mod);
-    // cli_exe.root_module.strip = false;
-    // b.installArtifact(cli_exe);
+    // Enhanced CLI executable
+    const cli_exe = b.addExecutable(.{
+        .name = "zmin-cli",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main_cli.zig"),
+            .target = exe.root_module.resolved_target,
+            .optimize = exe.root_module.optimize.?,
+        }),
+    });
+    cli_exe.root_module.addImport("zmin_lib", modules.lib_mod);
+    cli_exe.root_module.addImport("cli/interactive.zig", cli_interactive_mod);
+    cli_exe.root_module.addImport("cli/args_parser.zig", cli_args_mod);
+    cli_exe.root_module.addImport("common", modules.common_mod);
+    cli_exe.root_module.strip = false;
+    b.installArtifact(cli_exe);
 
     return exe;
 }

@@ -4,11 +4,44 @@ const types = @import("types.zig");
 pub fn createTestSuite(b: *std.Build, config: types.Config, modules: types.ModuleRegistry) void {
     // Phase 3: Create test framework module
     const test_framework_mod = b.createModule(.{
-        .root_source_file = b.path("tests/test_framework.zig"),
+        .root_source_file = b.path("tests/helpers/test_framework.zig"),
         .target = config.target,
         .optimize = config.optimize,
     });
     test_framework_mod.addImport("zmin_lib", modules.lib_mod);
+
+    // Create test helper modules
+    const test_helpers_mod = b.createModule(.{
+        .root_source_file = b.path("tests/helpers/test_helpers.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    test_helpers_mod.addImport("zmin_lib", modules.lib_mod);
+    test_helpers_mod.addImport("src", modules.lib_mod);
+
+    const assertion_helpers_mod = b.createModule(.{
+        .root_source_file = b.path("tests/helpers/assertion_helpers.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+
+    // Create mode test framework module
+    const mode_test_framework_mod = b.createModule(.{
+        .root_source_file = b.path("tests/modes/mode_test_framework.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    mode_test_framework_mod.addImport("modes", modules.modes_mod);
+    mode_test_framework_mod.addImport("minifier_interface", modules.minifier_interface_mod);
+
+    // Create benchmarks module for performance tests
+    const performance_tests_mod = b.createModule(.{
+        .root_source_file = b.path("tests/benchmarks/performance_tests.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    performance_tests_mod.addImport("zmin_lib", modules.lib_mod);
+    performance_tests_mod.addImport("mode_test_framework", mode_test_framework_mod);
 
     // Create basic test modules
     const basic_test_mod = b.createModule(.{
@@ -17,6 +50,8 @@ pub fn createTestSuite(b: *std.Build, config: types.Config, modules: types.Modul
         .optimize = config.optimize,
     });
     basic_test_mod.addImport("src", modules.lib_mod);
+    basic_test_mod.addImport("test_helpers", test_helpers_mod);
+    basic_test_mod.addImport("assertion_helpers", assertion_helpers_mod);
 
     const extended_test_mod = b.createModule(.{
         .root_source_file = b.path("tests/minifier/extended.zig"),
@@ -24,6 +59,8 @@ pub fn createTestSuite(b: *std.Build, config: types.Config, modules: types.Modul
         .optimize = config.optimize,
     });
     extended_test_mod.addImport("src", modules.lib_mod);
+    extended_test_mod.addImport("test_helpers", test_helpers_mod);
+    extended_test_mod.addImport("assertion_helpers", assertion_helpers_mod);
 
     // Create parallel test modules
     const parallel_test_mod = b.createModule(.{
@@ -64,6 +101,8 @@ pub fn createTestSuite(b: *std.Build, config: types.Config, modules: types.Modul
     mode_tests.root_module.addImport("modes", modules.modes_mod);
     mode_tests.root_module.addImport("minifier_interface", modules.minifier_interface_mod);
     mode_tests.root_module.addImport("minifier", modules.minifier_mod);
+    mode_tests.root_module.addImport("performance_tests", performance_tests_mod);
+    mode_tests.root_module.addImport("mode_test_framework", mode_test_framework_mod);
 
     // Create test steps
     const lib_unit_tests = b.addTest(.{ .root_module = modules.lib_mod });

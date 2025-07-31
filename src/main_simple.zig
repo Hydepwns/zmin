@@ -1,7 +1,7 @@
 const std = @import("std");
-const MinifyingParser = @import("minifier/mod.zig").MinifyingParser;
-const parallel = @import("parallel/mod.zig");
-const ParallelMinifier = parallel.ParallelMinifier;
+const zmin_lib = @import("zmin_lib");
+const MinifyingParser = zmin_lib.minifier.MinifyingParser;
+const ParallelMinifier = zmin_lib.parallel.ParallelMinifier;
 
 const version = "1.0.0";
 

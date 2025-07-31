@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const testing = std.testing;
-const framework = @import("mode_test_framework.zig");
+const framework = @import("mode_test_framework");
 
 test "all modes produce identical output for common cases" {
     const allocator = testing.allocator;

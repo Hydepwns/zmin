@@ -137,6 +137,13 @@ pub fn createModules(b: *std.Build, config: types.Config) types.ModuleRegistry {
         .optimize = config.optimize,
     });
 
+    // Common utilities module
+    const common_mod = b.createModule(.{
+        .root_source_file = b.path("src/common/mod.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+
     return types.ModuleRegistry{
         .lib_mod = lib_mod,
         .exe_mod = exe_mod,
@@ -159,5 +166,6 @@ pub fn createModules(b: *std.Build, config: types.Config) types.ModuleRegistry {
         .memory_profiler_mod = memory_profiler_mod,
         .core_errors_mod = core_errors_mod,
         .error_recovery_mod = error_recovery_mod,
+        .common_mod = common_mod,
     };
 }

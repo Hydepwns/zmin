@@ -24,6 +24,7 @@ pub fn setupModuleDependencies(modules: types.ModuleRegistry) void {
     modules.sport_minifier_mod.addImport("minifier", modules.minifier_mod);
     modules.turbo_unified_mod.addImport("cpu_detection", modules.cpu_detection_mod);
     modules.turbo_unified_mod.addImport("numa_detector", modules.numa_detector_mod);
+    modules.turbo_unified_mod.addImport("minifier", modules.minifier_mod);
     
     // Setup modes module dependencies
     modules.modes_mod.addImport("minifier", modules.minifier_mod);
@@ -49,4 +50,11 @@ pub fn setupModuleDependencies(modules: types.ModuleRegistry) void {
     modules.minifier_interface_mod.addImport("turbo_unified", modules.turbo_unified_mod);
     modules.minifier_interface_mod.addImport("cpu_detection", modules.cpu_detection_mod);
     modules.minifier_interface_mod.addImport("numa_detector", modules.numa_detector_mod);
+
+    // Common utilities dependencies
+    modules.turbo_unified_mod.addImport("common", modules.common_mod);
+    modules.sport_minifier_mod.addImport("common", modules.common_mod);
+    modules.eco_minifier_mod.addImport("common", modules.common_mod);
+    modules.minifier_mod.addImport("common", modules.common_mod);
+    modules.performance_mod.addImport("common", modules.common_mod);
 }
