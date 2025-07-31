@@ -42,7 +42,7 @@ run_benchmark() {
 
     # Time the operation
     start_time=$(date +%s.%N)
-    ./zig-out/bin/zmin --mode "$mode" "$BENCHMARK_DIR/$input_file" "$output_file"
+    ./zig-out/bin/zmin-cli --mode="$mode" "$BENCHMARK_DIR/$input_file" "$output_file"
     end_time=$(date +%s.%N)
 
     # Calculate duration and throughput
