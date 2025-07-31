@@ -1,0 +1,130 @@
+baseURL: 'https://zmin.droo.foo/'
+languageCode: 'en-us'
+title: 'zmin'
+theme: 'github.com/panr/hugo-theme-terminal'
+
+# Clean theme configuration
+params:
+  # Main info
+  mainSections: []
+  description: "High-performance JSON minifier written in Zig. Over 3 GB/s throughput with GPU acceleration."
+
+  # Theme colors - black and white with dark default
+  colorTheme: "dark"
+  fontTheme: "monospace"
+  CenterTheme: true
+
+  # Header
+  header:
+    title: "zmin"
+    subtitle: "High-performance JSON minifier"
+    logo: "zmin"
+    logoWidth: 50
+
+  # Footer
+  footer:
+    powered: false
+    theme: false
+
+  # Social icons
+  socialIcons:
+    - name: github
+      url: "https://github.com/hydepwns/zmin"
+    - name: twitter
+      url: "https://twitter.com/MF_DROO"
+
+  # Navigation - Terminal theme uses this for the main menu
+  mainMenu:
+    - identifier: docs
+      name: Documentation
+      url: /docs/
+      weight: 1
+    - identifier: api
+      name: API Reference
+      url: /api-reference-generated.html
+      weight: 2
+    - identifier: examples
+      name: Examples
+      url: /docs/examples/
+      weight: 3
+    - identifier: performance
+      name: Performance
+      url: /docs/performance/
+      weight: 4
+
+  # PWA settings
+  enablePWA: true
+  manifestPath: "/static/manifest.json"
+
+  # Analytics (optional)
+  enableAnalytics: false
+  analyticsID: ""
+
+  # Search settings
+  enableSearch: true
+  searchIndex: true
+
+  # Terminal theme specific settings
+  showReadingTime: false
+  showToc: true
+  tocOpen: false
+  showShareButtons: false
+  showPostNavLinks: true
+  showBreadCrumbs: true
+  showCodeCopyButtons: true
+  showRssButtonInSectionTermList: false
+  showWordCount: false
+  showFullTextinRSS: false
+
+# Standard Hugo menu configuration (for compatibility)
+menu:
+  main:
+    - identifier: docs
+      name: Documentation
+      url: /docs/
+      weight: 1
+    - identifier: api
+      name: API Reference
+      url: /api-reference-generated.html
+      weight: 2
+    - identifier: examples
+      name: Examples
+      url: /docs/examples/
+      weight: 3
+    - identifier: performance
+      name: Performance
+      url: /docs/performance/
+      weight: 4
+
+# Markdown configuration
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    style: "monokai"
+    lineNos: true
+    lineNumbersInTable: true
+
+# Build settings
+buildDrafts: false
+buildFuture: false
+buildExpired: false
+
+# Disable default taxonomies
+disableKinds: ["taxonomy", "term"]
+
+# Output formats
+outputFormats:
+  searchIndex:
+    mediaType: application/json
+    baseName: search-index
+    isPlainText: true
+    notAlternative: true
+
+# Enable emoji
+enableEmoji: true
+
+# Enable syntax highlighting
+pygmentsUseClasses: true
+pygmentsCodeFences: true

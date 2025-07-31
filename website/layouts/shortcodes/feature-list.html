@@ -1,0 +1,9 @@
+{{ $features := .Site.Data.site.project.features }}
+<div class="feature-list">
+  {{ range $features }}
+    <div class="feature-item">
+      <span class="feature-bullet">•</span>
+      <span class="feature-text">{{ . }}</span>
+    </div>
+  {{ end }}
+</div>
