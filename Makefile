@@ -75,22 +75,22 @@ clean-all: clean
 
 cleanup:
 	@echo "Running comprehensive cleanup script..."
-	@./scripts/cleanup.sh
+	@./scripts/dev/cleanup.sh
 	@echo "✅ Comprehensive cleanup completed"
 
 cleanup-docker:
 	@echo "Running comprehensive cleanup with Docker cleanup..."
-	@./scripts/cleanup.sh --docker
+	@./scripts/dev/cleanup.sh --docker
 	@echo "✅ Comprehensive cleanup with Docker cleanup completed"
 
 organize:
 	@echo "Organizing project structure..."
-	@./scripts/organize.sh
+	@./scripts/dev/organize.sh
 	@echo "✅ Project organization completed"
 
 status:
 	@echo "Checking project status..."
-	@./scripts/status.sh
+	@./scripts/dev/status.sh
 	@echo "✅ Status check completed"
 
 # Testing commands
@@ -105,7 +105,7 @@ benchmark:
 
 # Code quality
 format:
-	zig fmt src/ scripts/ tools/ examples/ tests/
+	zig fmt src/ scripts/ dev-tools/ examples/ tests/
 
 lint:
 	@echo "Running linting checks..."
@@ -115,7 +115,7 @@ lint:
 # Documentation
 docs:
 	@echo "Generating API documentation..."
-	@zig build-exe scripts/generate-api-docs.zig -O ReleaseFast
+	@zig build-exe scripts/build/generate-api-docs.zig -O ReleaseFast
 	@./generate-api-docs src docs/api-reference-generated.json
 	@rm -f generate-api-docs
 	@echo "✅ Documentation generated"
@@ -123,7 +123,7 @@ docs:
 # Content generation
 generate-content:
 	@echo "Generating content from centralized data..."
-	@zig run scripts/generate-content.zig
+	@zig run scripts/build/generate-content.zig
 
 # Build site with generated content
 build-site: generate-content
