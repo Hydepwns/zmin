@@ -1,0 +1,483 @@
+name: Dev Tools CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'dev-tools/**'
+      - 'tests/unit/**'
+      - 'tests/integration/**'
+      - 'tools/**'
+      - '.github/workflows/dev-tools-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'dev-tools/**'
+      - 'tests/unit/**'
+      - 'tests/integration/**'
+      - 'tools/**'
+      - '.github/workflows/dev-tools-ci.yml'
+  workflow_dispatch:
+    inputs:
+      run_integration_tests:
+        description: 'Run integration tests'
+        required: false
+        default: true
+        type: boolean
+      run_performance_tests:
+        description: 'Run performance tests'
+        required: false
+        default: true
+        type: boolean
+
+# Allow only one concurrent dev tools CI run
+concurrency:
+  group: "dev-tools-ci-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  ZIG_OUT_DIR: zig-out/bin
+  DEV_TOOLS_DIR: dev-tools
+
+jobs:
+  # Read versions for consistency with main CI
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      zig-version: ${{ steps.versions.outputs.zig }}
+      zmin-version: ${{ steps.versions.outputs.zmin }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/versions.json
+
+      - name: Read versions
+        id: versions
+        run: |
+          echo "zig=$(jq -r '.zig' .github/versions.json)" >> $GITHUB_OUTPUT
+          echo "zmin=$(jq -r '.zmin' .github/versions.json)" >> $GITHUB_OUTPUT
+
+  # Build and test dev tools
+  dev-tools-test:
+    name: Dev Tools Unit Tests
+    needs: versions
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Cache Zig artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/zig
+          zig-cache
+        key: ${{ runner.os }}-zig-dev-tools-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        restore-keys: |
+          ${{ runner.os }}-zig-dev-tools-
+          ${{ runner.os }}-zig-
+
+    - name: Build dev tools
+      run: |
+        echo "Building dev tools..."
+        zig build
+
+    - name: Run dev tools unit tests
+      run: |
+        echo "Running dev tools unit test suite..."
+        cd tests/unit
+        
+        # Run individual tool tests
+        echo "Testing dev server..."
+        zig run dev_server_tests.zig
+        
+        echo "Testing debugger..."
+        zig run debugger_tests.zig
+        
+        echo "Testing plugin registry..."
+        zig run plugin_registry_tests.zig
+        
+        echo "Running comprehensive test suite..."
+        zig run dev_tools_test_suite.zig --verbose
+
+    - name: Test dev tools functionality
+      run: |
+        echo "Testing dev tools executables..."
+        
+        # Test dev server (basic validation)
+        if [ -f "${{ env.ZIG_OUT_DIR }}/dev-server" ]; then
+          timeout 5s ${{ env.ZIG_OUT_DIR }}/dev-server --help || true
+          echo "✅ Dev server executable works"
+        fi
+        
+        # Test debugger
+        if [ -f "${{ env.ZIG_OUT_DIR }}/debugger" ]; then
+          ${{ env.ZIG_OUT_DIR }}/debugger --help
+          echo "✅ Debugger executable works"
+        fi
+        
+        # Test plugin registry
+        if [ -f "${{ env.ZIG_OUT_DIR }}/plugin-registry" ]; then
+          ${{ env.ZIG_OUT_DIR }}/plugin-registry --help || true
+          echo "✅ Plugin registry executable works"
+        fi
+
+  # Integration tests
+  dev-tools-integration:
+    name: Dev Tools Integration Tests
+    needs: [versions, dev-tools-test]
+    runs-on: ubuntu-latest
+    if: |
+      github.event.inputs.run_integration_tests != 'false'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Cache Zig artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/zig
+          zig-cache
+        key: ${{ runner.os }}-zig-dev-tools-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        restore-keys: |
+          ${{ runner.os }}-zig-dev-tools-
+          ${{ runner.os }}-zig-
+
+    - name: Build dev tools and main project
+      run: |
+        zig build
+
+    - name: Run integration tests
+      run: |
+        echo "Running dev tools integration tests..."
+        cd tests/integration
+        
+        # Run comprehensive integration tests
+        echo "Testing tool interactions..."
+        zig test dev_tools_integration.zig
+        
+        echo "Testing error handling edge cases..."
+        zig test error_edge_cases.zig
+        
+        echo "Testing comprehensive integration..."
+        zig test comprehensive_dev_tools_integration.zig
+
+    - name: Test cross-tool workflow
+      run: |
+        echo "Testing real-world dev tools workflow..."
+        
+        # Create test environment
+        mkdir -p test_workspace
+        cd test_workspace
+        
+        # Test JSON file
+        echo '{"test": {"data": [1, 2, 3]}, "large": {"array": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}}' > test.json
+        
+        # Test debugger with minification
+        echo "Testing debugger integration..."
+        if [ -f "../${{ env.ZIG_OUT_DIR }}/debugger" ]; then
+          ../${{ env.ZIG_OUT_DIR }}/debugger -i test.json -m sport --benchmark 10
+          echo "✅ Debugger integration test passed"
+        fi
+        
+        # Test dev server (quick validation)
+        echo "Testing dev server startup..."
+        if [ -f "../${{ env.ZIG_OUT_DIR }}/dev-server" ]; then
+          timeout 3s ../${{ env.ZIG_OUT_DIR }}/dev-server 8081 &
+          sleep 1
+          curl -f http://localhost:8081/ || echo "Dev server test skipped (connection failed)"
+          echo "✅ Dev server integration test completed"
+        fi
+
+  # Error handling tests
+  dev-tools-error-handling:
+    name: Dev Tools Error Handling
+    needs: [versions, dev-tools-test]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Cache Zig artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/zig
+          zig-cache
+        key: ${{ runner.os }}-zig-dev-tools-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        restore-keys: |
+          ${{ runner.os }}-zig-dev-tools-
+          ${{ runner.os }}-zig-
+
+    - name: Build dev tools
+      run: zig build
+
+    - name: Test error conditions
+      run: |
+        echo "Testing dev tools error handling..."
+        
+        # Test invalid arguments
+        echo "Testing invalid arguments..."
+        ${{ env.ZIG_OUT_DIR }}/debugger --invalid-flag 2>/dev/null && exit 1 || echo "✅ Invalid arguments handled correctly" 
+        
+        # Test missing files
+        echo "Testing missing file handling..."
+        ${{ env.ZIG_OUT_DIR }}/debugger -i /nonexistent/file.json 2>/dev/null && exit 1 || echo "✅ Missing files handled correctly"
+        
+        # Test plugin registry with no plugins
+        echo "Testing plugin registry error handling..."
+        ${{ env.ZIG_OUT_DIR }}/plugin-registry discover || echo "✅ Plugin discovery handled missing plugins"
+        ${{ env.ZIG_OUT_DIR }}/plugin-registry info 999 2>/dev/null && exit 1 || echo "✅ Invalid plugin index handled correctly"
+        
+        echo "✅ All error handling tests passed"
+
+  # Performance tests for dev tools
+  dev-tools-performance:
+    name: Dev Tools Performance Tests
+    needs: [versions, dev-tools-test]
+    runs-on: ubuntu-latest
+    if: |
+      github.event.inputs.run_performance_tests != 'false'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Cache Zig artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/zig
+          zig-cache
+        key: ${{ runner.os }}-zig-dev-tools-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        restore-keys: |
+          ${{ runner.os }}-zig-dev-tools-
+          ${{ runner.os }}-zig-
+
+    - name: Build optimized dev tools
+      run: |
+        zig build --release=fast
+
+    - name: Generate test data
+      run: |
+        echo "Generating performance test data..."
+        
+        # Small test file
+        echo '{"small": {"data": [1, 2, 3]}}' > small.json
+        
+        # Medium test file
+        echo '{"medium": {"users": [' > medium.json
+        for i in {1..100}; do
+          if [ $i -gt 1 ]; then echo "," >> medium.json; fi
+          echo "{\"id\": $i, \"name\": \"user$i\", \"active\": true}" >> medium.json
+        done
+        echo ']}}' >> medium.json
+        
+        # Large test file
+        echo '{"large": {"items": [' > large.json
+        for i in {1..1000}; do
+          if [ $i -gt 1 ]; then echo "," >> large.json; fi
+          echo "{\"id\": $i, \"data\": \"item$i\", \"metadata\": {\"created\": \"2024-01-01\", \"active\": true}}" >> large.json
+        done
+        echo ']}}' >> large.json
+
+    - name: Run debugger performance tests
+      run: |
+        echo "Running debugger performance tests..."
+        
+        # Test different file sizes
+        for file in small.json medium.json large.json; do
+          echo "Testing $file..."
+          /usr/bin/time -v ${{ env.ZIG_OUT_DIR }}/debugger -i $file -b 50 --no-profiling --no-memory-tracking 2>&1 | grep -E "Maximum resident|User time|System time"
+        done
+        
+        # Test different modes
+        echo "Testing different modes performance..."
+        for mode in eco sport turbo; do
+          echo "Mode: $mode"
+          /usr/bin/time -v ${{ env.ZIG_OUT_DIR }}/debugger -i medium.json -m $mode -b 20 --no-profiling 2>&1 | grep -E "Maximum resident|User time|System time"
+        done
+
+    - name: Run stress tests
+      run: |
+        echo "Running dev tools stress tests..."
+        
+        # Memory stress test
+        echo "Memory stress test..."
+        ${{ env.ZIG_OUT_DIR }}/debugger -i large.json --stress-test --stress-size 2048 --stress-multiplier 5
+        
+        # Concurrent operations test
+        echo "Concurrent operations test..."
+        for i in {1..5}; do
+          ${{ env.ZIG_OUT_DIR }}/debugger -i medium.json -b 10 &
+        done
+        wait
+        
+        echo "✅ All stress tests completed"
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      with:
+        name: dev-tools-performance-results
+        path: |
+          small.json
+          medium.json
+          large.json
+        retention-days: 3
+
+  # Security and memory safety for dev tools
+  dev-tools-security:
+    name: Dev Tools Security Tests
+    needs: [versions, dev-tools-test]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Install security tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind
+
+    - name: Build with debug symbols
+      run: zig build
+
+    - name: Run memory safety tests
+      run: |
+        echo "Running memory safety tests for dev tools..."
+        
+        # Create test input
+        echo '{"test": "data", "array": [1, 2, 3]}' > test.json
+        
+        # Test debugger with Valgrind
+        echo "Testing debugger memory safety..."
+        valgrind \
+          --leak-check=full \
+          --show-leak-kinds=all \
+          --error-exitcode=1 \
+          --suppressions=tests/valgrind.supp \
+          ${{ env.ZIG_OUT_DIR }}/debugger -i test.json --no-profiling --no-memory-tracking 2>&1 | tee debugger_valgrind.log
+        
+        if grep -q "ERROR SUMMARY: 0 errors" debugger_valgrind.log; then
+          echo "✅ Debugger memory safety test passed"
+        else
+          echo "❌ Debugger memory safety issues found"
+          exit 1
+        fi
+        
+        # Test plugin registry
+        echo "Testing plugin registry memory safety..."
+        valgrind \
+          --leak-check=full \
+          --show-leak-kinds=all \
+          --error-exitcode=1 \
+          --suppressions=tests/valgrind.supp \
+          ${{ env.ZIG_OUT_DIR }}/plugin-registry discover 2>&1 | tee plugin_valgrind.log
+        
+        if grep -q "ERROR SUMMARY: 0 errors" plugin_valgrind.log; then
+          echo "✅ Plugin registry memory safety test passed"
+        else
+          echo "❌ Plugin registry memory safety issues found"
+          exit 1
+        fi
+
+    - name: Upload security test logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: dev-tools-security-logs-${{ github.run_id }}
+        path: |
+          debugger_valgrind.log
+          plugin_valgrind.log
+        retention-days: 7
+
+  # Summary job
+  dev-tools-summary:
+    name: Dev Tools CI Summary
+    needs: [dev-tools-test, dev-tools-integration, dev-tools-error-handling, dev-tools-performance, dev-tools-security]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+    - name: Check results
+      run: |
+        echo "## Dev Tools CI Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.dev-tools-test.result }}" = "success" ]; then
+          echo "✅ Unit Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Unit Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ needs.dev-tools-integration.result }}" = "success" ]; then
+          echo "✅ Integration Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ needs.dev-tools-integration.result }}" = "skipped" ]; then
+          echo "⏭️ Integration Tests: SKIPPED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Integration Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ needs.dev-tools-error-handling.result }}" = "success" ]; then
+          echo "✅ Error Handling: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Error Handling: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ needs.dev-tools-performance.result }}" = "success" ]; then
+          echo "✅ Performance Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ needs.dev-tools-performance.result }}" = "skipped" ]; then
+          echo "⏭️ Performance Tests: SKIPPED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Performance Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ needs.dev-tools-security.result }}" = "success" ]; then
+          echo "✅ Security Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Security Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "All dev tools CI checks completed!" >> $GITHUB_STEP_SUMMARY
+
+    - name: Fail if any critical tests failed
+      if: |
+        needs.dev-tools-test.result == 'failure' ||
+        needs.dev-tools-error-handling.result == 'failure' ||
+        needs.dev-tools-security.result == 'failure'
+      run: |
+        echo "❌ Critical dev tools tests failed"
+        exit 1

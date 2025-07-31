@@ -1,0 +1,432 @@
+name: Release Dev Tools
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag'
+        required: true
+        default: 'v1.0.0'
+      draft:
+        description: 'Create as draft release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PACKAGE_PREFIX: zmin-dev-tools
+
+jobs:
+  # Read versions
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      zig-version: ${{ steps.versions.outputs.zig }}
+      zmin-version: ${{ steps.versions.outputs.zmin }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/versions.json
+
+      - name: Read versions
+        id: versions
+        run: |
+          echo "zig=$(jq -r '.zig' .github/versions.json)" >> $GITHUB_OUTPUT
+          echo "zmin=$(jq -r '.zmin' .github/versions.json)" >> $GITHUB_OUTPUT
+
+  # Build and package for multiple platforms
+  package:
+    name: Package for ${{ matrix.platform }}
+    needs: versions
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+          - os: macos-latest
+            platform: macos
+            arch: x86_64
+          - os: macos-14
+            platform: macos
+            arch: aarch64
+          - os: windows-latest
+            platform: windows
+            arch: x86_64
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ needs.versions.outputs.zig-version }}
+
+    - name: Cache Zig artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/zig
+          zig-cache
+        key: ${{ runner.os }}-zig-release-${{ hashFiles('build.zig', 'build.zig.zon') }}
+        restore-keys: |
+          ${{ runner.os }}-zig-release-
+          ${{ runner.os }}-zig-
+
+    - name: Install packaging dependencies (Ubuntu)
+      if: matrix.platform == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zip
+
+    - name: Install packaging dependencies (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        # macOS should have zip by default
+        which zip || brew install zip
+
+    - name: Install packaging dependencies (Windows)
+      if: matrix.platform == 'windows'
+      run: |
+        # Windows should have PowerShell for compression
+        echo "Using PowerShell compression"
+
+    - name: Build dev tools
+      run: |
+        zig build tools --release=fast
+
+    - name: Package dev tools (Unix)
+      if: matrix.platform != 'windows'
+      run: |
+        chmod +x scripts/packaging/package-dev-tools.sh
+        ./scripts/packaging/package-dev-tools.sh
+
+    - name: Package dev tools (Windows)
+      if: matrix.platform == 'windows'
+      shell: powershell
+      run: |
+        # Windows packaging script
+        $version = (Get-Content .github/versions.json | ConvertFrom-Json).zmin
+        $packageName = "${{ env.PACKAGE_PREFIX }}-$version-${{ matrix.platform }}-${{ matrix.arch }}"
+        $packagePath = "dist/$packageName"
+        
+        # Create package structure
+        New-Item -ItemType Directory -Force -Path "$packagePath/bin"
+        New-Item -ItemType Directory -Force -Path "$packagePath/docs"
+        New-Item -ItemType Directory -Force -Path "$packagePath/examples"
+        
+        # Copy binaries
+        $tools = @("config-manager", "dev-server", "debugger", "profiler", "plugin-registry", "hot-reloading")
+        foreach ($tool in $tools) {
+          if (Test-Path "zig-out/bin/$tool.exe") {
+            Copy-Item "zig-out/bin/$tool.exe" "$packagePath/bin/"
+          }
+        }
+        
+        # Copy main binary
+        if (Test-Path "zig-out/bin/zmin.exe") {
+          Copy-Item "zig-out/bin/zmin.exe" "$packagePath/bin/"
+        }
+        
+        # Copy documentation
+        if (Test-Path "README.md") {
+          Copy-Item "README.md" "$packagePath/docs/"
+        }
+        if (Test-Path "LICENSE") {
+          Copy-Item "LICENSE" "$packagePath/"
+        }
+        
+        # Create install script
+        @'
+        @echo off
+        echo Installing zmin dev tools...
+        
+        set "INSTALL_DIR=%ProgramFiles%\zmin-dev-tools"
+        
+        if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+        
+        copy bin\*.exe "%INSTALL_DIR%\"
+        
+        echo.
+        echo Installation complete!
+        echo Add %INSTALL_DIR% to your PATH to use the tools.
+        pause
+        '@ | Out-File -FilePath "$packagePath/install.bat" -Encoding ASCII
+        
+        # Create README
+        @"
+        # zmin Development Tools v$version
+        
+        Windows package for zmin development tools.
+        
+        ## Installation
+        
+        Run install.bat as Administrator to install to Program Files.
+        
+        ## Tools
+        
+        - zmin.exe - Main JSON minifier
+        - debugger.exe - Performance debugger
+        - dev-server.exe - Development server
+        - profiler.exe - Performance profiler
+        - config-manager.exe - Configuration manager
+        - plugin-registry.exe - Plugin manager
+        - hot-reloading.exe - File watcher
+        
+        ## Usage
+        
+        Add the installation directory to your PATH, then:
+        
+        ```cmd
+        zmin input.json
+        debugger --help
+        dev-server 8080
+        ```
+        "@ | Out-File -FilePath "$packagePath/README.md" -Encoding UTF8
+        
+        # Create archive
+        Compress-Archive -Path "$packagePath" -DestinationPath "dist/$packageName.zip"
+        
+        echo "Created package: $packageName.zip"
+
+    - name: Generate checksums
+      shell: bash
+      run: |
+        cd dist
+        if [ "${{ matrix.platform }}" = "windows" ]; then
+          sha256sum *.zip > checksums-${{ matrix.platform }}-${{ matrix.arch }}.txt
+        else
+          sha256sum *.tar.gz > checksums-${{ matrix.platform }}-${{ matrix.arch }}.txt
+        fi
+
+    - name: Upload package artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PACKAGE_PREFIX }}-${{ matrix.platform }}-${{ matrix.arch }}
+        path: |
+          dist/*.tar.gz
+          dist/*.zip
+          dist/checksums-*.txt
+          dist/package-info.json
+        retention-days: 30
+
+  # Create GitHub release
+  release:
+    name: Create Release
+    needs: [package, versions]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        
+        # Move all packages to release assets
+        find artifacts -name "*.tar.gz" -exec cp {} release-assets/ \;
+        find artifacts -name "*.zip" -exec cp {} release-assets/ \;
+        find artifacts -name "checksums-*.txt" -exec cp {} release-assets/ \;
+        
+        # Create combined checksums file
+        cat artifacts/*/checksums-*.txt > release-assets/SHA256SUMS.txt
+        
+        # List assets
+        echo "Release assets:"
+        ls -la release-assets/
+
+    - name: Generate release notes
+      run: |
+        VERSION="${{ github.event.inputs.tag || github.event.release.tag_name }}"
+        ZMIN_VERSION="${{ needs.versions.outputs.zmin-version }}"
+        
+        cat > release-notes.md << EOF
+        # zmin Development Tools $VERSION
+        
+        Complete development toolkit for zmin JSON minification and optimization.
+        
+        ## What's Included
+        
+        ### Core Tools
+        - **zmin**: Main JSON minifier with eco/sport/turbo modes
+        - **debugger**: Performance analysis and debugging tool
+        - **dev-server**: Development server with REST API
+        - **profiler**: Performance profiling and benchmarking
+        
+        ### Development Tools
+        - **config-manager**: Configuration file management
+        - **plugin-registry**: Plugin discovery and management
+        - **hot-reloading**: File watching and auto-reload
+        
+        ## Supported Platforms
+        
+        - **Linux x86_64**: \`zmin-dev-tools-$VERSION-linux-x86_64.tar.gz\`
+        - **macOS x86_64**: \`zmin-dev-tools-$VERSION-macos-x86_64.tar.gz\`
+        - **macOS Apple Silicon**: \`zmin-dev-tools-$VERSION-macos-aarch64.tar.gz\`
+        - **Windows x86_64**: \`zmin-dev-tools-$VERSION-windows-x86_64.zip\`
+        
+        ## Installation
+        
+        ### Unix/Linux/macOS
+        \`\`\`bash
+        tar -xzf zmin-dev-tools-$VERSION-<platform>-<arch>.tar.gz
+        cd zmin-dev-tools-$VERSION-<platform>-<arch>
+        ./install.sh
+        \`\`\`
+        
+        ### Windows
+        1. Download \`zmin-dev-tools-$VERSION-windows-x86_64.zip\`
+        2. Extract the archive
+        3. Run \`install.bat\` as Administrator
+        
+        ## Quick Start
+        
+        \`\`\`bash
+        # Start development server
+        dev-server 8080
+        
+        # Analyze performance
+        echo '{"test": "data"}' | debugger --benchmark 50
+        
+        # Profile different modes
+        profiler --input data.json --modes eco,sport,turbo
+        
+        # Discover plugins
+        plugin-registry discover
+        \`\`\`
+        
+        ## Verification
+        
+        Verify package integrity using SHA256 checksums:
+        \`\`\`bash
+        sha256sum -c SHA256SUMS.txt
+        \`\`\`
+        
+        ## Documentation
+        
+        - [Tool Documentation](https://github.com/user/zmin/tree/main/tools/docs)
+        - [API Reference](https://github.com/user/zmin/tree/main/docs/api)
+        - [Examples](https://github.com/user/zmin/tree/main/tools/examples)
+        
+        ---
+        
+        **Full Changelog**: https://github.com/user/zmin/compare/v${{ needs.versions.outputs.zmin-version }}...$VERSION
+        EOF
+
+    - name: Create Release
+      if: github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.tag }}
+        name: "zmin Dev Tools ${{ github.event.inputs.tag }}"
+        body_path: release-notes.md
+        draft: ${{ github.event.inputs.draft }}
+        files: |
+          release-assets/*
+        generate_release_notes: false
+
+    - name: Update Release
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.release.tag_name }}
+        body_path: release-notes.md
+        files: |
+          release-assets/*
+        append_body: true
+
+  # Publish to package registries (optional)
+  publish:
+    name: Publish Packages
+    needs: [release, versions]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && !github.event.release.draft
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download release artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Prepare for publishing
+      run: |
+        echo "Preparing packages for publishing..."
+        
+        # Create package metadata
+        VERSION="${{ github.event.release.tag_name }}"
+        cat > package-metadata.json << EOF
+        {
+          "name": "zmin-dev-tools",
+          "version": "$VERSION",
+          "description": "Development tools for zmin JSON minifier",
+          "homepage": "https://github.com/user/zmin",
+          "repository": "https://github.com/user/zmin",
+          "license": "MIT",
+          "platforms": {
+            "linux-x86_64": "zmin-dev-tools-$VERSION-linux-x86_64.tar.gz",
+            "macos-x86_64": "zmin-dev-tools-$VERSION-macos-x86_64.tar.gz", 
+            "macos-aarch64": "zmin-dev-tools-$VERSION-macos-aarch64.tar.gz",
+            "windows-x86_64": "zmin-dev-tools-$VERSION-windows-x86_64.zip"
+          },
+          "tools": [
+            "zmin",
+            "debugger", 
+            "dev-server",
+            "profiler",
+            "config-manager",
+            "plugin-registry",
+            "hot-reloading"
+          ]
+        }
+        EOF
+        
+        echo "Package metadata created"
+
+    - name: Publish to Homebrew (macOS)
+      if: success()
+      run: |
+        echo "📦 Publishing to Homebrew would happen here"
+        echo "This would create a formula for macOS users"
+        # In a real scenario, this would:
+        # 1. Fork homebrew-core or create a tap
+        # 2. Create/update the formula
+        # 3. Submit a PR
+
+    - name: Publish to AUR (Linux)
+      if: success()
+      run: |
+        echo "📦 Publishing to AUR would happen here"
+        echo "This would create a PKGBUILD for Arch Linux users"
+        # In a real scenario, this would:
+        # 1. Create/update PKGBUILD
+        # 2. Submit to AUR
+
+    - name: Publish to Chocolatey (Windows)
+      if: success()
+      run: |
+        echo "📦 Publishing to Chocolatey would happen here"
+        echo "This would create a package for Windows users"
+        # In a real scenario, this would:
+        # 1. Create chocolatey package
+        # 2. Submit to chocolatey.org
+
+    - name: Update package index
+      run: |
+        echo "✅ Package publishing workflow completed"
+        echo "Published version: ${{ github.event.release.tag_name }}"
