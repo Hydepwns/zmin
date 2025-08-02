@@ -233,10 +233,10 @@ jobs:
         body: |
           # zmin ${{ steps.get_tag.outputs.tag_name }}
           
-          Ultra-high-performance JSON minifier with **3.5+ GB/s** throughput.
+          World's fastest JSON minifier with **5+ GB/s** throughput.
           
           ## 🚀 Performance
-          - **3.5+ GB/s** throughput on modern hardware
+          - **5+ GB/s** throughput on modern hardware
           - **Zero-copy** streaming for large files
           - **Multi-threaded** parallel processing
           - **Memory-efficient** with configurable limits

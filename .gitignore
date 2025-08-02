@@ -10,7 +10,6 @@ zig-out/
 
 # Build executables and libraries
 numa_allocator
-test_*
 lib*_test.a
 generate-api-docs
 generate-api-docs.o
@@ -44,7 +43,7 @@ Thumbs.db
 .claude/
 
 # Build directories
-dist/
+!dist/dist-manifest.json
 target/
 
 # Hugo build artifacts (but not the build/ directory with Zig files)

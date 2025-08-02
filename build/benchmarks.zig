@@ -44,4 +44,20 @@ pub fn createBenchmarks(b: *std.Build, config: types.Config, modules: types.Modu
     const run_simd_benchmark = b.addRunArtifact(simd_benchmark);
     const simd_benchmark_step = b.step("benchmark:simd", "Benchmark SIMD whitespace detection");
     simd_benchmark_step.dependOn(&run_simd_benchmark.step);
+
+    // Phase 2 performance benchmark
+    const phase2_benchmark = b.addExecutable(.{
+        .name = "phase2-benchmark",
+        .root_source_file = b.path("tests/benchmarks/phase2_performance_test.zig"),
+        .target = config.target,
+        .optimize = .ReleaseFast,
+    });
+    phase2_benchmark.root_module.addImport("src", modules.lib_mod);
+    phase2_benchmark.root_module.addImport("modes", modules.modes_mod);
+    phase2_benchmark.root_module.addImport("turbo_unified", modules.turbo_unified_mod);
+    phase2_benchmark.root_module.addImport("minifier_interface", modules.minifier_interface_mod);
+
+    const run_phase2_benchmark = b.addRunArtifact(phase2_benchmark);
+    const phase2_benchmark_step = b.step("benchmark:phase2", "Run Phase 2 algorithmic revolution benchmark");
+    phase2_benchmark_step.dependOn(&run_phase2_benchmark.step);
 }

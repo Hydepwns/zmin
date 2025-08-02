@@ -282,4 +282,21 @@ pub fn createTestSuite(b: *std.Build, config: types.Config, modules: types.Modul
     // test_dev_tools_step.dependOn(&run_debugger_unit_tests.step);
     // test_dev_tools_step.dependOn(&run_plugin_registry_unit_tests.step);
     // test_dev_tools_step.dependOn(&run_dev_tools_test_suite.step);
+
+    // V2 Streaming Engine Tests
+    const v2_tests = b.addTest(.{
+        .root_source_file = b.path("tests/v2/all_tests.zig"),
+        .target = config.target,
+        .optimize = config.optimize,
+    });
+    v2_tests.root_module.addImport("src", modules.lib_mod);
+
+    const run_v2_tests = b.addRunArtifact(v2_tests);
+
+    // Add v2 tests to main test step
+    test_step.dependOn(&run_v2_tests.step);
+
+    // Create v2-specific test step
+    const test_v2_step = b.step("test:v2", "Run v2 streaming engine tests");
+    test_v2_step.dependOn(&run_v2_tests.step);
 }
