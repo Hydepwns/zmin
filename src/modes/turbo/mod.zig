@@ -9,6 +9,8 @@ const interface = @import("core/interface.zig");
 // Import all strategies
 const scalar = @import("strategies/scalar.zig");
 const simd = @import("strategies/simd.zig");
+const simdjson_inspired = @import("strategies/simdjson_inspired.zig");
+const pipeline_parallel = @import("strategies/pipeline_parallel.zig");
 const parallel = @import("strategies/parallel.zig");
 const streaming = @import("strategies/streaming.zig");
 
@@ -71,18 +73,30 @@ pub const TurboMinifier = struct {
 
         // For medium files, prefer SIMD if available
         if (input_size < 10 * 1024 * 1024) {
+            // Try simdjson-inspired strategy first (requires AVX-512)
+            if (simdjson_inspired.SimdJsonInspiredStrategy.strategy.isAvailable() and config.enable_simd) {
+                return &simdjson_inspired.SimdJsonInspiredStrategy.strategy;
+            }
+            // Fall back to regular SIMD
             if (simd.SimdStrategy.strategy.isAvailable() and config.enable_simd) {
                 return self.getStrategy(.simd);
             }
             return self.getStrategy(.scalar);
         }
 
-        // For large files, prefer parallel if we have multiple cores
-        if (self.capabilities.cpu_cores > 1 and parallel.ParallelStrategy.strategy.isAvailable()) {
+        // For large files, prefer parallel strategies if we have multiple cores
+        if (self.capabilities.cpu_cores >= 4 and pipeline_parallel.PipelineParallelStrategy.strategy.isAvailable()) {
+            // Use pipeline parallelism for best performance with 4+ cores
+            return &pipeline_parallel.PipelineParallelStrategy.strategy;
+        } else if (self.capabilities.cpu_cores > 1 and parallel.ParallelStrategy.strategy.isAvailable()) {
+            // Use standard parallel for 2-3 cores
             return self.getStrategy(.parallel);
         }
 
         // Fallback to SIMD or scalar
+        if (simdjson_inspired.SimdJsonInspiredStrategy.strategy.isAvailable() and config.enable_simd) {
+            return &simdjson_inspired.SimdJsonInspiredStrategy.strategy;
+        }
         if (simd.SimdStrategy.strategy.isAvailable() and config.enable_simd) {
             return self.getStrategy(.simd);
         }

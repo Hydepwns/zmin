@@ -146,6 +146,74 @@ pub const SimdStrategy = struct {
         var escape_next = false;
 
         // Process 64-byte chunks with TRUE AVX-512 vectorization
+        // Enhanced with chunked processing - process 4 blocks at once for better throughput
+        const BLOCKS_PER_ITER = 4;
+        const CHUNK_SIZE = 64 * BLOCKS_PER_ITER; // 256 bytes per iteration
+        
+        while (pos + CHUNK_SIZE <= input.len and !in_string and !escape_next) {
+            // Process 4 blocks in a single iteration for better pipeline utilization
+            var block_idx: usize = 0;
+            while (block_idx < BLOCKS_PER_ITER) : (block_idx += 1) {
+                const block_pos = pos + (block_idx * 64);
+                const chunk = input[block_pos..][0..64];
+                
+                // Prefetch next chunk for cache optimization
+                if (block_pos + 128 < input.len) {
+                    @prefetch(input.ptr + block_pos + 128, .{ .rw = .read, .cache = .data });
+                }
+            
+            // Load 64 bytes into AVX-512 vector
+            const vec_input: @Vector(64, u8) = chunk[0..64].*;
+            
+            // Create whitespace mask vectors for comparison
+            const space_vec: @Vector(64, u8) = @splat(' ');
+            const tab_vec: @Vector(64, u8) = @splat('\t');
+            const newline_vec: @Vector(64, u8) = @splat('\n');
+            const carriage_vec: @Vector(64, u8) = @splat('\r');
+            
+            // Vectorized whitespace detection - create boolean masks
+            const is_space = vec_input == space_vec;
+            const is_tab = vec_input == tab_vec;
+            const is_newline = vec_input == newline_vec;
+            const is_carriage = vec_input == carriage_vec;
+            
+            // Combine whitespace masks 
+            var is_whitespace: @Vector(64, bool) = is_space;
+            for (0..64) |i| {
+                is_whitespace[i] = is_space[i] or is_tab[i] or is_newline[i] or is_carriage[i];
+            }
+            
+            // Check for quotes to handle string boundaries
+            const quote_vec: @Vector(64, u8) = @splat('"');
+            const is_quote = vec_input == quote_vec;
+            
+            // Check for escape characters
+            const escape_vec: @Vector(64, u8) = @splat('\\');
+            const is_escape = vec_input == escape_vec;
+            
+            // If we hit quotes or escapes, fall back to scalar processing for this chunk
+            const has_quotes = @reduce(.Or, is_quote);
+            const has_escapes = @reduce(.Or, is_escape);
+            
+            if (has_quotes or has_escapes) {
+                // Fall back to scalar processing for complex cases
+                break;
+            }
+            
+            // Create keep mask (inverse of whitespace mask)
+            var keep_mask: @Vector(64, bool) = undefined;
+            for (0..64) |i| {
+                keep_mask[i] = !is_whitespace[i];
+            }
+            
+            // Compact non-whitespace characters using vectorized approach
+            const kept_count = compactVectorized(vec_input, keep_mask, output[out_pos..]);
+            out_pos += kept_count;
+            }
+            pos += CHUNK_SIZE;
+        }
+        
+        // Process remaining full 64-byte chunks
         while (pos + 64 <= input.len and !in_string and !escape_next) {
             const chunk = input[pos..][0..64];
             
