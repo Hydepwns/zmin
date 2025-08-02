@@ -38,7 +38,15 @@ pub fn minifyCore(input: []const u8, output: []u8) usize {
     var in_string = false;
     var escape_next = false;
 
-    for (input) |char| {
+    // Process with prefetching for better cache utilization
+    var i: usize = 0;
+    while (i < input.len) : (i += 1) {
+        // Prefetch next cache line (64 bytes ahead)
+        if (i + 64 < input.len) {
+            @prefetch(input.ptr + i + 64, .{ .rw = .read, .cache = .data });
+        }
+        
+        const char = input[i];
         // Fast path for escaped characters
         if (escape_next) {
             output[out_pos] = char;

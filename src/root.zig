@@ -19,6 +19,12 @@ pub const ProcessingMode = modes.ProcessingMode;
 // Export minifier interface
 pub const MinifierInterface = @import("minifier_interface").MinifierInterface;
 
+// Export v2 streaming transformation engine
+pub const v2 = @import("v2/mod.zig");
+pub const ZminEngine = v2.ZminEngine;
+pub const StreamingParser = v2.StreamingParser;
+pub const TransformationPipeline = v2.TransformationPipeline;
+
 // Convenience functions
 pub fn minify(allocator: std.mem.Allocator, input: []const u8, mode: ProcessingMode) ![]u8 {
     return MinifierInterface.minifyString(allocator, mode, input);
@@ -36,4 +42,13 @@ pub fn validate(input: []const u8) !void {
 
     try parser.feed(input);
     try parser.flush();
+}
+
+// v2 convenience functions
+pub fn minifyV2(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+    return v2.minify(allocator, input);
+}
+
+pub fn benchmarkV2(allocator: std.mem.Allocator, input: []const u8, iterations: usize) !v2.BenchmarkResult {
+    return v2.benchmark(allocator, input, iterations);
 }
