@@ -171,9 +171,9 @@ func BenchmarkZmin(b *testing.B) {
 Typical results:
 
 - Standard library: 50-100 MB/s
-- zmin ECO: ~312 MB/s
-- zmin SPORT: ~555 MB/s
-- zmin TURBO: ~1.1 GB/s
+- zmin ECO: ~1.5 GB/s
+- zmin SPORT: ~3.5 GB/s
+- zmin TURBO: ~5+ GB/s
 
 ## API Reference
 

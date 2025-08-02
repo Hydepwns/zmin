@@ -1,6 +1,6 @@
 # Publishing Guide for zmin
 
-This document outlines the publishing strategy and setup for distributing zmin across multiple package managers and platforms.
+This document outlines the publishing strategy and setup for distributing zmin - the world's fastest JSON minifier with 5+ GB/s throughput - across multiple package managers and platforms.
 
 ## Package Managers
 

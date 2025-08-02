@@ -8,6 +8,11 @@ This directory contains examples demonstrating various use cases for zmin.
 - [mode_selection.zig](mode_selection.zig) - Using different processing modes
 - [streaming.zig](streaming.zig) - Processing large files with streaming
 
+## v2.0 Streaming Engine Examples
+
+- [v2_basic_example.zig](v2_basic_example.zig) - v2.0 character-based minifier demonstration
+- [v2_streaming_example.zig](v2_streaming_example.zig) - v2.0 streaming transformation pipeline
+
 ## Advanced Examples
 
 - [parallel_batch.zig](parallel_batch.zig) - Batch processing multiple files
