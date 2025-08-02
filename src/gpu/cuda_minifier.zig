@@ -144,8 +144,25 @@ pub const CudaMinifier = struct {
     }
 
     fn processChunk(self: *CudaMinifier, input: []const u8, output: []u8) !usize {
-        // This would call actual CUDA kernels
-        // For now, simulate with CPU fallback
+        // Use actual CUDA GPU processing for large chunks
+        if (input.len >= 1024 * 1024 and self.initialized) { // >= 1MB
+            var output_length: usize = 0;
+            const cuda_result = gpuMinifyJSON(
+                input.ptr,
+                output.ptr,
+                input.len,
+                &output_length
+            );
+            
+            if (cuda_result == 0 and output_length > 0 and output_length <= output.len) {
+                return output_length;
+            }
+            
+            // Fall back to CPU if GPU processing fails
+            std.log.warn("GPU processing failed (code: {}), falling back to CPU", .{cuda_result});
+        }
+        
+        // CPU fallback for small chunks or GPU failure
         const result = try zmin.minifyWithMode(self.allocator, input, .turbo);
         defer self.allocator.free(result);
 
@@ -187,10 +204,17 @@ pub const CudaMinifier = struct {
 
 /// Check if CUDA is available on the system
 pub fn isCudaAvailable() bool {
-    // In real implementation, would check for CUDA runtime
-    // For now, return false to indicate CPU fallback
-    return false;
+    var device_count: c_int = 0;
+    var memory_mb: usize = 0;
+    
+    // Call external CUDA function to check capability
+    const result = checkCUDACapability(&device_count, &memory_mb);
+    return result == 0 and device_count > 0 and memory_mb >= 512; // Require at least 512MB GPU memory
 }
+
+// External CUDA functions
+extern "C" fn checkCUDACapability(device_count: *c_int, memory_mb: *usize) c_int;
+extern "C" fn gpuMinifyJSON(input: [*]const u8, output: [*]u8, input_length: usize, output_length: *usize) c_int;
 
 /// Get list of available CUDA devices
 pub fn getDevices(allocator: std.mem.Allocator) ![]GpuDevice {
