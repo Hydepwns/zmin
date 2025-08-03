@@ -1,4 +1,5 @@
 {{ define "main" }}
+{{ partial "breadcrumb.html" . }}
 <article class="doc-template">
   <header class="doc-header">
     <h1>{{ .Title }}</h1>
@@ -26,14 +27,7 @@
       {{ end }}
     </div>
 
-    <div class="doc-actions">
-      <a href="https://github.com/hydepwns/zmin/edit/main/content/{{ .File.Path }}" class="action-link" target="_blank">
-        Edit this page
-      </a>
-      <a href="https://github.com/hydepwns/zmin/issues/new" class="action-link" target="_blank">
-        Report an issue
-      </a>
-    </div>
+    {{ partial "edit-page.html" . }}
   </footer>
 </article>
 {{ end }}

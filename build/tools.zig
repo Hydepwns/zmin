@@ -5,7 +5,7 @@ pub fn createTools(b: *std.Build, config: types.Config, modules: types.ModuleReg
     // Performance demo
     const perf_exe = b.addExecutable(.{
         .name = "performance_demo",
-        .root_source_file = b.path("dev-tools/performance_demo.zig"),
+        .root_source_file = b.path("tools/dev/performance_demo.zig"),
         .target = config.target,
         .optimize = config.optimize,
     });
@@ -20,7 +20,7 @@ pub fn createTools(b: *std.Build, config: types.Config, modules: types.ModuleReg
     // CI/CD Tools
     const performance_monitor_exe = b.addExecutable(.{
         .name = "performance-monitor",
-        .root_source_file = b.path("dev-tools/performance_monitor.zig"),
+        .root_source_file = b.path("tools/dev/performance_monitor.zig"),
         .target = config.target,
         .optimize = config.optimize,
     });
@@ -28,7 +28,7 @@ pub fn createTools(b: *std.Build, config: types.Config, modules: types.ModuleReg
 
     const badge_generator_exe = b.addExecutable(.{
         .name = "badge-generator",
-        .root_source_file = b.path("dev-tools/generate_badges.zig"),
+        .root_source_file = b.path("tools/dev/generate_badges.zig"),
         .target = config.target,
         .optimize = config.optimize,
     });
@@ -37,7 +37,7 @@ pub fn createTools(b: *std.Build, config: types.Config, modules: types.ModuleReg
     // Phase 4: Developer tools
     const zmin_format_exe = b.addExecutable(.{
         .name = "zmin-format",
-        .root_source_file = b.path("dev-tools/zmin-format-simple.zig"),
+        .root_source_file = b.path("tools/dev/zmin-format-simple.zig"),
         .target = config.target,
         .optimize = config.optimize,
     });
@@ -45,7 +45,7 @@ pub fn createTools(b: *std.Build, config: types.Config, modules: types.ModuleReg
 
     const zmin_validate_exe = b.addExecutable(.{
         .name = "zmin-validate",
-        .root_source_file = b.path("dev-tools/zmin-validate-simple.zig"),
+        .root_source_file = b.path("tools/dev/zmin-validate-simple.zig"),
         .target = config.target,
         .optimize = config.optimize,
     });
@@ -54,12 +54,12 @@ pub fn createTools(b: *std.Build, config: types.Config, modules: types.ModuleReg
 
     // Development tools
     const dev_tools = [_]struct { name: []const u8, path: []const u8 }{
-        .{ .name = "config-manager", .path = "dev-tools/config_manager.zig" },
-        .{ .name = "hot-reloading", .path = "dev-tools/hot_reloading.zig" },
-        .{ .name = "dev-server", .path = "dev-tools/dev_server.zig" },
-        .{ .name = "profiler", .path = "dev-tools/profiler.zig" },
-        .{ .name = "debugger", .path = "dev-tools/debugger.zig" },
-        .{ .name = "plugin-registry", .path = "dev-tools/plugin_registry.zig" },
+        .{ .name = "config-manager", .path = "tools/dev/config_manager.zig" },
+        .{ .name = "hot-reloading", .path = "tools/dev/hot_reloading.zig" },
+        .{ .name = "dev-server", .path = "tools/dev/dev_server.zig" },
+        .{ .name = "profiler", .path = "tools/dev/profiler.zig" },
+        .{ .name = "debugger", .path = "tools/dev/debugger.zig" },
+        .{ .name = "plugin-registry", .path = "tools/dev/plugin_registry.zig" },
     };
 
     for (dev_tools) |tool| {

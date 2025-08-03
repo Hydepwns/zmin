@@ -1,0 +1,116 @@
+/* Edit this page link styles */
+.edit-page {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.edit-page__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.edit-page__link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #e2e8f0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.edit-page__link:active {
+    transform: translateY(0);
+}
+
+.edit-page__icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+}
+
+.edit-page__text {
+    white-space: nowrap;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .edit-page {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .edit-page__link {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #64748b;
+}
+
+[data-theme="light"] .edit-page__link:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.2);
+    color: #334155;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .edit-page {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        justify-content: center;
+    }
+    
+    .edit-page__link {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+}
+
+/* Focus styles for accessibility */
+.edit-page__link:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    [data-theme="light"] .edit-page__link {
+        background: #fff;
+        border-color: #000;
+        color: #000;
+    }
+    
+    [data-theme="dark"] .edit-page__link {
+        background: #000;
+        border-color: #fff;
+        color: #fff;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .edit-page__link {
+        transition: none;
+    }
+    
+    .edit-page__link:hover {
+        transform: none;
+    }
+}
+
+/* Print styles */
+@media print {
+    .edit-page {
+        display: none;
+    }
+}

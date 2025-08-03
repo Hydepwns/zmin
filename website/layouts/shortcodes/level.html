@@ -1,0 +1,12 @@
+{{ $level := .Get 0 | default "beginner" }}
+{{ $validLevels := slice "beginner" "intermediate" "advanced" }}
+
+{{ if in $validLevels $level }}
+<div class="level-content" data-level="{{ $level }}">
+    {{ .Inner | markdownify }}
+</div>
+{{ else }}
+<div class="level-content" data-level="beginner">
+    {{ .Inner | markdownify }}
+</div>
+{{ end }}

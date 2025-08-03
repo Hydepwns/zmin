@@ -1,0 +1,251 @@
+<!-- Performance Dashboard Shortcode -->
+<div class="performance-dashboard">
+    <h2>Real-time Performance Metrics</h2>
+    
+    <!-- Current Performance -->
+    <div class="performance-section">
+        <h3>Current Performance</h3>
+        <div class="performance-cards">
+            <div class="perf-card">
+                <div class="perf-metric" id="throughput">
+                    <span class="perf-value">--</span>
+                    <span class="perf-unit">GB/s</span>
+                </div>
+                <div class="perf-label">Throughput</div>
+            </div>
+            
+            <div class="perf-card">
+                <div class="perf-metric" id="memory">
+                    <span class="perf-value">--</span>
+                    <span class="perf-unit">MB</span>
+                </div>
+                <div class="perf-label">Peak Memory</div>
+            </div>
+            
+            <div class="perf-card">
+                <div class="perf-metric" id="binary-size">
+                    <span class="perf-value">--</span>
+                    <span class="perf-unit">KB</span>
+                </div>
+                <div class="perf-label">Binary Size</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Performance History Chart -->
+    <div class="performance-section">
+        <h3>Performance History (30 days)</h3>
+        <canvas id="performance-chart" width="800" height="400"></canvas>
+    </div>
+    
+    <!-- Comparison Matrix -->
+    <div class="performance-section">
+        <h3>Performance Comparison</h3>
+        <div id="comparison-matrix" class="comparison-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Library</th>
+                        <th>Version</th>
+                        <th>Throughput</th>
+                        <th>Memory Usage</th>
+                        <th>Binary Size</th>
+                    </tr>
+                </thead>
+                <tbody id="comparison-tbody">
+                    <!-- Populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Benchmark Details -->
+    <div class="performance-section">
+        <h3>Benchmark Details</h3>
+        <div id="benchmark-details" class="benchmark-grid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+    
+    <!-- Last Updated -->
+    <div class="performance-footer">
+        <p>Last updated: <span id="last-updated">--</span></p>
+        <p>System: <span id="system-info">--</span></p>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    'use strict';
+    
+    // Load performance data
+    async function loadPerformanceData() {
+        try {
+            // Load current performance
+            const perfResponse = await fetch('/data/performance.json');
+            const perfData = await perfResponse.json();
+            
+            // Load comparison data
+            const compResponse = await fetch('/data/comparison.json');
+            const compData = await compResponse.json();
+            
+            // Load historical data
+            const histResponse = await fetch('/data/performance-history.json');
+            const histData = await histResponse.json();
+            
+            // Update dashboard
+            updateCurrentMetrics(perfData);
+            updateComparisonMatrix(compData);
+            updateBenchmarkDetails(perfData);
+            updatePerformanceChart(histData);
+            updateSystemInfo(perfData);
+            
+        } catch (error) {
+            console.error('Failed to load performance data:', error);
+            showError('Failed to load performance data');
+        }
+    }
+    
+    function updateCurrentMetrics(data) {
+        // Calculate average throughput
+        const benchmarks = data.benchmarks;
+        const throughputs = Object.values(benchmarks).map(b => b.throughput_mbps);
+        const avgThroughput = throughputs.reduce((a, b) => a + b, 0) / throughputs.length;
+        const throughputGB = (avgThroughput / 1024).toFixed(1);
+        
+        document.querySelector('#throughput .perf-value').textContent = throughputGB;
+        
+        if (data.memory && data.memory.peak_mb) {
+            document.querySelector('#memory .perf-value').textContent = data.memory.peak_mb;
+        }
+        
+        // Binary size (placeholder - would need actual measurement)
+        document.querySelector('#binary-size .perf-value').textContent = '256';
+    }
+    
+    function updateComparisonMatrix(data) {
+        const tbody = document.getElementById('comparison-tbody');
+        tbody.innerHTML = '';
+        
+        Object.entries(data.comparison).forEach(([lib, info]) => {
+            const row = document.createElement('tr');
+            if (lib === 'zmin') {
+                row.className = 'highlight';
+            }
+            
+            row.innerHTML = `
+                <td class="lib-name">${lib}</td>
+                <td>${info.version}</td>
+                <td class="metric">${info.throughput_gbps} GB/s</td>
+                <td class="metric">${info.memory_mb} MB</td>
+                <td class="metric">${info.binary_size_kb} KB</td>
+            `;
+            
+            tbody.appendChild(row);
+        });
+    }
+    
+    function updateBenchmarkDetails(data) {
+        const container = document.getElementById('benchmark-details');
+        container.innerHTML = '';
+        
+        Object.entries(data.benchmarks).forEach(([size, bench]) => {
+            const card = document.createElement('div');
+            card.className = 'benchmark-card';
+            card.innerHTML = `
+                <h4>${size.charAt(0).toUpperCase() + size.slice(1)} Dataset</h4>
+                <dl>
+                    <dt>File Size:</dt>
+                    <dd>${bench.file_size_mb} MB</dd>
+                    
+                    <dt>Processing Time:</dt>
+                    <dd>${(bench.mean_time_s * 1000).toFixed(2)} ms</dd>
+                    
+                    <dt>Throughput:</dt>
+                    <dd>${bench.throughput_mbps.toFixed(0)} MB/s</dd>
+                    
+                    <dt>Std Dev:</dt>
+                    <dd>±${(bench.stddev_s * 1000).toFixed(2)} ms</dd>
+                </dl>
+            `;
+            container.appendChild(card);
+        });
+    }
+    
+    function updatePerformanceChart(data) {
+        const ctx = document.getElementById('performance-chart').getContext('2d');
+        
+        // Prepare data for chart
+        const history = data.history || [];
+        const labels = history.map(h => new Date(h.timestamp).toLocaleDateString());
+        const throughputData = history.map(h => {
+            const benchmarks = h.benchmarks;
+            const throughputs = Object.values(benchmarks).map(b => b.throughput_mbps);
+            return (throughputs.reduce((a, b) => a + b, 0) / throughputs.length / 1024).toFixed(2);
+        });
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Throughput (GB/s)',
+                    data: throughputData,
+                    borderColor: 'rgb(52, 152, 219)',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Throughput (GB/s)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            }
+        });
+    }
+    
+    function updateSystemInfo(data) {
+        document.getElementById('last-updated').textContent = 
+            new Date(data.timestamp).toLocaleString();
+        
+        if (data.system) {
+            document.getElementById('system-info').textContent = 
+                `${data.system.cpu} (${data.system.cores} cores), ${data.system.memory_gb} GB RAM`;
+        }
+    }
+    
+    function showError(message) {
+        const dashboard = document.querySelector('.performance-dashboard');
+        dashboard.innerHTML = `
+            <div class="error-message">
+                <p>${message}</p>
+                <p>Performance data will be available after the next CI run.</p>
+            </div>
+        `;
+    }
+    
+    // Load data when page loads
+    document.addEventListener('DOMContentLoaded', loadPerformanceData);
+    
+    // Refresh data every 5 minutes
+    setInterval(loadPerformanceData, 5 * 60 * 1000);
+})();
+</script>

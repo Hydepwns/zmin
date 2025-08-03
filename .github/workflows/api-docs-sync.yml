@@ -1,0 +1,60 @@
+name: API Documentation Sync
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.zig'
+      - 'tools/scripts/build/generate-api-docs.zig'
+  workflow_dispatch:
+
+jobs:
+  sync-api-docs:
+    name: Sync API Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: master
+
+    - name: Generate API documentation
+      run: |
+        echo "Generating API documentation from source..."
+        make api-sync
+
+    - name: Check for changes
+      id: check-changes
+      run: |
+        if git diff --quiet website/static/api/api-reference.json; then
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+        else
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit and push changes
+      if: steps.check-changes.outputs.has_changes == 'true'
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        git add website/static/api/api-reference.json
+        git commit -m "chore: sync API documentation [skip ci]
+
+        Generated from source code in commit ${{ github.sha }}"
+        
+        git push
+
+    - name: Trigger website build
+      if: steps.check-changes.outputs.has_changes == 'true'
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        event-type: api-docs-updated
+        client-payload: '{"sha": "${{ github.sha }}"}'

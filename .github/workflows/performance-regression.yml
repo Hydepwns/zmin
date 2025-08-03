@@ -8,8 +8,8 @@ on:
       - 'build.zig'
       - 'build.zig.zon'
       - 'tests/**/*.zig'
-      - 'scripts/**/*.sh'
-      - 'benchmarks/**'
+      - 'tools/scripts/**/*.sh'
+      - 'tools/benchmarks/**'
   workflow_dispatch:
     inputs:
       force_regression_check:
@@ -19,8 +19,8 @@ on:
         type: boolean
 
 env:
-  BENCHMARKS_DIR: benchmarks/datasets
-  SCRIPTS_DIR: scripts
+  BENCHMARKS_DIR: tools/benchmarks/datasets
+  SCRIPTS_DIR: tools/scripts
   ZIG_OUT_DIR: zig-out/bin
 
 jobs:

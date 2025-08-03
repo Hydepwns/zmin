@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'dev-tools/**'
+      - 'tools/dev/**'
       - 'tests/unit/**'
       - 'tests/integration/**'
       - 'tools/**'
@@ -12,7 +12,7 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - 'dev-tools/**'
+      - 'tools/dev/**'
       - 'tests/unit/**'
       - 'tests/integration/**'
       - 'tools/**'
@@ -37,7 +37,7 @@ concurrency:
 
 env:
   ZIG_OUT_DIR: zig-out/bin
-  DEV_TOOLS_DIR: dev-tools
+  DEV_TOOLS_DIR: tools/dev
 
 jobs:
   # Read versions for consistency with main CI

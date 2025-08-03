@@ -1,0 +1,194 @@
+name: Bundle Size Tracking
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.zig'
+      - 'build.zig'
+      - 'build.zig.zon'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.zig'
+      - 'build.zig'
+      - 'build.zig.zon'
+
+jobs:
+  track-size:
+    name: Track Bundle Size
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: master
+
+    - name: Build all targets
+      run: |
+        # Build different configurations
+        zig build --release=small
+        mv zig-out/bin/zmin zmin-small
+        
+        zig build --release=fast
+        mv zig-out/bin/zmin zmin-fast
+        
+        zig build --release=safe
+        mv zig-out/bin/zmin zmin-safe
+        
+        # Build with different features
+        zig build --release=fast -Dgpu=false -Dsimd=false
+        mv zig-out/bin/zmin zmin-minimal
+
+    - name: Measure sizes
+      id: measure
+      run: |
+        # Get file sizes
+        size_small=$(stat -c%s zmin-small)
+        size_fast=$(stat -c%s zmin-fast)
+        size_safe=$(stat -c%s zmin-safe)
+        size_minimal=$(stat -c%s zmin-minimal)
+        
+        # Convert to KB
+        size_small_kb=$((size_small / 1024))
+        size_fast_kb=$((size_fast / 1024))
+        size_safe_kb=$((size_safe / 1024))
+        size_minimal_kb=$((size_minimal / 1024))
+        
+        # Strip binaries and measure again
+        strip zmin-small zmin-fast zmin-safe zmin-minimal
+        
+        stripped_small=$(stat -c%s zmin-small)
+        stripped_fast=$(stat -c%s zmin-fast)
+        stripped_safe=$(stat -c%s zmin-safe)
+        stripped_minimal=$(stat -c%s zmin-minimal)
+        
+        stripped_small_kb=$((stripped_small / 1024))
+        stripped_fast_kb=$((stripped_fast / 1024))
+        stripped_safe_kb=$((stripped_safe / 1024))
+        stripped_minimal_kb=$((stripped_minimal / 1024))
+        
+        # Output for GitHub Actions
+        echo "size_small=$size_small_kb" >> $GITHUB_OUTPUT
+        echo "size_fast=$size_fast_kb" >> $GITHUB_OUTPUT
+        echo "size_safe=$size_safe_kb" >> $GITHUB_OUTPUT
+        echo "size_minimal=$size_minimal_kb" >> $GITHUB_OUTPUT
+        echo "stripped_small=$stripped_small_kb" >> $GITHUB_OUTPUT
+        echo "stripped_fast=$stripped_fast_kb" >> $GITHUB_OUTPUT
+        echo "stripped_safe=$stripped_safe_kb" >> $GITHUB_OUTPUT
+        echo "stripped_minimal=$stripped_minimal_kb" >> $GITHUB_OUTPUT
+        
+        # Create size report
+        cat > size-report.md << EOF
+        ## Bundle Size Report
+        
+        ### Build Configurations
+        | Configuration | Size | Stripped |
+        |--------------|------|----------|
+        | ReleaseSmall | ${size_small_kb} KB | ${stripped_small_kb} KB |
+        | ReleaseFast | ${size_fast_kb} KB | ${stripped_fast_kb} KB |
+        | ReleaseSafe | ${size_safe_kb} KB | ${stripped_safe_kb} KB |
+        | Minimal (no GPU/SIMD) | ${size_minimal_kb} KB | ${stripped_minimal_kb} KB |
+        
+        ### Size Analysis
+        EOF
+        
+        # Analyze sections
+        echo '```' >> size-report.md
+        size -A zmin-fast | head -20 >> size-report.md
+        echo '```' >> size-report.md
+
+    - name: Compare with baseline
+      if: github.event_name == 'pull_request'
+      run: |
+        # Get baseline from main branch
+        git checkout origin/main
+        zig build --release=fast
+        baseline_size=$(stat -c%s zig-out/bin/zmin)
+        baseline_kb=$((baseline_size / 1024))
+        
+        # Calculate difference
+        current_kb=${{ steps.measure.outputs.size_fast }}
+        diff_kb=$((current_kb - baseline_kb))
+        diff_percent=$(echo "scale=2; ($diff_kb / $baseline_kb) * 100" | bc -l)
+        
+        # Update report
+        cat >> size-report.md << EOF
+        
+        ### Size Change
+        - Baseline: ${baseline_kb} KB
+        - Current: ${current_kb} KB
+        - Change: ${diff_kb} KB (${diff_percent}%)
+        
+        EOF
+        
+        # Add warning if size increased significantly
+        if [ $diff_kb -gt 50 ]; then
+          echo "⚠️ **Warning**: Binary size increased by more than 50 KB" >> size-report.md
+        fi
+
+    - name: Generate size badges
+      run: |
+        mkdir -p .github/badges
+        
+        # Create JSON for shields.io
+        cat > .github/badges/size.json << EOF
+        {
+          "schemaVersion": 1,
+          "label": "binary size",
+          "message": "${{ steps.measure.outputs.stripped_fast }} KB",
+          "color": "blue"
+        }
+        EOF
+
+    - name: Upload size artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: bundle-sizes
+        path: |
+          size-report.md
+          .github/badges/size.json
+
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('size-report.md', 'utf8');
+          
+          // Find existing comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && 
+            comment.body.includes('Bundle Size Report')
+          );
+          
+          const body = `📦 ${report}\n\n*Updated by Bundle Size Tracking workflow*`;
+          
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: body
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+          }

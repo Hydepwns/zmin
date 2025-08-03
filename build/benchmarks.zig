@@ -60,4 +60,16 @@ pub fn createBenchmarks(b: *std.Build, config: types.Config, modules: types.Modu
     const run_phase2_benchmark = b.addRunArtifact(phase2_benchmark);
     const phase2_benchmark_step = b.step("benchmark:phase2", "Run Phase 2 algorithmic revolution benchmark");
     phase2_benchmark_step.dependOn(&run_phase2_benchmark.step);
+
+    // V2 SIMD benchmark
+    const v2_simd_benchmark = b.addExecutable(.{
+        .name = "v2-simd-benchmark",
+        .root_source_file = b.path("src/benchmarks/v2_simd_benchmark.zig"),
+        .target = config.target,
+        .optimize = .ReleaseFast,
+    });
+
+    const run_v2_simd_benchmark = b.addRunArtifact(v2_simd_benchmark);
+    const v2_simd_benchmark_step = b.step("benchmark:v2-simd", "Run V2 SIMD parser benchmark");
+    v2_simd_benchmark_step.dependOn(&run_v2_simd_benchmark.step);
 }

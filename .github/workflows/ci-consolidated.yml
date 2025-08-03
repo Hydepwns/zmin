@@ -32,8 +32,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BENCHMARKS_DIR: benchmarks/datasets
-  SCRIPTS_DIR: scripts
+  BENCHMARKS_DIR: tools/benchmarks/datasets
+  SCRIPTS_DIR: tools/scripts
   ZIG_OUT_DIR: zig-out/bin
 
 jobs:
@@ -344,18 +344,18 @@ jobs:
 
         # Profile standard mode
         echo "Standard mode:"
-        /usr/bin/time -v ./zig-out/bin/zmin benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        /usr/bin/time -v ./zig-out/bin/zmin tools/benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
 
         # Profile with pretty printing
         echo -e "\nPretty print mode:"
-        /usr/bin/time -v ./zig-out/bin/zmin --pretty benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        /usr/bin/time -v ./zig-out/bin/zmin --pretty tools/benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
 
         # Profile parallel processing
         echo -e "\nParallel processing (default):"
-        /usr/bin/time -v ./zig-out/bin/zmin --threads 4 benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
+        /usr/bin/time -v ./zig-out/bin/zmin --threads 4 tools/benchmarks/datasets/large.json -o /dev/null 2>&1 | grep -E "Maximum resident|User time|System time"
 
         # Detailed profiling with Valgrind Massif
-        valgrind --tool=massif --massif-out-file=massif.out ./zig-out/bin/zmin benchmarks/datasets/large.json -o /dev/null
+        valgrind --tool=massif --massif-out-file=massif.out ./zig-out/bin/zmin tools/benchmarks/datasets/large.json -o /dev/null
 
         # Generate summary
         ms_print massif.out > massif_report.txt

@@ -62,11 +62,11 @@ jobs:
         fi
 
     - name: Generate test datasets
-      if: hashFiles('scripts/generate_test_data.py') != ''
+      if: hashFiles('tools/scripts/benchmarks/generate_test_data.py') != ''
       run: |
-        if [ ! -d benchmarks/datasets ]; then
-          mkdir -p benchmarks/datasets
-          python3 scripts/generate_test_data.py
+        if [ ! -d tools/benchmarks/datasets ]; then
+          mkdir -p tools/benchmarks/datasets
+          python3 tools/scripts/benchmarks/generate_test_data.py
         fi
 
     - name: Output version

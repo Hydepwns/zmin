@@ -9,6 +9,7 @@
 
 const std = @import("std");
 const core = @import("../core/minifier.zig");
+const errors = @import("../core/errors.zig");
 
 /// Simple JSON minification - allocates output buffer
 /// 
@@ -184,13 +185,8 @@ pub fn getLastStats() core.PerformanceStats {
 pub const PerformanceStats = core.PerformanceStats;
 
 /// Error types that can be returned by the simple API
-pub const Error = error{
-    OutOfMemory,
-    InvalidJson,
-    BufferTooSmall,
-    WriteError,
-    ProcessingError,
-};
+/// Re-exported from the central errors module for API consistency
+pub const Error = errors.ZminError;
 
 // Re-export common types for convenience
 pub const JsonError = core.JsonError;

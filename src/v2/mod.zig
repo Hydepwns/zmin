@@ -14,6 +14,11 @@ pub const Token = streaming.Token;
 pub const TokenType = streaming.TokenType;
 pub const ParserConfig = streaming.ParserConfig;
 
+// Export parallel parsing components
+pub const ParallelParser = streaming.ParallelParser;
+pub const ParallelConfig = streaming.ParallelConfig;
+pub const ParallelStats = streaming.ParallelStats;
+
 // Export transformation components
 pub const transformations = @import("transformations/pipeline.zig");
 pub const TransformationPipeline = transformations.TransformationPipeline;
@@ -36,6 +41,26 @@ pub const MemoryPool = streaming.MemoryPool;
 // Export performance components
 pub const PipelineStats = transformations.PipelineStats;
 pub const ParallelEngine = transformations.ParallelEngine;
+
+// Export error handling components
+pub const error_handling = @import("error_handling.zig");
+pub const ErrorHandler = error_handling.ErrorHandler;
+pub const ErrorHandlerConfig = error_handling.ErrorHandlerConfig;
+pub const ErrorContext = error_handling.ErrorContext;
+pub const ErrorType = error_handling.ErrorType;
+pub const RecoveryStrategy = error_handling.RecoveryStrategy;
+pub const RecoveryAction = error_handling.RecoveryAction;
+pub const ErrorAccumulator = error_handling.ErrorAccumulator;
+
+// Export schema validation components
+pub const schema_validation = @import("schema_validation.zig");
+pub const Schema = schema_validation.Schema;
+pub const SchemaType = schema_validation.SchemaType;
+pub const StringFormat = schema_validation.StringFormat;
+pub const ValidationError = schema_validation.ValidationError;
+pub const ValidationConfig = schema_validation.ValidationConfig;
+pub const ValidatorState = schema_validation.ValidatorState;
+pub const SchemaValidator = schema_validation.SchemaValidator;
 
 /// Main zmin v2.0 engine that combines streaming parsing and transformations
 pub const ZminEngine = struct {
@@ -112,6 +137,25 @@ pub const ZminEngine = struct {
     pub fn reset(self: *Self) void {
         self.parser.reset();
         self.pipeline.clearTransformations();
+    }
+    
+    /// Transform with multiple transformations
+    pub fn transformWithConfig(
+        self: *Self,
+        allocator: Allocator,
+        input: []const u8,
+        transformation_list: []const Transformation,
+    ) ![]u8 {
+        // Clear existing transformations
+        self.pipeline.clearTransformations();
+        
+        // Add all transformations
+        for (transformation_list) |transformation| {
+            try self.pipeline.addTransformation(transformation);
+        }
+        
+        // Process and return result
+        return try self.processToString(allocator, input);
     }
 };
 

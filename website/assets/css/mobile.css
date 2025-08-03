@@ -1,0 +1,455 @@
+/* Mobile Responsiveness Improvements */
+
+/* Base mobile adjustments */
+@media (max-width: 768px) {
+    /* Global spacing adjustments */
+    body {
+        font-size: 16px; /* Prevent zoom on iOS */
+        line-height: 1.6;
+        padding: 0;
+        margin: 0;
+    }
+    
+    /* Container adjustments */
+    .container {
+        padding: 0 16px;
+        max-width: 100%;
+    }
+    
+    /* Header responsive */
+    .header {
+        padding: 16px 0;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background: var(--bg-color);
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .header__inner {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .header__logo {
+        font-size: 20px;
+    }
+    
+    /* Navigation menu */
+    .menu {
+        width: 100%;
+        order: 3;
+        margin-top: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    
+    .menu__inner {
+        display: flex;
+        gap: 16px;
+        padding-bottom: 8px;
+    }
+    
+    .menu__inner li {
+        white-space: nowrap;
+    }
+    
+    /* Documentation content */
+    .doc-content {
+        padding: 16px 0;
+    }
+    
+    .doc-header h1 {
+        font-size: 28px;
+        line-height: 1.3;
+        margin-bottom: 12px;
+        word-break: break-word;
+    }
+    
+    h2 {
+        font-size: 24px;
+        margin-top: 32px;
+        margin-bottom: 16px;
+    }
+    
+    h3 {
+        font-size: 20px;
+        margin-top: 24px;
+        margin-bottom: 12px;
+    }
+    
+    /* Code blocks responsive */
+    pre {
+        margin: 16px -16px;
+        padding: 16px;
+        border-radius: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        font-size: 14px;
+    }
+    
+    code {
+        font-size: 14px;
+    }
+    
+    /* Tables responsive */
+    table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 16px 0;
+    }
+    
+    td, th {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+    
+    /* Lists spacing */
+    ul, ol {
+        padding-left: 24px;
+        margin: 16px 0;
+    }
+    
+    li {
+        margin: 8px 0;
+    }
+    
+    /* Buttons and interactive elements */
+    button, .button {
+        min-height: 44px; /* iOS touch target */
+        min-width: 44px;
+        padding: 12px 16px;
+        font-size: 16px;
+    }
+    
+    /* Forms and inputs */
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    textarea,
+    select {
+        font-size: 16px; /* Prevent zoom */
+        padding: 12px;
+        width: 100%;
+    }
+    
+    /* Footer responsive */
+    .footer {
+        padding: 24px 0;
+        text-align: center;
+    }
+    
+    .footer__inner {
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    /* Documentation navigation */
+    .doc-navigation {
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 32px;
+    }
+    
+    .nav-link {
+        display: block;
+        padding: 12px 16px;
+        text-align: center;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+}
+
+/* Small mobile (iPhone SE, etc.) */
+@media (max-width: 375px) {
+    .container {
+        padding: 0 12px;
+    }
+    
+    .doc-header h1 {
+        font-size: 24px;
+    }
+    
+    h2 {
+        font-size: 20px;
+    }
+    
+    h3 {
+        font-size: 18px;
+    }
+    
+    pre {
+        font-size: 12px;
+        padding: 12px;
+    }
+}
+
+/* Landscape mobile */
+@media (max-width: 896px) and (orientation: landscape) {
+    .header {
+        position: relative;
+    }
+    
+    .level-selector {
+        position: relative;
+        top: auto;
+    }
+    
+    .search-modal {
+        max-height: 90vh;
+    }
+}
+
+/* Touch-specific improvements */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger tap targets */
+    a {
+        display: inline-block;
+        min-height: 36px;
+        line-height: 36px;
+    }
+    
+    /* Remove hover effects on touch */
+    .search-result:hover,
+    .api-result:hover {
+        background: inherit;
+        transform: none;
+    }
+    
+    /* Active states for touch feedback */
+    button:active,
+    a:active {
+        opacity: 0.8;
+        transform: scale(0.98);
+    }
+    
+    /* Disable text selection on buttons */
+    button {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .header,
+    .search-overlay,
+    .level-selector {
+        border-width: 2px;
+    }
+    
+    button {
+        border: 2px solid currentColor;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+    
+    .search-overlay {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+/* Print styles */
+@media print {
+    .header,
+    .footer,
+    .search-overlay,
+    .level-selector,
+    .breadcrumb,
+    .doc-navigation,
+    .edit-page,
+    button {
+        display: none !important;
+    }
+    
+    .doc-content {
+        max-width: 100%;
+    }
+    
+    pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+    
+    a {
+        text-decoration: underline;
+    }
+    
+    a[href]::after {
+        content: " (" attr(href) ")";
+    }
+}
+
+/* Specific component mobile fixes */
+
+/* Search overlay mobile */
+@media (max-width: 768px) {
+    .search-overlay {
+        padding-top: 0;
+        align-items: stretch;
+    }
+    
+    .search-modal {
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .search-header {
+        position: sticky;
+        top: 0;
+        background: var(--bg-color);
+        z-index: 1;
+        padding: 16px;
+    }
+    
+    .search-results {
+        flex: 1;
+        padding: 8px 16px;
+    }
+}
+
+/* Breadcrumb mobile */
+@media (max-width: 768px) {
+    .breadcrumb {
+        padding: 12px 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .breadcrumb-list {
+        flex-wrap: nowrap;
+        padding-right: 16px;
+    }
+}
+
+/* API search mobile */
+@media (max-width: 768px) {
+    .api-search-box {
+        position: relative;
+        top: auto;
+        margin-bottom: 24px;
+        padding: 16px;
+    }
+    
+    .api-search-results {
+        max-height: 50vh;
+    }
+}
+
+/* Progressive disclosure mobile */
+@media (max-width: 768px) {
+    .level-selector {
+        position: relative;
+        top: auto;
+        margin-bottom: 24px;
+    }
+    
+    .level-button {
+        min-width: 0;
+        flex: 1;
+        padding: 8px 4px;
+        font-size: 13px;
+    }
+}
+
+/* Utility classes for mobile */
+@media (max-width: 768px) {
+    .hide-mobile {
+        display: none !important;
+    }
+    
+    .show-mobile {
+        display: block !important;
+    }
+    
+    .text-center-mobile {
+        text-align: center !important;
+    }
+    
+    .stack-mobile {
+        flex-direction: column !important;
+    }
+}
+
+/* Performance optimizations for mobile */
+@media (max-width: 768px) {
+    /* Reduce animations on mobile */
+    * {
+        animation-duration: 0.2s !important;
+        transition-duration: 0.2s !important;
+    }
+    
+    /* Optimize font loading */
+    .font-mono {
+        font-family: monospace;
+    }
+    
+    /* Disable box shadows on mobile for performance */
+    .search-modal,
+    .api-search-box,
+    .level-selector {
+        box-shadow: none;
+    }
+}
+
+/* iOS-specific fixes */
+@supports (-webkit-touch-callout: none) {
+    /* Fix iOS input zoom */
+    input[type="text"],
+    input[type="search"],
+    textarea {
+        font-size: 16px !important;
+    }
+    
+    /* Fix iOS tap highlight */
+    * {
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Fix iOS momentum scrolling */
+    .menu,
+    .search-results,
+    .api-search-results,
+    pre {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Fix iOS safe area */
+    @supports (padding: max(0px)) {
+        .container {
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+        }
+        
+        .header,
+        .footer {
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+    }
+}
+
+/* Android-specific fixes */
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2) {
+    /* Improve touch targets on high-DPI screens */
+    button,
+    a,
+    input[type="checkbox"],
+    input[type="radio"] {
+        min-height: 48px;
+        min-width: 48px;
+    }
+}

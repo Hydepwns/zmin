@@ -2,11 +2,11 @@ const std = @import("std");
 const testing = std.testing;
 const MinifyingParser = @import("src").minifier.MinifyingParser;
 
+// Import test fixtures
+pub const fixtures = @import("test_fixtures.zig");
+
 /// Common test case structure for input/expected pairs
-pub const TestCase = struct {
-    input: []const u8,
-    expected: []const u8,
-};
+pub const TestCase = fixtures.TestCase;
 
 /// Helper function to test a single input/expected pair
 pub fn testMinify(input: []const u8, expected: []const u8) !void {
@@ -160,3 +160,130 @@ pub fn expectValidJsonStructure(output: []const u8, start_char: u8, end_char: u8
     try testing.expect(output[0] == start_char);
     try testing.expect(output[output.len - 1] == end_char);
 }
+
+/// Test runner for fixture-based tests
+pub const FixtureRunner = struct {
+    allocator: std.mem.Allocator,
+    verbose: bool = false,
+    
+    pub fn init(allocator: std.mem.Allocator) FixtureRunner {
+        return .{ .allocator = allocator };
+    }
+    
+    /// Run all basic JSON test cases
+    pub fn runBasicTests(self: FixtureRunner) !void {
+        const all_tests = fixtures.getAllBasicTests();
+        
+        for (all_tests) |test_case| {
+            if (self.verbose) {
+                std.debug.print("Running test: {s}\n", .{test_case.name});
+            }
+            
+            testMinify(test_case.input, test_case.expected) catch |err| {
+                std.debug.print("Failed test '{s}': {}\n", .{test_case.name, err});
+                return err;
+            };
+        }
+    }
+    
+    /// Run all invalid JSON test cases
+    pub fn runInvalidTests(self: FixtureRunner) !void {
+        const all_invalid = fixtures.getAllInvalidTests();
+        
+        for (all_invalid) |invalid_json| {
+            if (self.verbose) {
+                std.debug.print("Testing invalid JSON: {s}\n", .{invalid_json});
+            }
+            
+            testMinifyError(invalid_json) catch |err| {
+                std.debug.print("Failed to reject invalid JSON: {s}\n", .{invalid_json});
+                return err;
+            };
+        }
+    }
+    
+    /// Run performance benchmarks
+    pub fn runBenchmarks(self: FixtureRunner) !void {
+        const configs = [_]fixtures.BenchmarkConfig{
+            fixtures.BenchmarkConfigs.small_input,
+            fixtures.BenchmarkConfigs.medium_input,
+            fixtures.BenchmarkConfigs.large_input,
+        };
+        
+        for (configs) |config| {
+            const input = try fixtures.PerformanceData.generateNumberArray(
+                self.allocator, 
+                config.input_size / 10  // Approximate size
+            );
+            defer self.allocator.free(input);
+            
+            var total_time: f64 = 0;
+            for (0..config.iterations) |_| {
+                const result = try measurePerformance(input);
+                total_time += result.processing_time_ms;
+            }
+            
+            const avg_time = total_time / @as(f64, @floatFromInt(config.iterations));
+            const throughput = (@as(f64, @floatFromInt(input.len)) / 1024.0 / 1024.0) / (avg_time / 1000.0);
+            
+            if (self.verbose) {
+                std.debug.print("{s}: {d:.2} MB/s (avg {d:.2}ms)\n", .{
+                    config.name,
+                    throughput,
+                    avg_time,
+                });
+            }
+        }
+    }
+};
+
+/// Create a test allocator with tracking
+pub fn createTestAllocator() std.mem.Allocator {
+    return testing.allocator;
+}
+
+/// Helper to create JSON test data with specific characteristics
+pub const TestDataBuilder = struct {
+    allocator: std.mem.Allocator,
+    buffer: std.ArrayList(u8),
+    
+    pub fn init(allocator: std.mem.Allocator) TestDataBuilder {
+        return .{
+            .allocator = allocator,
+            .buffer = std.ArrayList(u8).init(allocator),
+        };
+    }
+    
+    pub fn deinit(self: *TestDataBuilder) void {
+        self.buffer.deinit();
+    }
+    
+    /// Add whitespace padding
+    pub fn withWhitespace(self: *TestDataBuilder, json: []const u8) ![]const u8 {
+        self.buffer.clearRetainingCapacity();
+        
+        for (json) |char| {
+            try self.buffer.append(char);
+            if (char == ',' or char == ':') {
+                try self.buffer.append(' ');
+            }
+        }
+        
+        return self.buffer.items;
+    }
+    
+    /// Create JSON with specific nesting depth
+    pub fn withDepth(self: *TestDataBuilder, depth: usize) ![]const u8 {
+        self.buffer.clearRetainingCapacity();
+        
+        for (0..depth) |_| {
+            try self.buffer.appendSlice("{\"a\":");
+        }
+        try self.buffer.append('1');
+        for (0..depth) |_| {
+            try self.buffer.append('}');
+        }
+        
+        return self.buffer.items;
+    }
+};

@@ -1,0 +1,428 @@
+<!-- Interactive Troubleshooting Decision Tree -->
+<div class="troubleshooting-tree">
+    <div class="tree-container">
+        <div class="tree-node root active" id="node-root">
+            <h3>What issue are you experiencing?</h3>
+            <div class="tree-options">
+                <button class="tree-option" data-next="installation">Installation Problems</button>
+                <button class="tree-option" data-next="performance">Performance Issues</button>
+                <button class="tree-option" data-next="errors">Error Messages</button>
+                <button class="tree-option" data-next="output">Output Problems</button>
+                <button class="tree-option" data-next="integration">Integration Issues</button>
+            </div>
+        </div>
+        
+        <!-- Installation Branch -->
+        <div class="tree-node" id="node-installation">
+            <h3>Installation Problems</h3>
+            <div class="tree-options">
+                <button class="tree-option" data-next="install-not-found">Command not found</button>
+                <button class="tree-option" data-next="install-permission">Permission denied</button>
+                <button class="tree-option" data-next="install-build">Build fails</button>
+                <button class="tree-option" data-next="install-version">Wrong version</button>
+            </div>
+        </div>
+        
+        <div class="tree-node" id="node-install-not-found">
+            <h3>zmin: command not found</h3>
+            <div class="tree-solution">
+                <h4>Solutions:</h4>
+                <ol>
+                    <li>Check if zmin is installed:
+                        <pre><code>which zmin</code></pre>
+                    </li>
+                    <li>If not installed, use package manager:
+                        <pre><code>brew install zmin  # macOS
+apt install zmin   # Ubuntu/Debian
+npm install -g @zmin/cli  # Node.js</code></pre>
+                    </li>
+                    <li>Or build from source:
+                        <pre><code>git clone https://github.com/hydepwns/zmin
+cd zmin
+zig build --release=fast
+sudo cp zig-out/bin/zmin /usr/local/bin/</code></pre>
+                    </li>
+                    <li>Add to PATH if installed elsewhere:
+                        <pre><code>export PATH=$PATH:/path/to/zmin/bin</code></pre>
+                    </li>
+                </ol>
+                <button class="tree-back">Back</button>
+                <button class="tree-restart">Start Over</button>
+            </div>
+        </div>
+        
+        <!-- Performance Branch -->
+        <div class="tree-node" id="node-performance">
+            <h3>Performance Issues</h3>
+            <div class="tree-options">
+                <button class="tree-option" data-next="perf-slow">Processing is slow</button>
+                <button class="tree-option" data-next="perf-memory">High memory usage</button>
+                <button class="tree-option" data-next="perf-cpu">High CPU usage</button>
+                <button class="tree-option" data-next="perf-timeout">Operation times out</button>
+            </div>
+        </div>
+        
+        <div class="tree-node" id="node-perf-slow">
+            <h3>Processing is slow</h3>
+            <div class="tree-question">
+                <p>How large is your JSON file?</p>
+                <div class="tree-options">
+                    <button class="tree-option" data-next="perf-slow-small">< 10 MB</button>
+                    <button class="tree-option" data-next="perf-slow-medium">10-100 MB</button>
+                    <button class="tree-option" data-next="perf-slow-large">> 100 MB</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tree-node" id="node-perf-slow-large">
+            <h3>Large File Optimization</h3>
+            <div class="tree-solution">
+                <h4>For files > 100MB:</h4>
+                <ol>
+                    <li>Use Turbo mode:
+                        <pre><code>zmin -m turbo large.json</code></pre>
+                    </li>
+                    <li>Enable streaming:
+                        <pre><code>zmin --streaming large.json</code></pre>
+                    </li>
+                    <li>Use GPU acceleration if available:
+                        <pre><code>zmin --gpu large.json</code></pre>
+                    </li>
+                    <li>Process in parallel chunks:
+                        <pre><code># Split file
+split -b 100M large.json chunk_
+
+# Process chunks in parallel
+parallel -j 4 zmin {} -o {}.min ::: chunk_*
+
+# Combine results
+cat chunk_*.min > result.json</code></pre>
+                    </li>
+                </ol>
+                <button class="tree-back">Back</button>
+                <button class="tree-restart">Start Over</button>
+            </div>
+        </div>
+        
+        <!-- Errors Branch -->
+        <div class="tree-node" id="node-errors">
+            <h3>Error Messages</h3>
+            <div class="tree-options">
+                <button class="tree-option" data-next="error-parse">Parse errors</button>
+                <button class="tree-option" data-next="error-memory">Memory errors</button>
+                <button class="tree-option" data-next="error-io">File I/O errors</button>
+                <button class="tree-option" data-next="error-validation">Validation errors</button>
+            </div>
+        </div>
+        
+        <div class="tree-node" id="node-error-parse">
+            <h3>Parse Errors</h3>
+            <div class="tree-question">
+                <p>What's the specific error?</p>
+                <div class="tree-options">
+                    <button class="tree-option" data-next="error-parse-char">Unexpected character</button>
+                    <button class="tree-option" data-next="error-parse-string">Unterminated string</button>
+                    <button class="tree-option" data-next="error-parse-number">Invalid number</button>
+                    <button class="tree-option" data-next="error-parse-unicode">Invalid Unicode</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tree-node" id="node-error-parse-char">
+            <h3>Unexpected Character Error</h3>
+            <div class="tree-solution">
+                <h4>Common causes and fixes:</h4>
+                <ol>
+                    <li><strong>Missing quotes around keys:</strong>
+                        <pre><code>// ❌ Wrong
+{name: "John"}
+
+// ✅ Correct
+{"name": "John"}</code></pre>
+                    </li>
+                    <li><strong>Trailing commas:</strong>
+                        <pre><code>// ❌ Wrong
+{"a": 1, "b": 2,}
+
+// ✅ Correct
+{"a": 1, "b": 2}</code></pre>
+                    </li>
+                    <li><strong>Single quotes:</strong>
+                        <pre><code>// ❌ Wrong
+{'name': 'John'}
+
+// ✅ Correct
+{"name": "John"}</code></pre>
+                    </li>
+                    <li><strong>Comments in JSON:</strong>
+                        <pre><code>// ❌ Wrong
+{
+  // This is a comment
+  "key": "value"
+}
+
+// ✅ Correct - Remove comments
+{
+  "key": "value"
+}</code></pre>
+                    </li>
+                </ol>
+                <p><strong>Debug tip:</strong> Use <code>zmin --validate-only --verbose</code> to see exact location.</p>
+                <button class="tree-back">Back</button>
+                <button class="tree-restart">Start Over</button>
+            </div>
+        </div>
+        
+        <!-- Output Branch -->
+        <div class="tree-node" id="node-output">
+            <h3>Output Problems</h3>
+            <div class="tree-options">
+                <button class="tree-option" data-next="output-empty">Output file is empty</button>
+                <button class="tree-option" data-next="output-corrupt">Output is corrupted</button>
+                <button class="tree-option" data-next="output-not-min">Output not minified</button>
+                <button class="tree-option" data-next="output-wrong-place">Output in wrong location</button>
+            </div>
+        </div>
+        
+        <!-- Integration Branch -->
+        <div class="tree-node" id="node-integration">
+            <h3>Integration Issues</h3>
+            <div class="tree-options">
+                <button class="tree-option" data-next="int-nodejs">Node.js integration</button>
+                <button class="tree-option" data-next="int-python">Python integration</button>
+                <button class="tree-option" data-next="int-ci">CI/CD integration</button>
+                <button class="tree-option" data-next="int-docker">Docker integration</button>
+            </div>
+        </div>
+        
+        <!-- Additional nodes would be added here -->
+    </div>
+    
+    <div class="tree-path">
+        <span class="path-label">Current path:</span>
+        <span id="current-path">Home</span>
+    </div>
+</div>
+
+<style>
+.troubleshooting-tree {
+    margin: 30px 0;
+    min-height: 400px;
+}
+
+.tree-container {
+    position: relative;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 30px;
+    min-height: 350px;
+}
+
+.tree-node {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tree-node.active {
+    display: block;
+}
+
+.tree-node h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: var(--text-color);
+}
+
+.tree-options {
+    display: grid;
+    gap: 12px;
+}
+
+.tree-option {
+    padding: 12px 20px;
+    text-align: left;
+    background: var(--bg-color);
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 15px;
+}
+
+.tree-option:hover {
+    border-color: var(--link-color);
+    transform: translateX(4px);
+}
+
+.tree-solution {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 20px;
+}
+
+.tree-solution h4 {
+    margin-top: 0;
+    color: var(--text-color);
+}
+
+.tree-solution pre {
+    margin: 10px 0;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.tree-solution code {
+    color: var(--code-color);
+    font-family: var(--font-mono);
+}
+
+.tree-back,
+.tree-restart {
+    margin-top: 20px;
+    margin-right: 10px;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tree-back:hover,
+.tree-restart:hover {
+    border-color: var(--link-color);
+    background: var(--bg-hover);
+}
+
+.tree-path {
+    margin-top: 20px;
+    padding: 12px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.path-label {
+    font-weight: 600;
+    margin-right: 8px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+    .tree-container {
+        padding: 20px;
+    }
+    
+    .tree-option {
+        font-size: 14px;
+        padding: 10px 16px;
+    }
+    
+    .tree-solution {
+        padding: 16px;
+    }
+    
+    .tree-solution pre {
+        font-size: 13px;
+    }
+}
+</style>
+
+<script>
+(function() {
+    'use strict';
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const nodes = document.querySelectorAll('.tree-node');
+        const pathDisplay = document.getElementById('current-path');
+        const history = ['root'];
+        
+        // Option click handlers
+        document.querySelectorAll('.tree-option').forEach(button => {
+            button.addEventListener('click', function() {
+                const nextId = this.dataset.next;
+                navigateToNode(nextId);
+            });
+        });
+        
+        // Back button handlers
+        document.querySelectorAll('.tree-back').forEach(button => {
+            button.addEventListener('click', function() {
+                if (history.length > 1) {
+                    history.pop(); // Remove current
+                    const previousId = history[history.length - 1];
+                    navigateToNode(previousId, false);
+                }
+            });
+        });
+        
+        // Restart button handlers
+        document.querySelectorAll('.tree-restart').forEach(button => {
+            button.addEventListener('click', function() {
+                history.length = 1; // Keep only root
+                navigateToNode('root', false);
+            });
+        });
+        
+        function navigateToNode(nodeId, addToHistory = true) {
+            // Hide all nodes
+            nodes.forEach(node => node.classList.remove('active'));
+            
+            // Show target node
+            const targetNode = document.getElementById(`node-${nodeId}`);
+            if (targetNode) {
+                targetNode.classList.add('active');
+                
+                // Update history
+                if (addToHistory) {
+                    history.push(nodeId);
+                }
+                
+                // Update path display
+                updatePath();
+                
+                // Scroll to top of tree
+                document.querySelector('.troubleshooting-tree').scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }
+        
+        function updatePath() {
+            const pathNames = history.map(id => {
+                switch(id) {
+                    case 'root': return 'Home';
+                    case 'installation': return 'Installation';
+                    case 'performance': return 'Performance';
+                    case 'errors': return 'Errors';
+                    case 'output': return 'Output';
+                    case 'integration': return 'Integration';
+                    default: return id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                }
+            });
+            
+            pathDisplay.textContent = pathNames.join(' → ');
+        }
+    });
+})();
+</script>

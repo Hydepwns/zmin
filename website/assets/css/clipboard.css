@@ -1,0 +1,143 @@
+/* Copy button styles */
+.copy-button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    transition: all 0.2s ease;
+    opacity: 0;
+    transform: translateY(-4px);
+    z-index: 10;
+}
+
+/* Show copy button on hover */
+pre:hover .copy-button {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Copy button hover state */
+.copy-button:hover {
+    background: rgba(0, 0, 0, 0.9);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+/* Copy button active state */
+.copy-button:active {
+    transform: scale(0.95);
+}
+
+/* Success state */
+.copy-button.copied {
+    background: rgba(34, 197, 94, 0.9);
+    border-color: rgba(34, 197, 94, 0.5);
+    opacity: 1;
+}
+
+/* Error state */
+.copy-button.error {
+    background: rgba(239, 68, 68, 0.9);
+    border-color: rgba(239, 68, 68, 0.5);
+    opacity: 1;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+    .copy-button {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+        color: #e5e7eb;
+    }
+    
+    .copy-button:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+}
+
+/* Ensure pre blocks have relative positioning */
+pre {
+    position: relative !important;
+}
+
+/* Hide copy button on small screens */
+@media (max-width: 640px) {
+    .copy-button {
+        opacity: 1;
+        transform: none;
+        position: static;
+        margin-top: 8px;
+        margin-left: auto;
+        margin-right: 0;
+        display: inline-flex;
+        width: fit-content;
+    }
+    
+    pre {
+        padding-bottom: 50px;
+    }
+    
+    .copy-button {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        top: auto;
+    }
+}
+
+/* Keyboard focus styles */
+.copy-button:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* SVG icon styles */
+.copy-button svg {
+    flex-shrink: 0;
+}
+
+/* Text selection prevention for button */
+.copy-button {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+}
+
+/* Accessibility improvements */
+.copy-button[aria-pressed="true"] {
+    background: rgba(34, 197, 94, 0.9);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .copy-button {
+        background: #000;
+        border: 2px solid #fff;
+        color: #fff;
+    }
+    
+    .copy-button:hover {
+        background: #333;
+    }
+    
+    .copy-button.copied {
+        background: #22c55e;
+        border-color: #fff;
+    }
+    
+    .copy-button.error {
+        background: #ef4444;
+        border-color: #fff;
+    }
+}

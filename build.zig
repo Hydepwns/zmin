@@ -67,6 +67,9 @@ fn setupBuildSteps(b: *std.Build, exe: *std.Build.Step.Compile, module_registry:
         "examples/mode_selection.zig",
         "examples/streaming.zig",
         "examples/parallel_batch.zig",
+        "examples/v2_parallel_example.zig",
+        "examples/v2_simple_demo.zig",
+        "examples/v2_simd_demo.zig",
     };
 
     for (example_files) |example_file| {

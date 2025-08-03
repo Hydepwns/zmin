@@ -1,0 +1,16 @@
+{{ if .File }}
+<!-- Edit this page link -->
+<div class="edit-page">
+    <a href="https://github.com/hydepwns/zmin/edit/main/website/content/{{ .File.Path }}" 
+       class="edit-page__link" 
+       target="_blank" 
+       rel="noopener noreferrer"
+       title="Edit this page on GitHub">
+        <svg class="edit-page__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="m18.5 2.5 2 2L13 12l-4 1 1-4 7.5-7.5z"></path>
+        </svg>
+        <span class="edit-page__text">Edit this page</span>
+    </a>
+</div>
+{{ end }}

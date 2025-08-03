@@ -73,7 +73,8 @@ test "v2 end-to-end - streaming with transformations" {
     ;
     
     // Parse and transform
-    const token_stream = try parser.parseStreaming(input);
+    var token_stream = try parser.parseStreaming(input);
+    defer token_stream.deinit();
     
     var output_buffer = std.ArrayList(u8).init(allocator);
     defer output_buffer.deinit();
@@ -250,7 +251,8 @@ test "v2 end-to-end - custom transformation integration" {
     });
     
     const input = "{\"name\":\"test\",\"value\":\"hello world\"}";
-    const token_stream = try parser.parseStreaming(input);
+    var token_stream = try parser.parseStreaming(input);
+    defer token_stream.deinit();
     
     var output_buffer = std.ArrayList(u8).init(allocator);
     defer output_buffer.deinit();

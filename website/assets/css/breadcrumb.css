@@ -1,0 +1,126 @@
+/* Breadcrumb Navigation Styles */
+.breadcrumb {
+    padding: 16px 0;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 14px;
+}
+
+.breadcrumb-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.breadcrumb-separator {
+    margin: 0 8px;
+    color: var(--text-muted);
+    font-weight: 300;
+}
+
+.breadcrumb-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.breadcrumb-link:hover {
+    color: var(--link-color);
+}
+
+.breadcrumb-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.breadcrumb-text {
+    display: inline-block;
+}
+
+/* Current page styling */
+.breadcrumb-current {
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.breadcrumb-current .breadcrumb-text {
+    color: var(--text-color);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .breadcrumb {
+        padding: 12px 0;
+        margin-bottom: 16px;
+        font-size: 13px;
+    }
+    
+    .breadcrumb-separator {
+        margin: 0 6px;
+    }
+    
+    .breadcrumb-icon {
+        width: 14px;
+        height: 14px;
+    }
+    
+    /* Hide "Home" text on mobile, keep icon */
+    .breadcrumb-item:first-child .breadcrumb-text {
+        display: none;
+    }
+    
+    /* Wrap breadcrumbs if too long */
+    .breadcrumb-list {
+        gap: 4px 0;
+    }
+    
+    .breadcrumb-item {
+        margin-bottom: 4px;
+    }
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .breadcrumb {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .breadcrumb-link {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] .breadcrumb-link:hover {
+    color: var(--link-color);
+}
+
+[data-theme="dark"] .breadcrumb-current .breadcrumb-text {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Light mode adjustments */
+[data-theme="light"] .breadcrumb {
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .breadcrumb-link {
+    color: rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="light"] .breadcrumb-link:hover {
+    color: var(--link-color);
+}
+
+[data-theme="light"] .breadcrumb-current .breadcrumb-text {
+    color: rgba(0, 0, 0, 0.9);
+}

@@ -1,0 +1,196 @@
+/* Dark mode toggle styles */
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: inherit;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 12px;
+    transition: all 0.2s ease;
+    margin-left: 16px;
+}
+
+.theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.theme-toggle:active {
+    transform: translateY(0);
+}
+
+.theme-toggle:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+.theme-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+}
+
+.theme-text {
+    font-weight: 500;
+    user-select: none;
+}
+
+/* Header integration */
+.header__toggle {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .theme-toggle {
+    border-color: rgba(0, 0, 0, 0.2);
+    color: #374151;
+}
+
+[data-theme="light"] .theme-toggle:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Dark theme (default) */
+[data-theme="dark"] .theme-toggle {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .theme-toggle {
+        padding: 6px 10px;
+        font-size: 12px;
+        margin-left: 8px;
+    }
+    
+    .theme-text {
+        display: none;
+    }
+    
+    .theme-icon {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .theme-toggle {
+        border-width: 2px;
+    }
+    
+    [data-theme="light"] .theme-toggle {
+        border-color: #000;
+        background: #fff;
+        color: #000;
+    }
+    
+    [data-theme="dark"] .theme-toggle {
+        border-color: #fff;
+        background: #000;
+        color: #fff;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .theme-toggle {
+        transition: none;
+    }
+    
+    .theme-toggle:hover {
+        transform: none;
+    }
+    
+    .theme-toggle:active {
+        transform: none;
+    }
+}
+
+/* Focus management for keyboard users */
+.theme-toggle:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Ensure button doesn't break layout */
+.theme-toggle {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Animation for theme switching */
+body {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Light theme base styles */
+.light-theme {
+    background-color: #ffffff;
+    color: #1f2937;
+}
+
+.light-theme pre {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.light-theme code {
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.light-theme .copy-button {
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+}
+
+/* Dark theme base styles (default) */
+.dark-theme {
+    background-color: #0f172a;
+    color: #e2e8f0;
+}
+
+.dark-theme pre {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+}
+
+.dark-theme code {
+    background-color: #334155;
+    color: #cbd5e1;
+}
+
+/* Ensure proper contrast in both themes */
+.light-theme a {
+    color: #2563eb;
+}
+
+.dark-theme a {
+    color: #60a5fa;
+}
+
+.light-theme h1, .light-theme h2, .light-theme h3, .light-theme h4, .light-theme h5, .light-theme h6 {
+    color: #111827;
+}
+
+.dark-theme h1, .dark-theme h2, .dark-theme h3, .dark-theme h4, .dark-theme h5, .dark-theme h6 {
+    color: #f8fafc;
+}

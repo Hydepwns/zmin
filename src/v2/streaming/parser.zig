@@ -1,6 +1,11 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+// Export parallel parser for v2
+pub const ParallelParser = @import("parallel_parser.zig").ParallelParser;
+pub const ParallelConfig = @import("parallel_parser.zig").ParallelConfig;
+pub const ParallelStats = @import("parallel_parser.zig").ParallelStats;
+
 /// Configuration for the streaming parser
 pub const ParserConfig = struct {
     /// Chunk size for reading input data
@@ -20,6 +25,11 @@ pub const ParserConfig = struct {
 
     /// Maximum token buffer size
     max_token_buffer: usize = 1024 * 1024, // 1MB default
+    
+    /// Error handling configuration
+    enable_error_recovery: bool = false,
+    max_errors: usize = 100,
+    collect_errors: bool = false,
 };
 
 /// SIMD instruction set levels
@@ -315,6 +325,11 @@ pub const SimdParser = struct {
                             const number_result = try self.parseNumberAvx512(data, pos + i, callback);
                             i = number_result.next_pos - pos;
                         },
+                        't', 'f', 'n' => {
+                            // Use vectorized literal parsing (true, false, null)
+                            const literal_end = try self.parseLiteralAvx512(data, pos + i, callback);
+                            i = literal_end - pos;
+                        },
                         else => {
                             try callback(Token.init(.parse_error, pos + i, pos + i + 1, 1, pos + i + 1).withError("Invalid character"));
                             i += 1;
@@ -345,8 +360,148 @@ pub const SimdParser = struct {
     }
 
     fn parseChunkNeon(self: *Self, data: []const u8, callback: ParseCallback) !void {
-        // TODO: Implement NEON optimized parsing
-        try self.parseChunkScalar(data, callback);
+        // NEON optimized parsing for ARM64 platforms
+        const Vector = @Vector(16, u8); // NEON processes 16 bytes at once
+        
+        var pos: usize = 0;
+        const chunk_size = 16;
+        
+        // Process data in 16-byte chunks using NEON
+        while (pos + chunk_size <= data.len) {
+            const chunk: Vector = data[pos..pos + chunk_size][0..chunk_size].*;
+            
+            // Define structural character vectors for comparison
+            const lbrace: Vector = @splat('{');
+            const rbrace: Vector = @splat('}');
+            const lbracket: Vector = @splat('[');
+            const rbracket: Vector = @splat(']');
+            const comma: Vector = @splat(',');
+            const colon: Vector = @splat(':');
+            const quote: Vector = @splat('"');
+            const space: Vector = @splat(' ');
+            const tab: Vector = @splat('\t');
+            const newline: Vector = @splat('\n');
+            const cr: Vector = @splat('\r');
+            
+            // Detect structural characters using NEON vector comparisons
+            const is_lbrace = chunk == lbrace;
+            const is_rbrace = chunk == rbrace;
+            const is_lbracket = chunk == lbracket;
+            const is_rbracket = chunk == rbracket;
+            const is_comma = chunk == comma;
+            const is_colon = chunk == colon;
+            const is_quote = chunk == quote;
+            
+            // Detect whitespace
+            const is_space = chunk == space;
+            const is_tab = chunk == tab;
+            const is_newline = chunk == newline;
+            const is_cr = chunk == cr;
+            
+            // Process each byte in the chunk
+            var advanced = false;
+            for (0..chunk_size) |i| {
+                const abs_pos = pos + i;
+                const c = chunk[i];
+                
+                // Check for structural characters
+                if (is_lbrace[i]) {
+                    try callback(Token.init(.object_start, abs_pos, abs_pos + 1, 1, abs_pos + 1));
+                } else if (is_rbrace[i]) {
+                    try callback(Token.init(.object_end, abs_pos, abs_pos + 1, 1, abs_pos + 1));
+                } else if (is_lbracket[i]) {
+                    try callback(Token.init(.array_start, abs_pos, abs_pos + 1, 1, abs_pos + 1));
+                } else if (is_rbracket[i]) {
+                    try callback(Token.init(.array_end, abs_pos, abs_pos + 1, 1, abs_pos + 1));
+                } else if (is_comma[i]) {
+                    try callback(Token.init(.comma, abs_pos, abs_pos + 1, 1, abs_pos + 1));
+                } else if (is_colon[i]) {
+                    try callback(Token.init(.colon, abs_pos, abs_pos + 1, 1, abs_pos + 1));
+                } else if (is_quote[i]) {
+                    // Parse string using NEON-optimized string parser
+                    const result = try self.parseStringNeon(data, abs_pos, callback);
+                    if (result.next_pos > abs_pos) {
+                        // Skip to the end of the parsed string
+                        pos = result.next_pos;
+                        advanced = true;
+                        break;
+                    }
+                } else if (is_space[i] or is_tab[i] or is_newline[i] or is_cr[i]) {
+                    // Skip whitespace
+                    continue;
+                } else if ((c >= '0' and c <= '9') or (c == '-')) {
+                    // Parse number using NEON-optimized number parser
+                    const result = try self.parseNumberNeon(data, abs_pos, callback);
+                    if (result.next_pos > abs_pos) {
+                        pos = result.next_pos;
+                        advanced = true;
+                        break;
+                    }
+                } else if (c == 't' or c == 'f' or c == 'n') {
+                    // Parse boolean/null using scalar parsing (these are short literals)
+                    const literal_result = try self.parseLiteral(data, abs_pos, callback);
+                    if (literal_result > abs_pos) {
+                        pos = literal_result;
+                        advanced = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Move to next chunk if we didn't break early
+            if (!advanced) {
+                pos += chunk_size;
+            }
+        }
+        
+        // Handle remaining bytes with scalar parsing
+        while (pos < data.len) {
+            const c = data[pos];
+            switch (c) {
+                '{' => {
+                    try callback(Token.init(.object_start, pos, pos + 1, 1, pos + 1));
+                    pos += 1;
+                },
+                '}' => {
+                    try callback(Token.init(.object_end, pos, pos + 1, 1, pos + 1));
+                    pos += 1;
+                },
+                '[' => {
+                    try callback(Token.init(.array_start, pos, pos + 1, 1, pos + 1));
+                    pos += 1;
+                },
+                ']' => {
+                    try callback(Token.init(.array_end, pos, pos + 1, 1, pos + 1));
+                    pos += 1;
+                },
+                ',' => {
+                    try callback(Token.init(.comma, pos, pos + 1, 1, pos + 1));
+                    pos += 1;
+                },
+                ':' => {
+                    try callback(Token.init(.colon, pos, pos + 1, 1, pos + 1));
+                    pos += 1;
+                },
+                '"' => {
+                    const result = try self.parseString(data, pos, callback);
+                    pos = result.next_pos;
+                },
+                ' ', '\t', '\n', '\r' => {
+                    pos += 1;
+                },
+                '0'...'9', '-' => {
+                    const result = try self.parseNumber(data, pos, callback);
+                    pos = result.next_pos;
+                },
+                't', 'f', 'n' => {
+                    pos = try self.parseLiteral(data, pos, callback);
+                },
+                else => {
+                    try callback(Token.init(.parse_error, pos, pos + 1, 1, pos + 1).withError("Unexpected character"));
+                    pos += 1;
+                },
+            }
+        }
     }
 
     /// Result of vectorized string parsing
@@ -575,6 +730,451 @@ pub const SimdParser = struct {
         return NumberParseResult{ .next_pos = pos, .is_valid = true };
     }
 
+    /// NEON optimized string parsing for ARM64
+    fn parseStringNeon(_: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !StringParseResult {
+        const Vector = @Vector(16, u8);
+        
+        if (start_pos >= data.len or data[start_pos] != '"') {
+            return StringParseResult{ .next_pos = start_pos + 1, .has_escapes = false };
+        }
+        
+        var pos = start_pos + 1; // Skip opening quote
+        var has_escapes = false;
+        const start_line: usize = 1; // TODO: Track line numbers properly
+        const start_column = start_pos + 1;
+        
+        // Process string content in 16-byte chunks using NEON
+        while (pos + 16 <= data.len) {
+            const chunk: Vector = data[pos..pos + 16][0..16].*;
+            
+            // Define search vectors
+            const quote_vec: Vector = @splat('"');
+            const backslash_vec: Vector = @splat('\\');
+            const newline_vec: Vector = @splat('\n');
+            const control_threshold: Vector = @splat(32); // Control characters < 32
+            
+            // Find special characters
+            const is_quote = chunk == quote_vec;
+            const is_backslash = chunk == backslash_vec;
+            const is_newline = chunk == newline_vec;
+            const is_control = chunk < control_threshold;
+            
+            // Combine all terminating conditions
+            const BoolVector = @Vector(16, bool);
+            const is_terminator = @select(bool, is_quote, @as(BoolVector, @splat(true)),
+                                 @select(bool, is_backslash, @as(BoolVector, @splat(true)),
+                                 @select(bool, is_newline, @as(BoolVector, @splat(true)),
+                                 @select(bool, is_control, @as(BoolVector, @splat(true)), @as(BoolVector, @splat(false))))));
+            
+            // Check if any terminator was found in this chunk
+            var found_terminator = false;
+            var terminator_pos: usize = 0;
+            
+            for (0..16) |i| {
+                if (is_terminator[i]) {
+                    found_terminator = true;
+                    terminator_pos = i;
+                    break;
+                }
+            }
+            
+            if (found_terminator) {
+                const abs_pos = pos + terminator_pos;
+                const char = data[abs_pos];
+                
+                if (char == '"') {
+                    // Found closing quote - emit string token
+                    try callback(Token.init(.string, start_pos, abs_pos + 1, start_line, start_column));
+                    return StringParseResult{ .next_pos = abs_pos + 1, .has_escapes = has_escapes };
+                } else if (char == '\\') {
+                    // Found escape sequence - set flag and skip escaped char
+                    has_escapes = true;
+                    pos = abs_pos + 2; // Skip backslash and next character
+                    if (pos > data.len) {
+                        try callback(Token.init(.parse_error, start_pos, pos, start_line, start_column).withError("Unterminated string escape"));
+                        return StringParseResult{ .next_pos = pos, .has_escapes = has_escapes };
+                    }
+                } else if (char == '\n' or char < 32) {
+                    // Invalid character in string
+                    try callback(Token.init(.parse_error, start_pos, abs_pos, start_line, start_column).withError("Invalid character in string"));
+                    return StringParseResult{ .next_pos = abs_pos + 1, .has_escapes = has_escapes };
+                }
+            } else {
+                // No terminators found in this chunk, continue to next chunk
+                pos += 16;
+            }
+        }
+        
+        // Handle remaining bytes with scalar parsing
+        while (pos < data.len) {
+            const char = data[pos];
+            if (char == '"') {
+                try callback(Token.init(.string, start_pos, pos + 1, start_line, start_column));
+                return StringParseResult{ .next_pos = pos + 1, .has_escapes = has_escapes };
+            } else if (char == '\\') {
+                has_escapes = true;
+                pos += 2; // Skip escape sequence
+                if (pos > data.len) break;
+            } else if (char == '\n' or char < 32) {
+                try callback(Token.init(.parse_error, start_pos, pos, start_line, start_column).withError("Invalid character in string"));
+                return StringParseResult{ .next_pos = pos + 1, .has_escapes = has_escapes };
+            } else {
+                pos += 1;
+            }
+        }
+        
+        // Unterminated string
+        try callback(Token.init(.parse_error, start_pos, pos, start_line, start_column).withError("Unterminated string"));
+        return StringParseResult{ .next_pos = pos, .has_escapes = has_escapes };
+    }
+
+    /// NEON optimized number parsing for ARM64
+    fn parseNumberNeon(_: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !NumberParseResult {
+        const Vector = @Vector(16, u8);
+        
+        if (start_pos >= data.len) {
+            return NumberParseResult{ .next_pos = start_pos + 1, .is_valid = false };
+        }
+        
+        var pos = start_pos;
+        const start_line: usize = 1; // TODO: Track line numbers properly
+        const start_column = start_pos + 1;
+        
+        // Handle initial minus sign
+        if (data[pos] == '-') {
+            pos += 1;
+            if (pos >= data.len) {
+                try callback(Token.init(.parse_error, start_pos, pos, start_line, start_column).withError("Invalid number: lone minus"));
+                return NumberParseResult{ .next_pos = pos, .is_valid = false };
+            }
+        }
+        
+        // Use SIMD to quickly scan for valid number characters
+        while (pos + 16 <= data.len) {
+            const chunk: Vector = data[pos..pos + 16][0..16].*;
+            
+            // Define number character vectors
+            const zero_vec: Vector = @splat('0');
+            const nine_vec: Vector = @splat('9');
+            const dot_vec: Vector = @splat('.');
+            const e_lower_vec: Vector = @splat('e');
+            const e_upper_vec: Vector = @splat('E');
+            const plus_vec: Vector = @splat('+');
+            const minus_vec: Vector = @splat('-');
+            const space_vec: Vector = @splat(' ');
+            const tab_vec: Vector = @splat('\t');
+            const newline_vec: Vector = @splat('\n');
+            const comma_vec: Vector = @splat(',');
+            const rbrace_vec: Vector = @splat('}');
+            const rbracket_vec: Vector = @splat(']');
+            
+            const BoolVector = @Vector(16, bool);
+            
+            // Check for digit characters (0-9)
+            const is_digit_ge = chunk >= zero_vec;
+            const is_digit_le = chunk <= nine_vec;
+            const is_digit = @select(bool, is_digit_ge, @select(bool, is_digit_le, @as(BoolVector, @splat(true)), @as(BoolVector, @splat(false))), @as(BoolVector, @splat(false)));
+            
+            // Check for valid number characters
+            const is_dot = chunk == dot_vec;
+            const is_e_lower = chunk == e_lower_vec;
+            const is_e_upper = chunk == e_upper_vec;
+            const is_plus = chunk == plus_vec;
+            const is_minus = chunk == minus_vec;
+            
+            // Check for number terminators (whitespace, structural chars)
+            const is_space = chunk == space_vec;
+            const is_tab = chunk == tab_vec;
+            const is_newline = chunk == newline_vec;
+            const is_comma = chunk == comma_vec;
+            const is_rbrace = chunk == rbrace_vec;
+            const is_rbracket = chunk == rbracket_vec;
+            
+            // Combine all valid number characters
+            const is_number_char = @select(bool, is_digit, @as(BoolVector, @splat(true)),
+                                  @select(bool, is_dot, @as(BoolVector, @splat(true)),
+                                  @select(bool, is_e_lower, @as(BoolVector, @splat(true)),
+                                  @select(bool, is_e_upper, @as(BoolVector, @splat(true)),
+                                  @select(bool, is_plus, @as(BoolVector, @splat(true)),
+                                  @select(bool, is_minus, @as(BoolVector, @splat(true)), @as(BoolVector, @splat(false))))))));
+            
+            // Combine all terminator characters
+            const is_terminator = @select(bool, is_space, @as(BoolVector, @splat(true)),
+                                 @select(bool, is_tab, @as(BoolVector, @splat(true)),
+                                 @select(bool, is_newline, @as(BoolVector, @splat(true)),
+                                 @select(bool, is_comma, @as(BoolVector, @splat(true)),
+                                 @select(bool, is_rbrace, @as(BoolVector, @splat(true)),
+                                 @select(bool, is_rbracket, @as(BoolVector, @splat(true)), @as(BoolVector, @splat(false))))))));
+            
+            // Find first non-number character or terminator
+            var found_end = false;
+            var end_pos: usize = 0;
+            
+            for (0..16) |i| {
+                if (!is_number_char[i] or is_terminator[i]) {
+                    found_end = true;
+                    end_pos = i;
+                    break;
+                }
+            }
+            
+            if (found_end) {
+                const final_pos = pos + end_pos;
+                // Emit number token
+                try callback(Token.init(.number, start_pos, final_pos, start_line, start_column));
+                return NumberParseResult{ .next_pos = final_pos, .is_valid = true };
+            } else {
+                // Continue to next chunk - all characters were valid number chars
+                pos += 16;
+            }
+        }
+        
+        // Handle remaining bytes with scalar parsing
+        while (pos < data.len) {
+            const char = data[pos];
+            if ((char >= '0' and char <= '9') or char == '.' or char == 'e' or char == 'E' or char == '+' or char == '-') {
+                pos += 1;
+            } else {
+                break;
+            }
+        }
+        
+        // Emit number token
+        try callback(Token.init(.number, start_pos, pos, start_line, start_column));
+        return NumberParseResult{ .next_pos = pos, .is_valid = true };
+    }
+
+    /// Scalar string parsing fallback
+    fn parseString(self: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !StringParseResult {
+        return switch (self.simd_level) {
+            .avx512 => try self.parseStringAvx512(data, start_pos, callback),
+            .neon => try self.parseStringNeon(data, start_pos, callback),
+            else => try self.parseStringScalar(data, start_pos, callback),
+        };
+    }
+
+    /// Scalar number parsing fallback
+    fn parseNumber(self: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !NumberParseResult {
+        return switch (self.simd_level) {
+            .avx512 => try self.parseNumberAvx512(data, start_pos, callback),
+            .neon => try self.parseNumberNeon(data, start_pos, callback),
+            else => try self.parseNumberScalar(data, start_pos, callback),
+        };
+    }
+
+    /// Scalar string parsing
+    fn parseStringScalar(_: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !StringParseResult {
+        if (start_pos >= data.len or data[start_pos] != '"') {
+            return StringParseResult{ .next_pos = start_pos + 1, .has_escapes = false };
+        }
+        
+        var pos = start_pos + 1;
+        var has_escapes = false;
+        const start_line: usize = 1; // TODO: Track line numbers properly
+        const start_column = start_pos + 1;
+        
+        while (pos < data.len) {
+            const char = data[pos];
+            if (char == '"') {
+                try callback(Token.init(.string, start_pos, pos + 1, start_line, start_column));
+                return StringParseResult{ .next_pos = pos + 1, .has_escapes = has_escapes };
+            } else if (char == '\\') {
+                has_escapes = true;
+                pos += 2; // Skip escape sequence
+                if (pos > data.len) break;
+            } else if (char == '\n' or char < 32) {
+                try callback(Token.init(.parse_error, start_pos, pos, start_line, start_column).withError("Invalid character in string"));
+                return StringParseResult{ .next_pos = pos + 1, .has_escapes = has_escapes };
+            } else {
+                pos += 1;
+            }
+        }
+        
+        try callback(Token.init(.parse_error, start_pos, pos, start_line, start_column).withError("Unterminated string"));
+        return StringParseResult{ .next_pos = pos, .has_escapes = has_escapes };
+    }
+
+    /// Scalar number parsing
+    fn parseNumberScalar(_: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !NumberParseResult {
+        if (start_pos >= data.len) {
+            return NumberParseResult{ .next_pos = start_pos + 1, .is_valid = false };
+        }
+        
+        var pos = start_pos;
+        const start_line: usize = 1; // TODO: Track line numbers properly
+        const start_column = start_pos + 1;
+        
+        // Handle initial minus sign
+        if (data[pos] == '-') {
+            pos += 1;
+            if (pos >= data.len) {
+                try callback(Token.init(.parse_error, start_pos, pos, start_line, start_column).withError("Invalid number: lone minus"));
+                return NumberParseResult{ .next_pos = pos, .is_valid = false };
+            }
+        }
+        
+        // Parse number characters
+        while (pos < data.len) {
+            const char = data[pos];
+            if ((char >= '0' and char <= '9') or char == '.' or char == 'e' or char == 'E' or char == '+' or char == '-') {
+                pos += 1;
+            } else {
+                break;
+            }
+        }
+        
+        try callback(Token.init(.number, start_pos, pos, start_line, start_column));
+        return NumberParseResult{ .next_pos = pos, .is_valid = true };
+    }
+
+    /// Parse literal values (true, false, null) with SIMD optimization
+    fn parseLiteral(self: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !usize {
+        return switch (self.simd_level) {
+            .avx512 => try self.parseLiteralAvx512(data, start_pos, callback),
+            .avx2 => try self.parseLiteralAvx2(data, start_pos, callback),
+            .neon => try self.parseLiteralNeon(data, start_pos, callback),
+            else => try self.parseLiteralScalar(data, start_pos, callback),
+        };
+    }
+    
+    /// AVX-512 optimized literal parsing
+    fn parseLiteralAvx512(self: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !usize {
+        const Vector = @Vector(64, u8);
+        
+        const start_line: usize = 1; // TODO: Track line numbers properly
+        const start_column = start_pos + 1;
+        
+        if (start_pos >= data.len) {
+            return start_pos;
+        }
+        
+        const remaining = data[start_pos..];
+        
+        // For literals, we can use SIMD to quickly check the first character pattern
+        if (remaining.len >= 64) {
+            const chunk: Vector = remaining[0..64][0..64].*;
+            
+            // Create pattern vectors for first characters
+            const t_vec: Vector = @splat('t');
+            const f_vec: Vector = @splat('f');
+            const n_vec: Vector = @splat('n');
+            
+            // Check if first character matches any literal start
+            const is_t = chunk == t_vec;
+            const is_f = chunk == f_vec;
+            const is_n = chunk == n_vec;
+            
+            // Check first position
+            if (is_t[0] and remaining.len >= 4) {
+                // Simple check for "true"
+                if (remaining.len >= 4 and std.mem.eql(u8, remaining[0..4], "true")) {
+                    try callback(Token.init(.boolean_true, start_pos, start_pos + 4, start_line, start_column));
+                    return start_pos + 4;
+                }
+            } else if (is_f[0] and remaining.len >= 5) {
+                // Simple check for "false"
+                if (remaining.len >= 5 and std.mem.eql(u8, remaining[0..5], "false")) {
+                    try callback(Token.init(.boolean_false, start_pos, start_pos + 5, start_line, start_column));
+                    return start_pos + 5;
+                }
+            } else if (is_n[0] and remaining.len >= 4) {
+                // Simple check for "null"
+                if (remaining.len >= 4 and std.mem.eql(u8, remaining[0..4], "null")) {
+                    try callback(Token.init(.null, start_pos, start_pos + 4, start_line, start_column));
+                    return start_pos + 4;
+                }
+            }
+        }
+        
+        // Fall back to scalar for small remaining data or no match
+        return try self.parseLiteralScalar(data, start_pos, callback);
+    }
+    
+    /// AVX2 optimized literal parsing
+    fn parseLiteralAvx2(self: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !usize {
+        // For now, fall back to scalar - AVX2 implementation similar to AVX-512 but with 32-byte vectors
+        return try self.parseLiteralScalar(data, start_pos, callback);
+    }
+    
+    /// NEON optimized literal parsing
+    fn parseLiteralNeon(self: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !usize {
+        const Vector = @Vector(16, u8);
+        
+        const start_line: usize = 1; // TODO: Track line numbers properly
+        const start_column = start_pos + 1;
+        
+        if (start_pos >= data.len) {
+            return start_pos;
+        }
+        
+        const remaining = data[start_pos..];
+        
+        // For literals, we can use SIMD to quickly check the first character pattern
+        if (remaining.len >= 16) {
+            const chunk: Vector = remaining[0..16][0..16].*;
+            
+            // Create pattern vectors for first characters
+            const t_vec: Vector = @splat('t');
+            const f_vec: Vector = @splat('f');
+            const n_vec: Vector = @splat('n');
+            
+            // Check if first character matches any literal start
+            const is_t = chunk == t_vec;
+            const is_f = chunk == f_vec;
+            const is_n = chunk == n_vec;
+            
+            // Check first position
+            if (is_t[0] and remaining.len >= 4) {
+                // Simple check for "true"
+                if (std.mem.eql(u8, remaining[0..4], "true")) {
+                    try callback(Token.init(.boolean_true, start_pos, start_pos + 4, start_line, start_column));
+                    return start_pos + 4;
+                }
+            } else if (is_f[0] and remaining.len >= 5) {
+                // Simple check for "false"
+                if (std.mem.eql(u8, remaining[0..5], "false")) {
+                    try callback(Token.init(.boolean_false, start_pos, start_pos + 5, start_line, start_column));
+                    return start_pos + 5;
+                }
+            } else if (is_n[0] and remaining.len >= 4) {
+                // Simple check for "null"
+                if (std.mem.eql(u8, remaining[0..4], "null")) {
+                    try callback(Token.init(.null, start_pos, start_pos + 4, start_line, start_column));
+                    return start_pos + 4;
+                }
+            }
+        }
+        
+        // Fall back to scalar for small remaining data or no match
+        return try self.parseLiteralScalar(data, start_pos, callback);
+    }
+    
+    /// Scalar literal parsing (original implementation)
+    fn parseLiteralScalar(_: *Self, data: []const u8, start_pos: usize, callback: ParseCallback) !usize {
+        const start_line: usize = 1; // TODO: Track line numbers properly
+        const start_column = start_pos + 1;
+        
+        if (start_pos >= data.len) {
+            return start_pos;
+        }
+        
+        const remaining = data[start_pos..];
+        
+        if (remaining.len >= 4 and std.mem.eql(u8, remaining[0..4], "true")) {
+            try callback(Token.init(.boolean_true, start_pos, start_pos + 4, start_line, start_column));
+            return start_pos + 4;
+        } else if (remaining.len >= 5 and std.mem.eql(u8, remaining[0..5], "false")) {
+            try callback(Token.init(.boolean_false, start_pos, start_pos + 5, start_line, start_column));
+            return start_pos + 5;
+        } else if (remaining.len >= 4 and std.mem.eql(u8, remaining[0..4], "null")) {
+            try callback(Token.init(.null, start_pos, start_pos + 4, start_line, start_column));
+            return start_pos + 4;
+        }
+        
+        try callback(Token.init(.parse_error, start_pos, start_pos + 1, start_line, start_column).withError("Invalid literal"));
+        return start_pos + 1;
+    }
+
     fn parseChunkScalar(_: *Self, data: []const u8, callback: ParseCallback) !void {
         var i: usize = 0;
         var line: usize = 1;
@@ -787,6 +1387,9 @@ pub const StreamingParser = struct {
 
     /// Input data
     input_data: []const u8 = "",
+    
+    /// Error handler
+    error_handler: ?*@import("../error_handling.zig").ErrorHandler = null,
 
     pub fn init(allocator: Allocator, config: ParserConfig) !Self {
         const builtin = @import("builtin");
@@ -805,6 +1408,11 @@ pub const StreamingParser = struct {
             stream.deinit();
         }
         self.memory_pool.deinit();
+    }
+    
+    /// Set error handler for recovery mechanisms
+    pub fn setErrorHandler(self: *Self, handler: *@import("../error_handling.zig").ErrorHandler) void {
+        self.error_handler = handler;
     }
 
     pub fn parseStream(

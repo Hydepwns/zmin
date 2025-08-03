@@ -1,0 +1,239 @@
+name: 'zmin JSON Minifier'
+description: 'High-performance JSON minification using zmin in your CI/CD pipeline'
+author: 'zmin team'
+branding:
+  icon: 'minimize-2'
+  color: 'blue'
+
+inputs:
+  files:
+    description: 'JSON files to minify (glob pattern)'
+    required: false
+    default: '**/*.json'
+  
+  mode:
+    description: 'Performance mode: eco, sport, or turbo'
+    required: false
+    default: 'sport'
+  
+  output-dir:
+    description: 'Output directory for minified files'
+    required: false
+    default: 'minified'
+  
+  exclude:
+    description: 'Files to exclude (glob pattern)'
+    required: false
+    default: '**/node_modules/**,**/vendor/**'
+  
+  preserve-structure:
+    description: 'Preserve directory structure in output'
+    required: false
+    default: 'true'
+  
+  fail-on-error:
+    description: 'Fail the action if any file fails to minify'
+    required: false
+    default: 'true'
+  
+  version:
+    description: 'zmin version to use'
+    required: false
+    default: 'latest'
+  
+  benchmark:
+    description: 'Show performance benchmarks'
+    required: false
+    default: 'false'
+
+outputs:
+  total-files:
+    description: 'Total number of files processed'
+    value: ${{ steps.minify.outputs.total-files }}
+  
+  total-saved:
+    description: 'Total bytes saved'
+    value: ${{ steps.minify.outputs.total-saved }}
+  
+  average-reduction:
+    description: 'Average size reduction percentage'
+    value: ${{ steps.minify.outputs.average-reduction }}
+  
+  processing-time:
+    description: 'Total processing time in milliseconds'
+    value: ${{ steps.minify.outputs.processing-time }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup zmin
+      shell: bash
+      run: |
+        echo "::group::Installing zmin"
+        
+        # Determine version
+        VERSION="${{ inputs.version }}"
+        if [ "$VERSION" = "latest" ]; then
+          VERSION=$(curl -s https://api.github.com/repos/hydepwns/zmin/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+        fi
+        
+        # Determine platform
+        case "${{ runner.os }}" in
+          Linux)
+            PLATFORM="linux"
+            EXT="tar.gz"
+            ;;
+          macOS)
+            PLATFORM="darwin"
+            EXT="tar.gz"
+            ;;
+          Windows)
+            PLATFORM="windows"
+            EXT="zip"
+            ;;
+        esac
+        
+        # Determine architecture
+        case "${{ runner.arch }}" in
+          X64)
+            ARCH="x86_64"
+            ;;
+          ARM64)
+            ARCH="aarch64"
+            ;;
+        esac
+        
+        # Download zmin
+        URL="https://github.com/hydepwns/zmin/releases/download/${VERSION}/zmin-${VERSION}-${PLATFORM}-${ARCH}.${EXT}"
+        echo "Downloading zmin from: $URL"
+        
+        if [ "$EXT" = "zip" ]; then
+          curl -L "$URL" -o zmin.zip
+          unzip zmin.zip
+        else
+          curl -L "$URL" | tar -xz
+        fi
+        
+        # Make executable and add to PATH
+        chmod +x zmin
+        echo "$PWD" >> $GITHUB_PATH
+        
+        # Verify installation
+        ./zmin --version
+        echo "::endgroup::"
+    
+    - name: Minify JSON files
+      id: minify
+      shell: bash
+      run: |
+        echo "::group::Minifying JSON files"
+        
+        # Create output directory
+        mkdir -p "${{ inputs.output-dir }}"
+        
+        # Initialize counters
+        TOTAL_FILES=0
+        TOTAL_INPUT_SIZE=0
+        TOTAL_OUTPUT_SIZE=0
+        START_TIME=$(date +%s%N)
+        FAILED_FILES=()
+        
+        # Find JSON files
+        FILES=$(find . -type f -name "*.json" | grep -E "${{ inputs.files }}" | grep -vE "${{ inputs.exclude }}" || true)
+        
+        if [ -z "$FILES" ]; then
+          echo "No JSON files found matching pattern: ${{ inputs.files }}"
+          echo "total-files=0" >> $GITHUB_OUTPUT
+          echo "total-saved=0" >> $GITHUB_OUTPUT
+          echo "average-reduction=0" >> $GITHUB_OUTPUT
+          echo "processing-time=0" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Process each file
+        echo "$FILES" | while IFS= read -r file; do
+          if [ -z "$file" ]; then continue; fi
+          
+          echo "Processing: $file"
+          
+          # Determine output path
+          if [ "${{ inputs.preserve-structure }}" = "true" ]; then
+            OUTPUT_FILE="${{ inputs.output-dir }}/${file#./}"
+            mkdir -p "$(dirname "$OUTPUT_FILE")"
+          else
+            OUTPUT_FILE="${{ inputs.output-dir }}/$(basename "$file")"
+          fi
+          
+          # Get input size
+          INPUT_SIZE=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file")
+          
+          # Minify file
+          if ./zmin -m "${{ inputs.mode }}" "$file" -o "$OUTPUT_FILE" 2>&1; then
+            # Get output size
+            OUTPUT_SIZE=$(stat -f%z "$OUTPUT_FILE" 2>/dev/null || stat -c%s "$OUTPUT_FILE")
+            SAVED=$((INPUT_SIZE - OUTPUT_SIZE))
+            REDUCTION=$(echo "scale=1; ($SAVED * 100) / $INPUT_SIZE" | bc)
+            
+            echo "  ✓ Reduced by ${REDUCTION}% (saved ${SAVED} bytes)"
+            
+            # Update totals
+            ((TOTAL_FILES++))
+            TOTAL_INPUT_SIZE=$((TOTAL_INPUT_SIZE + INPUT_SIZE))
+            TOTAL_OUTPUT_SIZE=$((TOTAL_OUTPUT_SIZE + OUTPUT_SIZE))
+            
+            # Benchmark if requested
+            if [ "${{ inputs.benchmark }}" = "true" ]; then
+              BENCH_TIME=$(./zmin -m "${{ inputs.mode }}" "$file" --benchmark 2>&1 | grep "Time:" | awk '{print $2}')
+              echo "  ⚡ Processed in ${BENCH_TIME}"
+            fi
+          else
+            echo "  ✗ Failed to minify"
+            FAILED_FILES+=("$file")
+            
+            if [ "${{ inputs.fail-on-error }}" = "true" ]; then
+              echo "::error file=$file::Failed to minify JSON file"
+              exit 1
+            fi
+          fi
+        done
+        
+        # Calculate results
+        END_TIME=$(date +%s%N)
+        PROCESSING_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
+        TOTAL_SAVED=$((TOTAL_INPUT_SIZE - TOTAL_OUTPUT_SIZE))
+        
+        if [ $TOTAL_FILES -gt 0 ]; then
+          AVG_REDUCTION=$(echo "scale=1; ($TOTAL_SAVED * 100) / $TOTAL_INPUT_SIZE" | bc)
+        else
+          AVG_REDUCTION=0
+        fi
+        
+        # Output summary
+        echo ""
+        echo "Summary:"
+        echo "  Files processed: $TOTAL_FILES"
+        echo "  Total saved: $(numfmt --to=iec $TOTAL_SAVED 2>/dev/null || echo "${TOTAL_SAVED} bytes")"
+        echo "  Average reduction: ${AVG_REDUCTION}%"
+        echo "  Processing time: ${PROCESSING_TIME}ms"
+        
+        if [ ${#FAILED_FILES[@]} -gt 0 ]; then
+          echo ""
+          echo "Failed files:"
+          printf '  %s\n' "${FAILED_FILES[@]}"
+        fi
+        
+        # Set outputs
+        echo "total-files=$TOTAL_FILES" >> $GITHUB_OUTPUT
+        echo "total-saved=$TOTAL_SAVED" >> $GITHUB_OUTPUT
+        echo "average-reduction=$AVG_REDUCTION" >> $GITHUB_OUTPUT
+        echo "processing-time=$PROCESSING_TIME" >> $GITHUB_OUTPUT
+        
+        echo "::endgroup::"
+    
+    - name: Upload minified files
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: minified-json
+        path: ${{ inputs.output-dir }}
+        retention-days: 7

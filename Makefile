@@ -29,7 +29,11 @@ help:
 	@echo ""
 	@echo "Documentation:"
 	@echo "  docs      - Generate API documentation"
-	@echo "  serve-docs- Serve documentation locally"
+	@echo "  docs-serve- Serve Hugo documentation site"
+	@echo "  docs-build- Build documentation website"
+	@echo "  api-sync  - Sync API docs to website"
+	@echo "  api-watch - Watch and sync API changes"
+	@echo "  serve-docs- Serve raw docs locally"
 	@echo ""
 	@echo "Examples & Tools:"
 	@echo "  examples  - Build all examples"
@@ -75,22 +79,22 @@ clean-all: clean
 
 cleanup:
 	@echo "Running comprehensive cleanup script..."
-	@./scripts/dev/cleanup.sh
+	@./tools/scripts/dev/cleanup.sh
 	@echo "✅ Comprehensive cleanup completed"
 
 cleanup-docker:
 	@echo "Running comprehensive cleanup with Docker cleanup..."
-	@./scripts/dev/cleanup.sh --docker
+	@./tools/scripts/dev/cleanup.sh --docker
 	@echo "✅ Comprehensive cleanup with Docker cleanup completed"
 
 organize:
 	@echo "Organizing project structure..."
-	@./scripts/dev/organize.sh
+	@./tools/scripts/dev/organize.sh
 	@echo "✅ Project organization completed"
 
 status:
 	@echo "Checking project status..."
-	@./scripts/dev/status.sh
+	@./tools/scripts/dev/status.sh
 	@echo "✅ Status check completed"
 
 # Testing commands
@@ -105,7 +109,7 @@ benchmark:
 
 # Code quality
 format:
-	zig fmt src/ scripts/ dev-tools/ examples/ tests/
+	zig fmt src/ tools/ examples/ tests/
 
 lint:
 	@echo "Running linting checks..."
@@ -115,7 +119,7 @@ lint:
 # Documentation
 docs:
 	@echo "Generating API documentation..."
-	@zig build-exe scripts/build/generate-api-docs.zig -O ReleaseFast
+	@zig build-exe tools/scripts/build/generate-api-docs.zig -O ReleaseFast
 	@./generate-api-docs src docs/api-reference-generated.json
 	@rm -f generate-api-docs
 	@echo "✅ Documentation generated"
@@ -123,7 +127,7 @@ docs:
 # Content generation
 generate-content:
 	@echo "Generating content from centralized data..."
-	@zig run scripts/build/generate-content.zig
+	@zig run tools/scripts/build/generate-content.zig
 
 # Build site with generated content
 build-site: generate-content
@@ -133,6 +137,29 @@ build-site: generate-content
 serve-docs:
 	@echo "Serving documentation at http://localhost:8000"
 	@python3 -m http.server 8000 --directory docs/
+
+# Enhanced documentation targets
+docs-serve:
+	@echo "Starting Hugo development server..."
+	@cd website && hugo server -D --bind 0.0.0.0 --port 1313
+
+docs-build:
+	@echo "Building documentation website..."
+	@cd website && hugo --minify
+
+api-sync: docs
+	@echo "Syncing API documentation to website..."
+	@mkdir -p website/static/api
+	@cp docs/api-reference-generated.json website/static/api/api-reference.json
+	@echo "✅ API documentation synchronized"
+
+api-watch:
+	@echo "Watching for API changes..."
+	@while true; do \
+		make api-sync; \
+		echo "Waiting for changes..."; \
+		sleep 5; \
+	done
 
 # Examples and tools
 examples:

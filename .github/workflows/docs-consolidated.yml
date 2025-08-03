@@ -6,26 +6,14 @@ on:
     paths:
       - 'src/**/*.zig'
       - 'docs/**'
-      - 'content/**'
-      - 'config.yaml'
-      - 'static/**'
-      - 'layouts/**'
-      - 'assets/**'
-      - 'go.mod'
-      - 'go.sum'
+      - 'website/**'
       - '.github/workflows/docs-consolidated.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'src/**/*.zig'
       - 'docs/**'
-      - 'content/**'
-      - 'config.yaml'
-      - 'static/**'
-      - 'layouts/**'
-      - 'assets/**'
-      - 'go.mod'
-      - 'go.sum'
+      - 'website/**'
       - '.github/workflows/docs-consolidated.yml'
   schedule:
     # Weekly documentation update at 3 AM UTC on Sundays
@@ -122,13 +110,20 @@ jobs:
               exit 1
             fi
           else
-            echo "⚠️ generate-api-spec target not available, creating placeholder files"
+            echo "⚠️ generate-api-spec target not available, using existing API documentation"
 
-            # Create placeholder files so the workflow doesn't fail
-            echo '{"info": {"title": "zmin API", "version": "1.0.0"}, "paths": {}}' > ${{ env.GENERATED_SPEC }}
-            echo '<html><head><title>zmin API Reference</title></head><body><h1>zmin API Reference</h1><p>API documentation will be generated when the generate-api-spec build target is implemented.</p></body></html>' > ${{ env.GENERATED_HTML }}
+            # Copy existing API docs instead of creating placeholders
+            if [ -f "docs/api/api-reference.json" ]; then
+              cp docs/api/api-reference.json ${{ env.GENERATED_SPEC }}
+              echo "✅ Copied existing API reference JSON"
+            else
+              echo '{"info": {"title": "zmin API", "version": "1.0.0"}, "paths": {}}' > ${{ env.GENERATED_SPEC }}
+              echo "✅ Created minimal API spec placeholder"
+            fi
 
-            echo "✅ Placeholder API documentation created"
+            # Create simple redirect to the actual API docs
+            echo '<html><head><title>zmin API Reference</title><meta http-equiv="refresh" content="0; url=/api-reference/"></head><body><h1>zmin API Reference</h1><p>Redirecting to <a href="/api-reference/">API documentation</a>...</p></body></html>' > ${{ env.GENERATED_HTML }}
+            echo "✅ Created API documentation redirect"
           fi
 
       - name: Generate HTML documentation
@@ -193,6 +188,7 @@ jobs:
 
       - name: Build site
         run: |
+          cd website
           # Don't try to initialize modules if go.mod already exists
           if [ ! -f "go.mod" ]; then
             hugo mod init zmin-docs
@@ -204,7 +200,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hugo-site
-          path: public/
+          path: website/public/
           retention-days: 1
 
   # Deploy to GitHub Pages
@@ -264,7 +260,10 @@ jobs:
       - name: Ensure CNAME file is present
         run: |
           # Copy CNAME file to public directory for custom domain
-          if [ -f "static/CNAME" ]; then
+          if [ -f "website/static/CNAME" ]; then
+            cp website/static/CNAME public/
+            echo "✅ Copied website/static/CNAME to public/"
+          elif [ -f "static/CNAME" ]; then
             cp static/CNAME public/
             echo "✅ Copied static/CNAME to public/"
           elif [ -f "docs/CNAME" ]; then

@@ -43,7 +43,9 @@ Thumbs.db
 .claude/
 
 # Build directories
-!dist/dist-manifest.json
+build/bin/
+build/lib/
+build/dist/
 target/
 
 # Hugo build artifacts (but not the build/ directory with Zig files)

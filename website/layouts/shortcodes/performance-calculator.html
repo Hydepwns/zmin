@@ -1,0 +1,304 @@
+<!-- Performance Calculator -->
+<div class="performance-calculator">
+    <h2>Performance Calculator</h2>
+    <p>Estimate zmin's performance for your specific use case.</p>
+    
+    <!-- Input Section -->
+    <div class="calc-section">
+        <h3>Your Data</h3>
+        <div class="calc-inputs">
+            <div class="input-group">
+                <label for="file-size">File Size</label>
+                <div class="input-with-unit">
+                    <input type="number" id="file-size" value="10" min="0.001" step="any">
+                    <select id="size-unit">
+                        <option value="KB">KB</option>
+                        <option value="MB" selected>MB</option>
+                        <option value="GB">GB</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label for="performance-mode">Performance Mode</label>
+                <select id="performance-mode">
+                    <option value="eco">Eco (3 GB/s)</option>
+                    <option value="sport">Sport (4 GB/s)</option>
+                    <option value="turbo" selected>Turbo (5+ GB/s)</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="hardware-type">Hardware Type</label>
+                <select id="hardware-type">
+                    <option value="laptop">Laptop (2-4 cores)</option>
+                    <option value="desktop" selected>Desktop (4-8 cores)</option>
+                    <option value="server">Server (8+ cores)</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="file-count">Number of Files</label>
+                <input type="number" id="file-count" value="1" min="1">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Results Section -->
+    <div class="calc-section">
+        <h3>Estimated Performance</h3>
+        <div class="calc-results">
+            <div class="result-card primary">
+                <div class="result-value" id="processing-time">--</div>
+                <div class="result-label">Processing Time</div>
+            </div>
+            
+            <div class="result-card">
+                <div class="result-value" id="throughput">--</div>
+                <div class="result-label">Throughput</div>
+            </div>
+            
+            <div class="result-card">
+                <div class="result-value" id="memory-usage">--</div>
+                <div class="result-label">Est. Memory Usage</div>
+            </div>
+            
+            <div class="result-card">
+                <div class="result-value" id="files-per-second">--</div>
+                <div class="result-label">Files/Second</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Comparison Section -->
+    <div class="calc-section">
+        <h3>Comparison with Other Libraries</h3>
+        <div class="comparison-bars">
+            <div class="comparison-item">
+                <div class="lib-name">zmin</div>
+                <div class="time-bar">
+                    <div class="bar bar-zmin" id="bar-zmin"></div>
+                    <span class="time-label" id="time-zmin">--</span>
+                </div>
+            </div>
+            
+            <div class="comparison-item">
+                <div class="lib-name">simdjson</div>
+                <div class="time-bar">
+                    <div class="bar bar-simdjson" id="bar-simdjson"></div>
+                    <span class="time-label" id="time-simdjson">--</span>
+                </div>
+            </div>
+            
+            <div class="comparison-item">
+                <div class="lib-name">rapidjson</div>
+                <div class="time-bar">
+                    <div class="bar bar-rapidjson" id="bar-rapidjson"></div>
+                    <span class="time-label" id="time-rapidjson">--</span>
+                </div>
+            </div>
+            
+            <div class="comparison-item">
+                <div class="lib-name">nlohmann/json</div>
+                <div class="time-bar">
+                    <div class="bar bar-nlohmann" id="bar-nlohmann"></div>
+                    <span class="time-label" id="time-nlohmann">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recommendations -->
+    <div class="calc-section">
+        <h3>Recommendations</h3>
+        <div id="recommendations" class="calc-recommendations">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+    
+    // Performance data (GB/s)
+    const performanceData = {
+        modes: {
+            eco: { throughput: 3.0, memory_factor: 0.8 },
+            sport: { throughput: 4.0, memory_factor: 1.0 },
+            turbo: { throughput: 5.2, memory_factor: 1.2 }
+        },
+        hardware: {
+            laptop: { factor: 0.7 },
+            desktop: { factor: 1.0 },
+            server: { factor: 1.3 }
+        },
+        competitors: {
+            simdjson: 3.5,
+            rapidjson: 1.2,
+            nlohmann: 0.5
+        }
+    };
+    
+    function calculate() {
+        // Get input values
+        const fileSize = parseFloat(document.getElementById('file-size').value);
+        const sizeUnit = document.getElementById('size-unit').value;
+        const mode = document.getElementById('performance-mode').value;
+        const hardware = document.getElementById('hardware-type').value;
+        const fileCount = parseInt(document.getElementById('file-count').value);
+        
+        // Convert to MB
+        let fileSizeMB = fileSize;
+        if (sizeUnit === 'KB') fileSizeMB = fileSize / 1024;
+        if (sizeUnit === 'GB') fileSizeMB = fileSize * 1024;
+        
+        // Calculate throughput
+        const baseThroughput = performanceData.modes[mode].throughput;
+        const hardwareFactor = performanceData.hardware[hardware].factor;
+        const effectiveThroughput = baseThroughput * hardwareFactor * 1024; // MB/s
+        
+        // Calculate processing time
+        const totalSizeMB = fileSizeMB * fileCount;
+        const processingTime = totalSizeMB / effectiveThroughput;
+        
+        // Calculate memory usage
+        const memoryFactor = performanceData.modes[mode].memory_factor;
+        const baseMemory = Math.min(fileSizeMB * 0.1, 100); // Cap at 100MB
+        const estimatedMemory = baseMemory * memoryFactor;
+        
+        // Calculate files per second
+        const filesPerSecond = fileCount > 1 ? 1 / (processingTime / fileCount) : 1 / processingTime;
+        
+        // Update results
+        updateResults(processingTime, effectiveThroughput, estimatedMemory, filesPerSecond);
+        
+        // Update comparison
+        updateComparison(totalSizeMB, effectiveThroughput);
+        
+        // Generate recommendations
+        generateRecommendations(fileSizeMB, fileCount, mode);
+    }
+    
+    function updateResults(time, throughput, memory, fps) {
+        // Format time
+        let timeStr;
+        if (time < 0.001) {
+            timeStr = '<1ms';
+        } else if (time < 1) {
+            timeStr = (time * 1000).toFixed(0) + 'ms';
+        } else if (time < 60) {
+            timeStr = time.toFixed(1) + 's';
+        } else {
+            const minutes = Math.floor(time / 60);
+            const seconds = (time % 60).toFixed(0);
+            timeStr = `${minutes}m ${seconds}s`;
+        }
+        
+        document.getElementById('processing-time').textContent = timeStr;
+        document.getElementById('throughput').textContent = (throughput / 1024).toFixed(1) + ' GB/s';
+        document.getElementById('memory-usage').textContent = memory.toFixed(0) + ' MB';
+        document.getElementById('files-per-second').textContent = fps > 1000 ? 
+            (fps / 1000).toFixed(1) + 'k' : fps.toFixed(1);
+    }
+    
+    function updateComparison(totalSizeMB, zminThroughput) {
+        const zminTime = totalSizeMB / zminThroughput;
+        
+        // Calculate times for other libraries
+        const times = {
+            zmin: zminTime,
+            simdjson: totalSizeMB / (performanceData.competitors.simdjson * 1024),
+            rapidjson: totalSizeMB / (performanceData.competitors.rapidjson * 1024),
+            nlohmann: totalSizeMB / (performanceData.competitors.nlohmann * 1024)
+        };
+        
+        // Find max time for scaling
+        const maxTime = Math.max(...Object.values(times));
+        
+        // Update bars and labels
+        Object.entries(times).forEach(([lib, time]) => {
+            const bar = document.getElementById(`bar-${lib}`);
+            const label = document.getElementById(`time-${lib}`);
+            
+            // Scale bar width (inverse relationship - shorter time = longer bar)
+            const barWidth = ((1 - (time / maxTime)) * 80 + 20) + '%';
+            bar.style.width = barWidth;
+            
+            // Format time label
+            if (time < 1) {
+                label.textContent = (time * 1000).toFixed(0) + 'ms';
+            } else {
+                label.textContent = time.toFixed(1) + 's';
+            }
+        });
+    }
+    
+    function generateRecommendations(fileSizeMB, fileCount, mode) {
+        const recommendations = [];
+        
+        // Size-based recommendations
+        if (fileSizeMB > 1000) {
+            recommendations.push({
+                icon: '💡',
+                text: 'For files over 1GB, consider using streaming mode to reduce memory usage.'
+            });
+        }
+        
+        if (fileSizeMB < 1 && fileCount > 100) {
+            recommendations.push({
+                icon: '🚀',
+                text: 'For many small files, batch processing can improve throughput by up to 30%.'
+            });
+        }
+        
+        // Mode recommendations
+        if (mode === 'eco' && fileSizeMB > 100) {
+            recommendations.push({
+                icon: '⚡',
+                text: 'Consider using Sport or Turbo mode for large files to reduce processing time.'
+            });
+        }
+        
+        if (mode === 'turbo' && fileSizeMB < 10) {
+            recommendations.push({
+                icon: '🌱',
+                text: 'For small files, Eco mode provides similar performance with lower resource usage.'
+            });
+        }
+        
+        // GPU recommendation
+        if (fileSizeMB > 500) {
+            recommendations.push({
+                icon: '🎮',
+                text: 'GPU acceleration can provide an additional 20-40% performance boost for large files.'
+            });
+        }
+        
+        // General tips
+        recommendations.push({
+            icon: '📊',
+            text: 'These estimates assume typical JSON structure. Deeply nested JSON may process slower.'
+        });
+        
+        // Update UI
+        const container = document.getElementById('recommendations');
+        container.innerHTML = recommendations.map(rec => `
+            <div class="recommendation-item">
+                <span class="rec-icon">${rec.icon}</span>
+                <span class="rec-text">${rec.text}</span>
+            </div>
+        `).join('');
+    }
+    
+    // Add event listeners
+    document.getElementById('file-size').addEventListener('input', calculate);
+    document.getElementById('size-unit').addEventListener('change', calculate);
+    document.getElementById('performance-mode').addEventListener('change', calculate);
+    document.getElementById('hardware-type').addEventListener('change', calculate);
+    document.getElementById('file-count').addEventListener('input', calculate);
+    
+    // Initial calculation
+    calculate();
+})();
+</script>

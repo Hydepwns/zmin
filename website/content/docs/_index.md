@@ -33,4 +33,13 @@ Welcome to the comprehensive documentation for zmin, the high-performance JSON m
 
 ## API Reference
 
-For detailed API documentation, see the [API Reference](/api-reference-generated.html) generated from the source code.
+- **[API Reference](/api-reference/)** - Complete API documentation with examples
+- **[Plugin API](https://github.com/hydepwns/zmin/blob/main/docs/api/PLUGIN_API.md)** - Plugin development API
+
+## Developer Documentation
+
+For developers working on zmin itself or advanced integrations:
+
+- **[Architecture Docs](https://github.com/hydepwns/zmin/tree/main/docs/architecture)** - v2.0 architecture and design decisions
+- **[Development Guide](https://github.com/hydepwns/zmin/tree/main/docs/development)** - Coding standards, performance tuning, publishing
+- **[Dev Tools](https://github.com/hydepwns/zmin/blob/main/docs/TROUBLESHOOTING.md)** - Development tools troubleshooting

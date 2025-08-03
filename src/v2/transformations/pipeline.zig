@@ -549,34 +549,73 @@ pub const TransformationPipeline = struct {
 
     fn executeFilterFields(
         self: *Self,
-        _config: FilterConfig,
+        config: FilterConfig,
         input: *const TokenStream,
         output: *OutputStream,
     ) !void {
-        // TODO: Implement field filtering - for now just pass through
-        var pos: usize = 0;
-        while (pos < input.getTokenCount()) : (pos += 1) {
-            const token = input.getToken(pos) orelse continue;
-            try output.writeToken(token, input.input_data);
-        }
-        _ = self;
-        _ = _config;
+        const field_filter = @import("field_filter_v2.zig");
+        try field_filter.executeFieldFiltering(config, input, output, self.memory_manager.allocator);
     }
 
     fn executeSchemaValidation(
         self: *Self,
-        _config: SchemaConfig,
+        config: SchemaConfig,
         input: *const TokenStream,
         output: *OutputStream,
     ) !void {
-        // TODO: Implement schema validation - for now just pass through
+        const schema_validation = @import("../schema_validation.zig");
+        
+        // Parse schema from JSON
+        var schema = try schema_validation.Schema.fromJson(self.memory_manager.allocator, config.schema);
+        defer {
+            schema.deinit();
+            self.memory_manager.allocator.destroy(schema);
+        }
+        
+        // Create validator
+        const validation_config = schema_validation.ValidationConfig{
+            .fail_fast = (config.mode == .strict),
+            .validate_formats = true,
+            .strict_mode = (config.mode == .strict),
+        };
+        
+        var validator = schema_validation.SchemaValidator.init(
+            self.memory_manager.allocator,
+            schema,
+            validation_config,
+        );
+        
+        // Validate the token stream
+        var validation_state = try validator.validateTokenStream(input);
+        defer validation_state.deinit();
+        
+        // Handle validation results
+        if (!validation_state.isValid()) {
+            if (config.mode == .strict) {
+                // In strict mode, fail on validation errors
+                const errors = validation_state.getErrors();
+                if (errors.len > 0) {
+                    std.log.err("Schema validation failed: {s}", .{errors[0].message});
+                    return error.SchemaValidationFailed;
+                }
+            }
+            // In permissive mode, log errors but continue
+            const errors = validation_state.getErrors();
+            for (errors) |err| {
+                std.log.warn("Schema validation warning: {s} at {s}", .{ err.message, err.instance_path });
+            }
+        }
+        
+        // Pass through the input to output (validation doesn't modify content)
         var pos: usize = 0;
         while (pos < input.getTokenCount()) : (pos += 1) {
             const token = input.getToken(pos) orelse continue;
             try output.writeToken(token, input.input_data);
         }
-        _ = self;
-        _ = _config;
+        
+        // Update stats
+        self.stats.validation_errors += validation_state.getErrors().len;
+        self.stats.nodes_validated += validation_state.nodes_validated;
     }
 
     fn executeFormatConversion(
@@ -652,6 +691,12 @@ pub const PipelineStats = struct {
 
     /// Memory allocated
     memory_allocated: usize = 0,
+    
+    /// Validation errors encountered
+    validation_errors: usize = 0,
+    
+    /// Nodes validated during schema validation
+    nodes_validated: usize = 0,
 
     pub fn init() PipelineStats {
         return PipelineStats{};

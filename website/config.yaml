@@ -122,6 +122,12 @@ outputFormats:
     isPlainText: true
     notAlternative: true
 
+outputs:
+  home:
+    - HTML
+    - RSS
+    - searchIndex
+
 # Enable emoji
 enableEmoji: true
 

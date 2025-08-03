@@ -1,0 +1,66 @@
+{{ $isHome := eq .Page.Permalink .Site.BaseURL }}
+{{ $currentPage := . }}
+
+{{ if and (not $isHome) (gt (len .Site.Menus.main) 0) }}
+<nav class="breadcrumb" aria-label="Breadcrumb navigation">
+    <ol class="breadcrumb-list">
+        <!-- Home -->
+        <li class="breadcrumb-item">
+            <a href="{{ .Site.BaseURL }}" class="breadcrumb-link">
+                <svg class="breadcrumb-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span class="breadcrumb-text">Home</span>
+            </a>
+        </li>
+        
+        <!-- Build breadcrumb trail -->
+        {{ $url := .Permalink }}
+        {{ $scratch := newScratch }}
+        
+        <!-- Get all ancestors -->
+        {{ range $index, $element := split (trim .RelPermalink "/") "/" }}
+            {{ $scratch.Add "path" (printf "/%s" $element) }}
+            {{ $parentPath := $scratch.Get "path" }}
+            {{ $parentURL := printf "%s%s/" $.Site.BaseURL (trim $parentPath "/") }}
+            
+            <!-- Check if this is a valid page -->
+            {{ with $.Site.GetPage $parentPath }}
+                {{ if ne .Permalink $url }}
+                    <li class="breadcrumb-item">
+                        <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                        <a href="{{ .Permalink }}" class="breadcrumb-link">{{ .Title }}</a>
+                    </li>
+                {{ else }}
+                    <!-- Current page -->
+                    <li class="breadcrumb-item breadcrumb-current" aria-current="page">
+                        <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                        <span class="breadcrumb-text">{{ .Title }}</span>
+                    </li>
+                {{ end }}
+            {{ else if ne $parentPath "/" }}
+                <!-- Try to find in menu -->
+                {{ $found := false }}
+                {{ range $.Site.Menus.main }}
+                    {{ if eq .URL $parentPath }}
+                        {{ $found = true }}
+                        <li class="breadcrumb-item">
+                            <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                            <a href="{{ .URL }}" class="breadcrumb-link">{{ .Name }}</a>
+                        </li>
+                    {{ end }}
+                {{ end }}
+                
+                <!-- Fallback to capitalized path segment -->
+                {{ if not $found }}
+                    <li class="breadcrumb-item">
+                        <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                        <span class="breadcrumb-link">{{ title $element }}</span>
+                    </li>
+                {{ end }}
+            {{ end }}
+        {{ end }}
+    </ol>
+</nav>
+{{ end }}

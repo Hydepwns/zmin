@@ -104,8 +104,8 @@ jobs:
     - name: Package dev tools (Unix)
       if: matrix.platform != 'windows'
       run: |
-        chmod +x scripts/packaging/package-dev-tools.sh
-        ./scripts/packaging/package-dev-tools.sh
+        chmod +x deployments/packaging/package-dev-tools.sh
+        ./deployments/packaging/package-dev-tools.sh
 
     - name: Package dev tools (Windows)
       if: matrix.platform == 'windows'

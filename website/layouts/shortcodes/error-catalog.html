@@ -1,0 +1,253 @@
+<!-- Error Catalog Search Widget -->
+<div class="error-catalog-widget">
+    <div class="error-search-box">
+        <input type="text" 
+               id="error-search" 
+               placeholder="Search by error code or message..." 
+               autocomplete="off">
+        <button id="error-search-clear" aria-label="Clear search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+    </div>
+    
+    <div class="error-filters">
+        <button class="filter-btn active" data-category="all">All</button>
+        <button class="filter-btn" data-category="parse">Parse (1xxx)</button>
+        <button class="filter-btn" data-category="memory">Memory (2xxx)</button>
+        <button class="filter-btn" data-category="io">I/O (3xxx)</button>
+        <button class="filter-btn" data-category="validation">Validation (4xxx)</button>
+        <button class="filter-btn" data-category="config">Config (5xxx)</button>
+        <button class="filter-btn" data-category="system">System (6xxx)</button>
+    </div>
+    
+    <div id="error-count" class="error-count"></div>
+</div>
+
+<style>
+.error-catalog-widget {
+    margin: 30px 0;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.error-search-box {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+#error-search {
+    width: 100%;
+    padding: 12px 40px 12px 16px;
+    font-size: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+#error-search:focus {
+    outline: none;
+    border-color: var(--link-color);
+}
+
+#error-search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 6px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+#error-search:not(:placeholder-shown) + #error-search-clear {
+    opacity: 1;
+}
+
+#error-search-clear:hover {
+    background: var(--bg-secondary);
+    color: var(--text-color);
+}
+
+.error-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.filter-btn {
+    padding: 6px 12px;
+    font-size: 14px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-btn:hover {
+    border-color: var(--link-color);
+    color: var(--text-color);
+}
+
+.filter-btn.active {
+    background: var(--link-color);
+    border-color: var(--link-color);
+    color: white;
+}
+
+.error-count {
+    font-size: 14px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* Highlight matching errors */
+.error-match {
+    background: var(--highlight-bg) !important;
+    border-color: var(--highlight-color) !important;
+}
+
+.error-hidden {
+    display: none !important;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+    .error-catalog-widget {
+        margin: 20px -20px;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+    
+    .error-filters {
+        gap: 6px;
+    }
+    
+    .filter-btn {
+        font-size: 13px;
+        padding: 5px 10px;
+    }
+}
+</style>
+
+<script>
+(function() {
+    'use strict';
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('error-search');
+        const clearButton = document.getElementById('error-search-clear');
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        const errorCount = document.getElementById('error-count');
+        
+        let currentFilter = 'all';
+        
+        // Search functionality
+        searchInput.addEventListener('input', performSearch);
+        
+        // Clear button
+        clearButton.addEventListener('click', function() {
+            searchInput.value = '';
+            performSearch();
+            searchInput.focus();
+        });
+        
+        // Filter buttons
+        filterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                filterButtons.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.category;
+                performSearch();
+            });
+        });
+        
+        function performSearch() {
+            const query = searchInput.value.toLowerCase();
+            const headers = document.querySelectorAll('h4[id^="e"]');
+            let visibleCount = 0;
+            let totalCount = 0;
+            
+            headers.forEach(header => {
+                const section = getErrorSection(header);
+                if (!section) return;
+                
+                const errorCode = header.id.toUpperCase();
+                const errorText = section.textContent.toLowerCase();
+                const category = getErrorCategory(errorCode);
+                
+                // Check filter
+                const matchesFilter = currentFilter === 'all' || category === currentFilter;
+                
+                // Check search
+                const matchesSearch = !query || 
+                    errorCode.toLowerCase().includes(query) ||
+                    errorText.includes(query);
+                
+                if (matchesFilter && matchesSearch) {
+                    section.classList.remove('error-hidden');
+                    if (query) {
+                        section.classList.add('error-match');
+                    } else {
+                        section.classList.remove('error-match');
+                    }
+                    visibleCount++;
+                } else {
+                    section.classList.add('error-hidden');
+                    section.classList.remove('error-match');
+                }
+                
+                if (matchesFilter) {
+                    totalCount++;
+                }
+            });
+            
+            // Update count
+            if (query) {
+                errorCount.textContent = `Found ${visibleCount} of ${totalCount} errors`;
+            } else if (currentFilter !== 'all') {
+                errorCount.textContent = `Showing ${visibleCount} errors`;
+            } else {
+                errorCount.textContent = '';
+            }
+        }
+        
+        function getErrorSection(header) {
+            // Find the containing section (header + following content)
+            let section = header.parentElement;
+            while (section && !section.classList.contains('level-content')) {
+                section = section.parentElement;
+            }
+            return section || header.parentElement;
+        }
+        
+        function getErrorCategory(errorCode) {
+            const code = parseInt(errorCode.substring(1));
+            if (code >= 1000 && code < 2000) return 'parse';
+            if (code >= 2000 && code < 3000) return 'memory';
+            if (code >= 3000 && code < 4000) return 'io';
+            if (code >= 4000 && code < 5000) return 'validation';
+            if (code >= 5000 && code < 6000) return 'config';
+            if (code >= 6000 && code < 7000) return 'system';
+            return 'other';
+        }
+        
+        // Initial count
+        performSearch();
+    });
+})();
+</script>

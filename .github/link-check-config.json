@@ -1,0 +1,38 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^http://localhost"
+    },
+    {
+      "pattern": "^https://127.0.0.1"
+    },
+    {
+      "pattern": "^https://zmin.droo.foo"
+    },
+    {
+      "pattern": "^mailto:"
+    },
+    {
+      "pattern": "^#"
+    }
+  ],
+  "replacementPatterns": [
+    {
+      "pattern": "^/",
+      "replacement": "https://zmin.droo.foo/"
+    }
+  ],
+  "httpHeaders": [
+    {
+      "urls": ["https://github.com"],
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (compatible; LinkChecker/1.0)"
+      }
+    }
+  ],
+  "timeout": "5s",
+  "retryOn429": true,
+  "retryCount": 2,
+  "fallbackRetryDelay": "10s",
+  "aliveStatusCodes": [200, 206, 301, 302, 303, 307, 308]
+}

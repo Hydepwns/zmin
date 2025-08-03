@@ -16,7 +16,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 // Import all Phase 3 components
-const CudaMinifier = @import("../gpu/cuda_minifier.zig").CudaMinifier;
+const CudaMinifier = @import("../../experimental/gpu/cuda_minifier.zig").CudaMinifier;
 const AVX512AssemblyMinifier = @import("avx512_assembly_minifier.zig").AVX512AssemblyMinifier;
 const IntegratedMemorySystem = @import("integrated_memory_system.zig").IntegratedMemorySystem;
 const SpeculativeProcessor = @import("speculative_processor.zig").SpeculativeProcessor;
@@ -203,7 +203,7 @@ pub const Phase3UltimateMinifier = struct {
         };
 
         // Initialize GPU support if available and enabled
-        if (config.enable_gpu and @import("../gpu/cuda_minifier.zig").isCudaAvailable()) {
+        if (config.enable_gpu and @import("../../experimental/gpu/cuda_minifier.zig").isCudaAvailable()) {
             self.cuda_minifier = CudaMinifier.init(allocator, .{}) catch |err| {
                 std.log.warn("Failed to initialize CUDA: {}, continuing without GPU acceleration", .{err});
                 null

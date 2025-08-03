@@ -1,0 +1,93 @@
+name: Link Checker
+
+on:
+  schedule:
+    # Run weekly on Sundays at 4 AM UTC
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+    inputs:
+      check_external:
+        description: 'Check external links (slower)'
+        required: false
+        default: false
+        type: boolean
+  pull_request:
+    paths:
+      - 'website/**'
+      - 'docs/**'
+      - 'README.md'
+      - '.github/workflows/link-checker.yml'
+
+jobs:
+  link-check:
+    name: Check Documentation Links
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install link checker
+      run: |
+        npm install -g markdown-link-check
+
+    - name: Check README links
+      run: |
+        echo "Checking README.md links..."
+        markdown-link-check README.md --config .github/link-check-config.json
+
+    - name: Check documentation links
+      run: |
+        echo "Checking documentation links..."
+        find docs/ -name "*.md" -exec markdown-link-check {} --config .github/link-check-config.json \;
+
+    - name: Check website content links
+      run: |
+        echo "Checking website content links..."
+        find website/content/ -name "*.md" -exec markdown-link-check {} --config .github/link-check-config.json \;
+
+    - name: Check external links (if enabled)
+      if: github.event.inputs.check_external == 'true' || github.event_name == 'schedule'
+      run: |
+        echo "Checking external links (this may take longer)..."
+        # Create config that includes external links
+        cat > .github/link-check-external.json << 'EOF'
+        {
+          "ignorePatterns": [
+            {
+              "pattern": "^http://localhost"
+            },
+            {
+              "pattern": "^https://127.0.0.1"
+            }
+          ],
+          "httpHeaders": [
+            {
+              "urls": ["https://github.com"],
+              "headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+              }
+            }
+          ],
+          "timeout": "10s",
+          "retryOn429": true,
+          "retryCount": 3,
+          "fallbackRetryDelay": "30s"
+        }
+        EOF
+        
+        # Check external links with more permissive config
+        find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*" \
+          -exec markdown-link-check {} --config .github/link-check-external.json \;
+
+    - name: Summary
+      if: always()
+      run: |
+        echo "Link checking completed. Check the logs above for any broken links."
+        echo "If this is a PR, only internal links are checked by default."
+        echo "External links are checked on schedule or when manually triggered."
