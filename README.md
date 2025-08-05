@@ -7,358 +7,219 @@
 [![Coverage](https://img.shields.io/badge/coverage-84%25-green)](docs/development/PERFORMANCE_TUNING.md)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Zig](https://img.shields.io/badge/zig-0.14.0-orange)](https://ziglang.org)
-[![ZParser](https://img.shields.io/badge/zparser-standalone%20library-blue)](https://github.com/yourusername/zparser)
-[![Ecosystem](https://img.shields.io/badge/ecosystem-Python%20%7C%20Go%20%7C%20Node.js-green)](#language-bindings)
 
-**Enterprise-grade JSON processing suite** featuring high-performance minification, streaming transformations, and a complete library ecosystem. Built for production workloads requiring **5+ GB/s throughput** with zero dependencies.
+Enterprise-grade JSON processing suite with high-performance minification, streaming transformations, and multi-language bindings. Achieves 5+ GB/s throughput with zero dependencies and memory-safe operation.
 
-> 🚀 **NEW**: [ZParser](https://github.com/yourusername/zparser) - Standalone high-performance JSON parser library with language bindings for Python, Go, and Node.js
+## Core Components
 
-## 🌟 Core Features
+| Component | Throughput | Features | Status |
+|-----------|------------|----------|--------|
+| **zmin CLI** | 5.4 GB/s | Minification, streaming, transformations | Production |
+| **ZParser Library** | 200+ MB/s | SIMD parsing, C API, language bindings | Production |
+| **v2 Engine** | 5+ GB/s | Field filtering, schema validation, error recovery | Complete |
 
-### JSON Minifier (zmin)
-- **5+ GB/s** sustained throughput with SIMD optimization
-- **v2.0 transformation engine** with field filtering, schema validation, and error recovery
-- **Streaming transformations** for large files and real-time processing
-- **Zero dependencies** - pure Zig implementation
-- **Memory safe** - comprehensive testing, zero leaks verified
+## Platform Support
 
-### JSON Parser Library (ZParser)
-- **Standalone high-performance library** extracted from zmin's core engine
-- **SIMD-optimized parsing** achieving 200+ MB/s on large JSON
-- **Language bindings** for Python, Go, and Node.js
-- **C API** for integration with any language
-- **Production-ready** with comprehensive test suites
+| Architecture | SIMD Support | Operating Systems |
+|--------------|--------------|-------------------|
+| x86_64 | AVX-512, AVX2, SSE2 | Linux, macOS, Windows |
+| ARM64 | NEON | Linux, macOS (Apple Silicon) |
+| Runtime Detection | Automatic fallback | All supported platforms |
 
-### Cross-Platform Support
-- **Platforms**: Linux, macOS, Windows (x86_64, ARM64, Apple Silicon)
-- **SIMD Support**: AVX-512, AVX2, SSE2, NEON with runtime detection
-- **Battle-tested**: 116/116 tests passing, zero memory leaks, 84%+ coverage
+## Installation
 
-## 📦 Installation
-
-### ZMin JSON Minifier
-
+### From Source
 ```bash
-# From source
 git clone https://github.com/hydepwns/zmin
 cd zmin
 zig build -Doptimize=ReleaseFast
-
-# Package managers (coming soon)
-npm install -g @zmin/cli      # CLI tool
-pip install zmin              # Python bindings
-go get github.com/hydepwns/zmin/go  # Go bindings
 ```
 
-### ZParser JSON Library
-
+### Language Bindings
 ```bash
-# Clone the standalone library
-git clone https://github.com/yourusername/zparser
-cd zparser
+# Python
+pip install ./bindings/python
 
-# Build the core library
-zig build -Doptimize=ReleaseFast
+# Go  
+cd bindings/go && go mod tidy
 
-# Install language bindings
-pip install ./bindings/python    # Python
-cd bindings/go && go mod tidy     # Go
-cd bindings/nodejs && npm install # Node.js
+# Node.js
+cd bindings/nodejs && npm install
 ```
 
-## 🌍 Language Bindings
+## Language Bindings
 
-ZParser provides native bindings for multiple programming languages:
+### Performance Comparison
 
-### Python
+| Language | Library | Throughput | Speedup |
+|----------|---------|------------|---------|
+| Python | zparser | 192 MB/s | 8.2x vs json |
+| Go | zparser | 244 MB/s | 10.4x vs encoding/json |
+| Node.js | zparser | 200 MB/s | 8.6x vs JSON.parse |
+
+### Usage Examples
+
+**Python**
 ```python
 import zparser
-
 parser = zparser.Parser()
 result = parser.parse('{"name": "John", "age": 30}')
-if result.success:
-    print(f"Parsed {result.token_count} tokens")
-    obj = parser.to_python('{"name": "John", "age": 30}')
 ```
 
-### Go
+**Go**
 ```go
 import "github.com/yourusername/zparser"
-
 parser, err := zparser.NewParser()
-defer parser.Close()
-
 result, err := parser.Parse(`{"name": "John", "age": 30}`)
-if result.Success {
-    fmt.Printf("Parsed %d tokens\n", result.TokenCount)
-}
 ```
 
-### Node.js
+**Node.js**
 ```javascript
 const zparser = require('zparser');
-
 const parser = new zparser.Parser();
 const result = parser.parse('{"name": "John", "age": 30}');
-if (result.success) {
-    console.log(`Parsed ${result.tokenCount} tokens`);
-}
-parser.destroy();
 ```
 
-**Performance**: All bindings achieve **8-10x speedup** over standard libraries (json, encoding/json, JSON.parse)
-
-## 🚀 Usage
+## Usage
 
 ### Command Line Interface
-
 ```bash
-# Basic minification
+# Basic operations
 zmin input.json output.json
-
-# Stream processing
 cat large.json | zmin > minified.json
 
-# Advanced transformations (v2.0)
-zmin input.json --filter "users.*.email,users.*.name" --output clean.json
+# v2.0 transformations
+zmin input.json --filter "users.*.email,users.*.name"
 zmin data.json --validate-schema schema.json --strict-mode
-zmin logs.json --transform "timestamp,level,message" --streaming
-
-# Multiple files with parallel processing
 zmin *.json -o minified/ --parallel --turbo-mode
 ```
 
-### Simple API - Basic Minification
+### API Overview
 
-```zig
-const std = @import("std");
-const zmin = @import("zmin");
+| API Level | Use Case | Configuration |
+|-----------|----------|---------------|
+| Simple | Basic minification | Default settings |
+| Advanced | Fine-grained control | Custom config |
+| Streaming | Large files | Chunk-based processing |
+| v2.0 | Transformations | Field filtering, validation |
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    const input = "{ \"name\" : \"John\" , \"age\" : 30 }";
-    const output = try zmin.minify(gpa.allocator(), input);
-    defer gpa.allocator().free(output);
-
-    std.debug.print("{s}\n", .{output}); // {"name":"John","age":30}
-}
-```
-
-### v2.0 Transformation API
-
+### Basic Usage
 ```zig
 const zmin = @import("zmin");
-
-// Field filtering
-const config = zmin.v2.Config{
-    .field_filter = &.{ "users.*.email", "users.*.name", "metadata.version" },
-    .optimization_level = .turbo,
-    .enable_schema_validation = true,
-};
-
-var transformer = try zmin.v2.Transformer.init(allocator, config);
-defer transformer.deinit();
-
-const result = try transformer.transform(input_json);
-std.debug.print("Filtered JSON: {s}\n", .{result.output});
-std.debug.print("Throughput: {d:.2} GB/s\n", .{result.stats.throughput_gbps});
+const output = try zmin.minify(allocator, input);
 ```
 
-### Advanced API (Fine-grained control)
-
+### Advanced Configuration
 ```zig
 const config = zmin.Config{
     .optimization_level = .aggressive,
     .memory_strategy = .pooled,
     .chunk_size = 128 * 1024,
 };
-
 var minifier = try zmin.AdvancedMinifier.init(allocator, config);
-defer minifier.deinit();
-
 const result = try minifier.minifyWithStats(input);
-std.debug.print("Throughput: {d:.2} GB/s\n", .{result.stats.throughput_gbps});
 ```
 
-### Streaming API (Large files)
-
+### v2.0 Transformations
 ```zig
-var file = try std.fs.cwd().openFile("large.json", .{});
-defer file.close();
-
-var out = std.io.getStdOut().writer();
-var minifier = try zmin.StreamingMinifier.init(out, .{});
-
-var buffer: [8192]u8 = undefined;
-while (try file.read(&buffer)) |bytes_read| {
-    if (bytes_read == 0) break;
-    try minifier.feedChunk(buffer[0..bytes_read]);
-}
-try minifier.finish();
+const config = zmin.v2.Config{
+    .field_filter = &.{ "users.*.email", "users.*.name" },
+    .optimization_level = .turbo,
+    .enable_schema_validation = true,
+};
+var transformer = try zmin.v2.Transformer.init(allocator, config);
+const result = try transformer.transform(input_json);
 ```
 
-## Performance
+## Performance Benchmarks
 
-```bash
-# Run benchmarks
-zig build benchmark
-
-# Typical results
-small.json (1KB):      1.8 GB/s
-medium.json (100KB):   3.2 GB/s  
-large.json (10MB):     5.4 GB/s
-huge.json (100MB):     5.7 GB/s
-```
+| File Size | Throughput | Test Command |
+|-----------|------------|--------------|
+| 1KB | 1.8 GB/s | `zig build benchmark` |
+| 100KB | 3.2 GB/s | Platform: Apple M1 Pro |
+| 10MB | 5.4 GB/s | Optimization: ReleaseFast |
+| 100MB | 5.7 GB/s | SIMD: Auto-detected |
 
 ## Building
 
-```bash
-# Development build
-zig build
-
-# Optimized release
-zig build -Doptimize=ReleaseFast
-
-# Run tests
-zig build test
-```
+| Command | Purpose |
+|---------|---------|
+| `zig build` | Development build |
+| `zig build -Doptimize=ReleaseFast` | Optimized release |
+| `zig build test` | Run test suite |
+| `zig build test:fast` | Quick tests only |
 
 ## Documentation
 
-- [API Reference](docs/api/API_REFERENCE.md)
-- [Performance Guide](docs/development/PERFORMANCE_TUNING.md)
-- [Architecture](docs/architecture/)
-- [Examples](examples/)
+| Resource | Description |
+|----------|-------------|
+| [API Reference](docs/api/API_REFERENCE.md) | Complete API documentation |
+| [Performance Guide](docs/development/PERFORMANCE_TUNING.md) | Optimization techniques |
+| [Architecture](docs/architecture/) | System design documents |
+| [Examples](examples/) | Usage examples and demos |
 
 ## Testing
 
-```bash
-zig build test        # All tests (116/116 passing)
-zig build test:fast   # Fast test suite
+| Test Suite | Coverage | Status |
+|------------|----------|--------|
+| Full test suite | 84%+ | 116/116 passing |
+| Fast test suite | Core functionality | Development use |
+| Benchmark suite | Performance validation | Platform-specific |
+
+## Project Architecture
+
+### Core Repository Structure
+```
+src/
+├── core/         # Minification engine
+├── api/          # Simple, Advanced, Streaming APIs  
+├── v2/           # Transformation engine (field filtering, validation)
+├── minifier/     # SIMD-optimized implementations
+├── parallel/     # Work-stealing, chunk processing
+├── platform/     # Hardware detection, SIMD operations
+└── common/       # Shared utilities, constants
+
+build/            # Modular build system
+docs/             # API reference, architecture guides
+examples/         # Usage demonstrations
+tests/            # Comprehensive test suite
+tools/            # Development utilities
 ```
 
-## 🏗️ Project Ecosystem
+### Technical Achievements
 
-### Main Repository (zmin)
-```
-zmin/
-├── src/                    # Core JSON processing engine
-│   ├── core/              # Core minification engine
-│   ├── api/               # Public APIs (Simple, Advanced, Streaming)
-│   ├── v2/                # ✅ v2.0 transformation engine (COMPLETE)
-│   ├── minifier/          # High-performance minification
-│   ├── common/            # 🆕 Shared utilities and constants
-│   └── platform/          # Platform-specific SIMD optimizations
-├── examples/              # Usage examples and demos
-├── tests/                 # Comprehensive test suite (116/116 passing)
-├── docs/                  # Complete documentation
-│   ├── api/               # API reference documentation
-│   ├── architecture/      # System architecture guides
-│   └── development/       # Development and performance guides
-├── tools/                 # Development and benchmarking tools
-├── deployments/           # Production deployment configurations
-└── build/                 # Build system and packaging
-```
+| Feature | Implementation | Status |
+|---------|----------------|--------|
+| v2.0 Transformation Engine | Field filtering, schema validation, error recovery | Complete |
+| SIMD Optimization | AVX-512, AVX2, SSE2, NEON with runtime detection | Production |
+| Language Bindings | Python, Go, Node.js with 8-10x speedup | Production |
+| Memory Safety | Zero leaks, comprehensive testing | Verified |
+| Modular Architecture | Standalone libraries, clean interfaces | Complete |
 
-### Extracted Libraries
+## Contributing
 
-#### 🆕 [ZParser](https://github.com/yourusername/zparser) - Standalone JSON Parser
-```
-zparser/
-├── src/                   # High-performance parser core
-│   ├── core/             # SIMD-optimized parsing engine
-│   ├── api/              # C API for language bindings
-│   └── performance/      # SIMD implementations (AVX-512, AVX2, SSE2)
-├── bindings/             # ✅ Language bindings (COMPLETE)
-│   ├── python/           # Python bindings with ctypes
-│   ├── go/               # Go bindings with cgo
-│   ├── nodejs/           # Node.js bindings with N-API
-│   └── c/                # C API header and examples
-├── tests/                # Comprehensive test coverage (95%+)
-└── benchmarks/           # Performance benchmarking suite
-```
-
-### 🎯 Planned Extensions (ZTool Suite)
-- **zpack**: MessagePack processor with JSON interop 🔄 *Next*
-- **zschema**: JSON Schema validator using zparser
-- **zquery**: JSONPath/JQ-like query tool
-- **ztool**: Unified CLI with subcommands
-
-### Key Technical Achievements
-
-- **🎯 v2.0 Transformation Engine**: Field filtering, schema validation, error recovery
-- **⚡ SIMD Optimization**: 200+ MB/s parsing, 5+ GB/s minification
-- **🌍 Language Ecosystem**: Python, Go, Node.js bindings with 8-10x speedup
-- **🏗️ Modular Architecture**: Extracted zparser as standalone library
-- **📊 Production Quality**: Zero memory leaks, 84%+ test coverage, comprehensive CI/CD
-
-## 🎉 Recent Major Achievements
-
-### ✅ Completed (2025-08-02)
-
-- **🚀 v2.0 Transformation Engine**: Complete streaming transformation pipeline with field filtering, schema validation, and error recovery
-- **📚 ZParser Library Extraction**: Standalone high-performance JSON parser library
-- **🌍 Language Bindings Ecosystem**: Python, Go, and Node.js bindings achieving 8-10x speedup
-- **🏗️ Code Quality Improvements**: 15-20% code reduction through common module extraction
-- **🧪 Production Readiness**: 116/116 tests passing, zero memory leaks, 84%+ coverage
-
-### 🔄 Current Focus: Ecosystem Expansion
-
-- **zpack MessagePack Tool** - Next priority for format conversion suite
-- **Language binding distribution** - Publishing to PyPI, npm, Go modules
-- **Community development** - Documentation, examples, migration guides
-
-## 📈 Performance Benchmarks
-
-| Component | Throughput | Improvement | Platform |
-|-----------|------------|-------------|----------|
-| **zmin minifier** | 5.4 GB/s | Baseline | Apple M1 Pro |
-| **zparser (Python)** | 192 MB/s | 8.2x vs json | Apple M1 Pro |
-| **zparser (Go)** | 244 MB/s | 10.4x vs encoding/json | Apple M1 Pro |
-| **zparser (Node.js)** | 200 MB/s | 8.6x vs JSON.parse | Apple M1 Pro |
-
-*Run `zig build benchmark` for platform-specific results*
-
-## 🤝 Contributing
-
-We welcome contributions to both zmin and the broader ecosystem! 
-
-### 🎯 High-Impact Areas
-- **zpack development** - MessagePack processor implementation
-- **Language bindings** - New languages or binding improvements  
-- **Performance optimization** - SIMD enhancements, memory management
-- **Documentation** - Examples, guides, API improvements
+### High-Impact Areas
+- Performance optimization (SIMD, memory management)
+- Language bindings (new languages, improvements)
+- Documentation (examples, guides, API reference)
+- Testing (edge cases, performance validation)
 
 ### Development Setup
-
 ```bash
-# Main zmin repository
 git clone https://github.com/hydepwns/zmin
 cd zmin
 zig build -Doptimize=ReleaseFast
 zig build test
-
-# ZParser library (for parser development)
-git clone https://github.com/yourusername/zparser
-cd zparser
-zig build -Doptimize=ReleaseFast
-# Test language bindings
-cd bindings/python && python test_zparser.py
-cd ../go && go test -v
-cd ../nodejs && npm test
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+## Support
 
-## 📞 Community & Support
-
-- **Documentation**: [Complete API Reference](docs/api/API_REFERENCE.md)
-- **Examples**: [Usage Examples](examples/) for all components
-- **Performance**: [Benchmarking Guide](docs/development/PERFORMANCE_TUNING.md)
-- **Architecture**: [System Design](docs/architecture/) documentation
+| Resource | Location |
+|----------|----------|
+| API Documentation | [docs/api/](docs/api/) |
+| Usage Examples | [examples/](examples/) |
+| Performance Guide | [docs/development/PERFORMANCE_TUNING.md](docs/development/PERFORMANCE_TUNING.md) |
+| Architecture Guide | [docs/architecture/](docs/architecture/) |
 
 ## License
 
@@ -366,4 +227,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**🚀 Built for enterprise-scale JSON processing with production-grade performance and reliability**
+Built for enterprise-scale JSON processing with production-grade performance and reliability.
